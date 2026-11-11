@@ -26,10 +26,12 @@ class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         val repo = PetRepository(this)
+        val gallery = ArtworkLibrary(this)
         val glyph = createGlyphBridge(this)
         setContent {
             var pet by remember { mutableStateOf(repo.loadPet()) }
             var roster by remember { mutableStateOf(repo.loadPets()) }
+            var artworks by remember { mutableStateOf(gallery.list()) }
             var animation by remember { mutableStateOf(repo.loadAnimation(pet.id)) }
             var chat by remember { mutableStateOf(repo.loadChat(pet.id)) }
             var tab by remember { mutableIntStateOf(0) }
@@ -70,7 +72,7 @@ class MainActivity : ComponentActivity() {
                 Scaffold(
                     topBar = {
                         Surface(tonalElevation = 2.dp) {
-                            Text("GLYPH LIFE  /  v0.5",
+                            Text("GLYPH LIFE  /  v0.6",
                                 modifier = Modifier.padding(20.dp),
                                 style = MaterialTheme.typography.titleMedium)
                         }
@@ -85,6 +87,9 @@ class MainActivity : ComponentActivity() {
                                 icon = { Text("▦") }, label = { Text("Creator") })
                             NavigationBarItem(
                                 selected = tab == 2, onClick = { tab = 2 },
+                                icon = { Text("▣") }, label = { Text("作品") })
+                            NavigationBarItem(
+                                selected = tab == 3, onClick = { tab = 3 },
                                 icon = { Text("⇄") }, label = { Text("連携") })
                         }
                     }
@@ -205,6 +210,36 @@ class MainActivity : ComponentActivity() {
                                         }
                                     }
                                 }
+                            }
+                        )
+                        2 -> GalleryScreen(
+                            items = artworks,
+                            modifier = Modifier.padding(padding),
+                            onSave = { name ->
+                                runCatching {
+                                    gallery.save(name, animation)
+                                    artworks = gallery.list()
+                                    notify("作品を保存しました")
+                                }.onFailure { notify("作品の保存失敗：${it.message}") }
+                            },
+                            onOpen = { id ->
+                                runCatching {
+                                    updateAnimation(gallery.load(id))
+                                    tab = 1
+                                    notify("保存済み作品をCreatorに開きました")
+                                }.onFailure { notify("読み込み失敗：${it.message}") }
+                            },
+                            onDelete = { id ->
+                                runCatching {
+                                    gallery.delete(id)
+                                    artworks = gallery.list()
+                                }.onFailure { notify("削除失敗：${it.message}") }
+                            },
+                            onExportSheet = {
+                                runCatching {
+                                    GlyphImage.saveSpriteSheet(this@MainActivity, animation)
+                                    notify("写真フォルダにスプライトシートを保存しました")
+                                }.onFailure { notify("出力失敗：${it.message}") }
                             }
                         )
                         else -> LinkScreen(
