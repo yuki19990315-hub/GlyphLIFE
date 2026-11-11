@@ -19,6 +19,7 @@ fun PetScreen(
     modifier: Modifier = Modifier,
     onPetChange: (PetState) -> Unit,
     onHatch: () -> Unit,
+    onGeneratePetArt: () -> Unit,
     onChat: (String) -> Unit,
     aiKey: String,
     aiBusy: Boolean,
@@ -26,6 +27,7 @@ fun PetScreen(
 ) {
     var draft by remember { mutableStateOf("") }
     var confirmHatch by remember { mutableStateOf(false) }
+    var confirmGenerateArt by remember { mutableStateOf(false) }
     var previewIndex by remember { mutableIntStateOf(0) }
     LaunchedEffect(animation.frames) {
         var i = 0
@@ -44,6 +46,7 @@ fun PetScreen(
         PixelGrid(animation.frames[previewIndex.coerceIn(animation.frames.indices)].pixels,
             modifier = Modifier.fillMaxWidth().padding(horizontal = 24.dp))
         Text("性格：${pet.personality}")
+        Text("成長段階：${PetSpriteGenerator.stageName(pet.level)}（Lv5 / Lv12で外見を進化可能）")
         Text("仲良し度：${pet.happiness}/100")
         LinearProgressIndicator(progress = { pet.happiness / 100f }, modifier = Modifier.fillMaxWidth())
         Text("元気：${pet.energy}/100")
@@ -54,7 +57,10 @@ fun PetScreen(
             Button(onClick = { onPetChange(pet.feed()) }) { Text("ごはん") }
             OutlinedButton(onClick = { onPetChange(pet.rest()) }) { Text("休む") }
         }
-        OutlinedButton(onClick = { confirmHatch = true }) { Text("新しい卵をかえす") }
+        Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+            OutlinedButton(onClick = { confirmHatch = true }) { Text("新しい卵をかえす") }
+            OutlinedButton(onClick = { confirmGenerateArt = true }) { Text("専用ドット絵を作る") }
+        }
         HorizontalDivider()
         Text("ペットとおしゃべり", style = MaterialTheme.typography.titleMedium)
         Text("キー未入力ならローカルの簡易返答、入力するとGeminiへ会話内容を送信します。" +
@@ -78,6 +84,17 @@ fun PetScreen(
             draft = ""
         }) { Text(if (aiBusy) "AI応答待ち…" else "話しかける") }
     }
+    if (confirmGenerateArt) AlertDialog(
+        onDismissRequest = { confirmGenerateArt = false },
+        title = { Text("このペットの専用アニメを作る？") },
+        text = { Text("種類、成長段階、元気に応じた3コマを自動生成します。現在編集中のドット絵は上書きされるので、必要なら先にJSONで保存してください。") },
+        confirmButton = { TextButton(onClick = {
+            onGeneratePetArt()
+            confirmGenerateArt = false
+        }) { Text("専用アニメを作る") } },
+        dismissButton = { TextButton(onClick = { confirmGenerateArt = false }) { Text("やめる") } }
+    )
+
     if (confirmHatch) AlertDialog(
         onDismissRequest = { confirmHatch = false },
         title = { Text("新しい卵をかえす？") },

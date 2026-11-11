@@ -68,7 +68,7 @@ class MainActivity : ComponentActivity() {
                 Scaffold(
                     topBar = {
                         Surface(tonalElevation = 2.dp) {
-                            Text("GLYPH LIFE  /  v0.3",
+                            Text("GLYPH LIFE  /  v0.4",
                                 modifier = Modifier.padding(20.dp),
                                 style = MaterialTheme.typography.titleMedium)
                         }
@@ -97,6 +97,11 @@ class MainActivity : ComponentActivity() {
                                 repo.savePet(pet)
                                 chat = emptyList()
                                 repo.saveChat(chat)
+                            },
+                            onGeneratePetArt = {
+                                updateAnimation(PetSpriteGenerator.create(pet))
+                                tab = 1
+                                notify("ペットの専用アニメを作成しました")
                             },
                             onChat = { message ->
                                 val context = chat.takeLast(8).joinToString("\n") {
