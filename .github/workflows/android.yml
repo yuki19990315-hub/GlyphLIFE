@@ -28,6 +28,14 @@ jobs:
           "$SDKMANAGER" --install 'platforms;android-35' 'build-tools;35.0.0'
       - name: Check protocol sample
         run: python3 scripts/check_protocol.py
+      - name: Validate PowerShell helper syntax when pwsh is available
+        shell: bash
+        run: |
+          if command -v pwsh >/dev/null 2>&1; then
+            pwsh -NoProfile -Command '$t = $null; $e = $null; [System.Management.Automation.Language.Parser]::ParseFile("scripts/build_glyph_windows.ps1", [ref]$t, [ref]$e) | Out-Null; if ($e.Count -gt 0) { $e | ForEach-Object { Write-Error $_ }; exit 1 }'
+          else
+            echo "pwsh unavailable; optional PowerShell syntax test skipped"
+          fi
       - name: Build debug APK (stub Glyph)
         run: gradle --no-daemon :app:testDebugUnitTest :app:assembleDebug :monsterquest:testDebugUnitTest :monsterquest:assembleDebug
       - uses: actions/upload-artifact@v4
@@ -73,8 +81,10 @@ jobs:
             --output app/libs/glyph-matrix-sdk-2.0.aar
           test -s app/libs/glyph-matrix-sdk-2.0.aar
           echo "Official SDK downloaded for local compilation; it will not be uploaded."
-      - name: Compile SDK-specific Kotlin code (no APK distribution)
-        run: gradle --no-daemon :app:compileDebugKotlin
-      - name: Remove temporary vendor binary
+      - name: Compile and package SDK-specific APK (not distributed)
+        run: gradle --no-daemon :app:assembleDebug
+      - name: Remove temporary vendor binary and APK
         if: always()
-        run: rm -f app/libs/glyph-matrix-sdk-2.0.aar
+        run: |
+          rm -f app/libs/glyph-matrix-sdk-2.0.aar
+          rm -rf app/build/outputs/apk/debug
