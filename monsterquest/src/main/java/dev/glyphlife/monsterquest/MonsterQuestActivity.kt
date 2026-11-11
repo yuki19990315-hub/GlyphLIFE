@@ -23,6 +23,8 @@ import dev.glyphlife.monsterquest.data.QuestStorage
 import dev.glyphlife.monsterquest.model.*
 import dev.glyphlife.monsterquest.ai.MonsterAi
 import dev.glyphlife.monsterquest.ai.MonsterIdea
+import dev.glyphlife.monsterquest.ui.MonsterArt
+import dev.glyphlife.monsterquest.ui.MonsterPortrait
 import kotlinx.coroutines.launch
 
 class MonsterQuestActivity : ComponentActivity() {
@@ -209,6 +211,14 @@ private fun QuestScreen(
             "（${state.companion.species}・${state.companion.element}）")
         Text(if (state.companion.importedFromGlyphLife) "Glyph Life連携中"
              else "体験用の相棒です。Glyph Lifeの「連携」タブから送ると変更できます。")
+        val companionArt = state.companion.glyph.takeIf {
+            it.length == 169 && it.any { char -> char == '1' }
+        } ?: MonsterArt.generate(state.companion.species, state.companion.element)
+        MonsterPortrait(
+            pixels = companionArt,
+            element = state.companion.element,
+            modifier = Modifier.size(126.dp)
+        )
         LinearProgressIndicator(
             progress = { state.playerHp / 100f }, modifier = Modifier.fillMaxWidth())
         Text("HP ${state.playerHp}/100　回復薬${state.potions}個　撃破${state.defeated}　捕獲${state.captures.size}匹")
@@ -267,15 +277,11 @@ private fun QuestScreen(
                 if (enemy.description.isNotBlank()) {
                     Text(enemy.description, style = MaterialTheme.typography.bodyMedium)
                 }
-                if (enemy.pixels.length == 169) {
-                    Text(
-                        enemy.pixels.chunked(13).joinToString("\n") {
-                            it.replace('0', '·').replace('1', '■')
-                        },
-                        style = MaterialTheme.typography.bodySmall,
-                        fontFamily = androidx.compose.ui.text.font.FontFamily.Monospace
-                    )
-                }
+                MonsterPortrait(
+                    pixels = MonsterArt.forWild(enemy),
+                    element = enemy.element,
+                    modifier = Modifier.size(if (enemy.isBoss) 220.dp else 180.dp)
+                )
                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                     Button(onClick = { onAttack(false) }) { Text("攻撃") }
                     Button(onClick = { onAttack(true) }) { Text("属性魔法") }
