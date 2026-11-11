@@ -60,10 +60,11 @@ object QuestRules {
             "ギア" to "雷", "ルーン" to "闇"
         )
         val bossRoom = state.room == ROOM_COUNT
-        val picked = if (bossRoom) {
-            listOf("月蝕の竜" to "闇", "古代の歯車王" to "雷", "星光の守護者" to "光")
-                [random.nextInt(3)]
-        } else kinds[random.nextInt(kinds.size)]
+        val bosses = listOf(
+            "月蝕の竜" to "闇", "古代の歯車王" to "雷", "星光の守護者" to "光"
+        )
+        val picked = if (bossRoom) bosses[random.nextInt(bosses.size)]
+                     else kinds[random.nextInt(kinds.size)]
         val wild = WildMonster(
             id = UUID.randomUUID().toString(),
             species = picked.first, element = picked.second,
