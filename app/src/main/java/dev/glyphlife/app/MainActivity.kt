@@ -68,7 +68,7 @@ class MainActivity : ComponentActivity() {
                     if (pet.id == updated.id) pet = updated
                     questStatus = "${updated.name}の冒険結果を反映しました"
                 }.onFailure { e -> questStatus = "受信失敗：${e.message}" }
-                tab = 3
+                tab = 4
             }
             val questPicker = rememberLauncherForActivityResult(ActivityResultContracts.GetContent()) { uri ->
                 if (uri != null) runCatching {
@@ -116,7 +116,7 @@ class MainActivity : ComponentActivity() {
                 Scaffold(
                     topBar = {
                         Surface(tonalElevation = 2.dp) {
-                            Text("GLYPH LIFE  /  v0.7",
+                            Text("GLYPH LIFE  /  v0.9",
                                 modifier = Modifier.padding(20.dp),
                                 style = MaterialTheme.typography.titleMedium)
                         }
@@ -131,9 +131,12 @@ class MainActivity : ComponentActivity() {
                                 icon = { Text("▦") }, label = { Text("Creator") })
                             NavigationBarItem(
                                 selected = tab == 2, onClick = { tab = 2 },
-                                icon = { Text("▣") }, label = { Text("作品") })
+                                icon = { Text("≈") }, label = { Text("Fluid") })
                             NavigationBarItem(
                                 selected = tab == 3, onClick = { tab = 3 },
+                                icon = { Text("▣") }, label = { Text("作品") })
+                            NavigationBarItem(
+                                selected = tab == 4, onClick = { tab = 4 },
                                 icon = { Text("⇄") }, label = { Text("連携") })
                         }
                     }
@@ -262,7 +265,22 @@ class MainActivity : ComponentActivity() {
                                 }
                             }
                         )
-                        2 -> GalleryScreen(
+                        2 -> FluidScreen(
+                            modifier = Modifier.padding(padding),
+                            glyphSupported = glyph.isSupported,
+                            glyphStatus = glyphStatus,
+                            onConnect = { glyph.connect { glyphStatus = it } },
+                            onFrame = { frame ->
+                                runCatching { glyph.showFrame(frame) }
+                                    .onFailure { notify("Glyph出力失敗：${it.message}") }
+                            },
+                            onCopyToCreator = { frame ->
+                                updateAnimation(animation.replace(frame))
+                                tab = 1
+                                notify("水の形をCreatorの選択フレームへ反映しました")
+                            }
+                        )
+                        3 -> GalleryScreen(
                             items = artworks,
                             modifier = Modifier.padding(padding),
                             onSave = { name ->

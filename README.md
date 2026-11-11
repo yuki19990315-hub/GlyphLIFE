@@ -47,3 +47,7 @@ Monster Quest details: [docs/MONSTER_QUEST_MVP_JA.md](docs/MONSTER_QUEST_MVP_JA.
 ### Optional Monster Quest Gemini generation
 
 In Monster Quest, provide your own Gemini API key to generate a custom monster from text or a photo. The key is held in memory only, never committed or persisted. If a photo is selected, the app downsamples it locally and explicitly sends a JPEG to Google's Gemini API. The AI only designs monster identity, description and a monochrome 13×13 portrait; game stats are derived from fixed rules to avoid out-of-range AI-generated values. No model is available offline, and Google's pricing/free-tier/privacy conditions apply. Actual network requests are **not tested** without a key. See [Monster Quest spec](docs/MONSTER_QUEST_MVP_JA.md).
+
+## Glyph Fluid Lab (v0.9)
+
+A dedicated foreground-only 13×13 cellular-fluid screen uses the actual 137-LED circular mask. It can simulate gravity in four directions, add droplets, change playback speed and copy a frame to Glyph Creator. The screen runs completely offline and can optionally stream frames to the Glyph Matrix on a vendor-SDK-enabled local build. The SDK-free GitHub Actions APK only displays it on the phone screen. See [Fluid Lab implementation notes](docs/GLYPH_FLUID_JA.md).
