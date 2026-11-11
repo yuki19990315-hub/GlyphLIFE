@@ -11,7 +11,9 @@ android {
     compileSdk = 35
     defaultConfig {
         applicationId = "dev.glyphlife.app"
-        minSdk = 29
+        // The proprietary Nothing Glyph Matrix AAR declares minSdk 33.
+        // Keep the SDK-free build compatible with older Android versions.
+        minSdk = if (nothingSdk.exists()) 33 else 29
         targetSdk = 35
         versionCode = 10
         versionName = "0.10.0"
