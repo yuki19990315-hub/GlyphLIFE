@@ -15,11 +15,13 @@ import kotlinx.coroutines.delay
 @Composable
 fun PetScreen(
     pet: PetState,
+    roster: List<PetState>,
     animation: GlyphAnimation,
     chat: List<ChatEntry>,
     modifier: Modifier = Modifier,
     onPetChange: (PetState) -> Unit,
     onHatch: () -> Unit,
+    onSelectPet: (String) -> Unit,
     onGeneratePetArt: () -> Unit,
     onChat: (String) -> Unit,
     aiKey: String,
@@ -43,6 +45,19 @@ fun PetScreen(
         verticalArrangement = Arrangement.spacedBy(12.dp)
     ) {
         Text("Glyph Pet", style = MaterialTheme.typography.headlineSmall)
+        Text("仲間：${roster.size}/20", style = MaterialTheme.typography.titleMedium)
+        Row(
+            modifier = Modifier.horizontalScroll(rememberScrollState()),
+            horizontalArrangement = Arrangement.spacedBy(8.dp)
+        ) {
+            roster.forEach { entry ->
+                FilterChip(
+                    selected = entry.id == pet.id,
+                    onClick = { onSelectPet(entry.id) },
+                    label = { Text("${entry.name} Lv${entry.level}") }
+                )
+            }
+        }
         Text("${pet.name}  ·  Lv.${pet.level}  ·  ${pet.species} / ${pet.element}")
         PixelGrid(animation.frames[previewIndex.coerceIn(animation.frames.indices)].pixels,
             modifier = Modifier.fillMaxWidth().padding(horizontal = 24.dp))
@@ -59,7 +74,8 @@ fun PetScreen(
             OutlinedButton(onClick = { onPetChange(pet.rest()) }) { Text("休む") }
         }
         Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-            OutlinedButton(onClick = { confirmHatch = true }) { Text("新しい卵をかえす") }
+            OutlinedButton(enabled = roster.size < 20,
+                onClick = { confirmHatch = true }) { Text("新しい卵をかえす") }
             OutlinedButton(onClick = { confirmGenerateArt = true }) { Text("専用ドット絵を作る") }
         }
         HorizontalDivider()
@@ -99,11 +115,11 @@ fun PetScreen(
     if (confirmHatch) AlertDialog(
         onDismissRequest = { confirmHatch = false },
         title = { Text("新しい卵をかえす？") },
-        text = { Text("現在のペットの育成データとおしゃべり履歴は置き換わります。ドット絵は残ります。") },
+        text = { Text("新しいペットを仲間に追加し、その子に切り替えます。既存のペット、会話履歴、ドット絵は残ります。最大20匹まで保存できます。") },
         confirmButton = { TextButton(onClick = {
             onHatch()
             confirmHatch = false
-        }) { Text("新しいペットにする") } },
+        }) { Text("仲間に追加") } },
         dismissButton = { TextButton(onClick = { confirmHatch = false }) { Text("やめる") } }
     )
 }
