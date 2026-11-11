@@ -1,4 +1,4 @@
-# GlyphLIFE v0.12 / Monster Quest v0.4
+# GlyphLIFE v0.13 / Monster Quest v0.4
 
 Two **independently installable Android apps** in one repository:
 
@@ -95,3 +95,7 @@ No general license has been granted to the original project code. Nothing's prop
 - [Detailed implementation notes](docs/CREATIVE_FEATURES_JA.md)
 
 All new features require physical-device verification beyond the Android build and unit tests. The standard CI APK still does **not** control Glyph hardware.
+
+## Glyph Snake mini-game (v0.13)
+
+The **Playground** tab now offers **Fluid** or **Snake**. Snake is an entirely offline 137-pixel mini-game with food, wall/self-collision, high-score saving and adjustable speed. With the licensed Nothing SDK installed for local testing, its frames can stream to the rear Glyph Matrix while the app is foregrounded. The last 64 frames of play can be sent to Creator or saved in the artwork gallery as an editable replay. Details: [Glyph Snake spec](docs/GLYPH_SNAKE_JA.md).

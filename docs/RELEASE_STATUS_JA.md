@@ -53,3 +53,8 @@
 - Monster Questに捕獲図鑑と2匹合成、合成素材消費確認、戦闘ごと1回の援護を追加。
 - Glyph Clock、Effects、Fusion、Supportの各モデル単体テストを追加。
 - 端末実機でのNFC/Glyph/AOD/時計/2アプリ操作は未検証。SDK付きAPKはGitHub Actionsで配布しない。
+
+## GlyphLIFE v0.13追加
+- 「遊び」内にGlyph Snakeを追加。円形137LEDマスク、方向制御、エサ、体の成長、衝突、最高記録、速度調整、任意の前景Glyph転送。
+- 直近64コマのプレイ記録をCreatorに転送またはギャラリー保存できる。
+- 自動テストはGitHub Actionsの実行結果を参照。実機でのGlyph/タッチ動作は未検証。

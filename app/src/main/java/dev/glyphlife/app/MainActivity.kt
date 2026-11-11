@@ -221,7 +221,7 @@ class MainActivity : ComponentActivity() {
                 Scaffold(
                     topBar = {
                         Surface(tonalElevation = 2.dp) {
-                            Text("GLYPH LIFE  /  v0.12",
+                            Text("GLYPH LIFE  /  v0.13",
                                 modifier = Modifier.padding(20.dp),
                                 style = MaterialTheme.typography.titleMedium)
                         }
@@ -379,7 +379,7 @@ class MainActivity : ComponentActivity() {
                                 }
                             }
                         )
-                        2 -> FluidScreen(
+                        2 -> GlyphPlaygroundScreen(
                             modifier = Modifier.padding(padding),
                             glyphSupported = glyph.isSupported,
                             glyphStatus = glyphStatus,
@@ -388,11 +388,23 @@ class MainActivity : ComponentActivity() {
                                 runCatching { glyph.showFrame(frame) }
                                     .onFailure { notify("Glyph出力失敗：${it.message}") }
                             },
-                            onPreviewFrame = { fluidPreview = it },
-                            onCopyToCreator = { frame ->
+                            onPreviewFluidFrame = { fluidPreview = it },
+                            onCopyFluidToCreator = { frame ->
                                 updateAnimation(animation.replace(frame))
                                 tab = 1
                                 notify("水の形をCreatorの選択フレームへ反映しました")
+                            },
+                            onEditSnakeReplay = { replay ->
+                                updateAnimation(replay)
+                                tab = 1
+                                notify("SnakeのリプレイをCreatorに読み込みました")
+                            },
+                            onSaveSnakeReplay = { name, replay ->
+                                runCatching {
+                                    gallery.save(name, replay)
+                                    artworks = gallery.list()
+                                    notify("Snakeのリプレイを作品保存しました")
+                                }.onFailure { notify("作品保存失敗：${it.message}") }
                             }
                         )
                         3 -> GalleryScreen(
