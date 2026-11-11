@@ -28,6 +28,8 @@ import dev.glyphlife.app.nfc.RingNfcStore
 import dev.glyphlife.app.nfc.RingTagFingerprint
 import dev.glyphlife.app.ui.*
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.delay
+import java.time.LocalDateTime
 
 class MainActivity : ComponentActivity() {
     private var incomingQuestPayload by mutableStateOf<String?>(null)
@@ -117,6 +119,7 @@ class MainActivity : ComponentActivity() {
         ringStatus = if (ringStore.isEnrolled()) "登録済み" else "まだリングを登録していません"
         val repo = PetRepository(this)
         val gallery = ArtworkLibrary(this)
+        val toyPrefs = GlyphToyPreferences(this)
         val glyph = createGlyphBridge(this)
         setContent {
             var pet by remember { mutableStateOf(repo.loadPet()) }
@@ -125,6 +128,16 @@ class MainActivity : ComponentActivity() {
             var animation by remember { mutableStateOf(repo.loadAnimation(pet.id)) }
             var chat by remember { mutableStateOf(repo.loadChat(pet.id)) }
             var tab by remember { mutableIntStateOf(0) }
+            var toyMode by remember { mutableStateOf(toyPrefs.mode) }
+            var clockNow by remember { mutableStateOf(LocalDateTime.now()) }
+            LaunchedEffect(tab) {
+                if (tab == 4) {
+                    while (true) {
+                        clockNow = LocalDateTime.now()
+                        delay(20_000)
+                    }
+                }
+            }
             var fluidPreview by remember { mutableStateOf(GlyphFluid.initial()) }
             var glyphStatus by remember { mutableStateOf("未接続") }
             var questStatus by remember { mutableStateOf("取り込み待ち") }
@@ -208,7 +221,7 @@ class MainActivity : ComponentActivity() {
                 Scaffold(
                     topBar = {
                         Surface(tonalElevation = 2.dp) {
-                            Text("GLYPH LIFE  /  v0.11",
+                            Text("GLYPH LIFE  /  v0.12",
                                 modifier = Modifier.padding(20.dp),
                                 style = MaterialTheme.typography.titleMedium)
                         }
@@ -417,6 +430,28 @@ class MainActivity : ComponentActivity() {
                             status = questStatus,
                             onShare = { sendToMonsterQuest(repo.exportPet(pet, animation)) },
                             onImportResult = { questPicker.launch("*/*") },
+                            toyMode = toyMode,
+                            clockPixels = GlyphClock.draw(
+                                clockNow.hour, clockNow.minute,
+                                PhoneBattery.percentage(this@MainActivity)
+                            ),
+                            glyphSupported = glyph.isSupported,
+                            onClockModeChange = { selected ->
+                                toyMode = selected
+                                toyPrefs.mode = selected
+                                notify("Glyph Toy表示を${selected.label}に変更しました")
+                            },
+                            onClockPreview = {
+                                val now = LocalDateTime.now()
+                                val pixels = GlyphClock.draw(
+                                    now.hour, now.minute,
+                                    PhoneBattery.percentage(this@MainActivity)
+                                )
+                                runCatching {
+                                    glyph.connect { glyphStatus = it }
+                                    glyph.showFrame(pixels)
+                                }.onFailure { notify("時計のGlyph表示に失敗：${it.message}") }
+                            },
                             nfcAvailable = adapter != null,
                             nfcEnabled = ringEnabled,
                             nfcRegistered = ringStore.isEnrolled(),
@@ -457,6 +492,11 @@ private fun LinkScreen(
     status: String,
     onShare: () -> Unit,
     onImportResult: () -> Unit,
+    toyMode: GlyphToyMode,
+    clockPixels: List<Boolean>,
+    glyphSupported: Boolean,
+    onClockModeChange: (GlyphToyMode) -> Unit,
+    onClockPreview: () -> Unit,
     nfcAvailable: Boolean,
     nfcEnabled: Boolean,
     nfcRegistered: Boolean,
@@ -479,6 +519,30 @@ private fun LinkScreen(
         Text("状態：$status")
         Text("注意：現在のJSONには電子署名はなく、競争モードやオンライン対戦用の改ざん耐性はありません。",
             style = MaterialTheme.typography.bodySmall)
+        HorizontalDivider()
+        Text("Glyph時計・バッテリー", style = MaterialTheme.typography.titleMedium)
+        Text("時刻を上下2段、電池残量を最下段の5点で表示。AIやネット接続は不要です。" +
+            "AOD Glyph Toyは約1分ごとの更新で、画面のプレビューとは動き方が異なります。",
+            style = MaterialTheme.typography.bodySmall)
+        PixelGrid(
+            pixels = clockPixels,
+            modifier = Modifier.size(198.dp)
+        )
+        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            GlyphToyMode.entries.forEach { mode ->
+                FilterChip(
+                    selected = toyMode == mode,
+                    onClick = { onClockModeChange(mode) },
+                    label = { Text(mode.label) }
+                )
+            }
+        }
+        Text("この設定はSDK付きビルドでAOD Glyph Toyが選ばれているときに反映されます。" +
+            "SDKなしのAPKでは画面プレビューのみです。",
+            style = MaterialTheme.typography.bodySmall)
+        OutlinedButton(enabled = glyphSupported, onClick = onClockPreview) {
+            Text("時計を今すぐ背面Glyphへ表示")
+        }
         HorizontalDivider()
         Text("NFCリングでGlyphモード切り替え", style = MaterialTheme.typography.titleMedium)
         Text("登録したリングを読み取るたびに Pet → Creator → Fluid → Pet と切り替えます。リングのIDのハッシュだけ端末内に保存します。")

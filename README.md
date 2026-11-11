@@ -1,4 +1,4 @@
-# GlyphLIFE v0.10 / Monster Quest v0.3
+# GlyphLIFE v0.12 / Monster Quest v0.4
 
 Two **independently installable Android apps** in one repository:
 
@@ -85,3 +85,13 @@ The SDK requires **minSdk 33** in the SDK-enabled variant, whereas the SDK-free 
 Kotlin / Jetpack Compose, Android SDK 35, JDK 17, Gradle 8.14; local SharedPreferences/JSON storage for the MVP. Future larger-scale data storage can be migrated to Room. Original project source was written independently; [Dot.](https://github.com/kavastore/nothing-dot) was used as a feature reference, not copied.
 
 No general license has been granted to the original project code. Nothing's proprietary SDK license is separate. Do not publish APKs with proprietary vendor binaries without permission.
+
+## New creative features (v0.12 / Monster Quest v0.4)
+
+- **Glyph Effects Studio:** Generate seven editable 13×13 animations fully offline: rain, twinkling stars, heartbeat, fire, ripples, radar sweep, and meteors. Preview without overwriting the working drawing; load into Creator after confirmation or directly save to the gallery.
+- **Glyph clock + battery Toy:** A two-line 24-hour clock plus five-LED battery gauge. Choose Pet vs Clock for the AOD Glyph Toy in the Link screen. Time and battery are read locally; AOD updates are OS-controlled (~1/minute), while the foreground preview can update more often. [Details](docs/CLOCK_TOY_JA.md).
+- **Monster Fusion Laboratory:** Consume two distinct captured monsters to create a new stronger hybrid with inherited pixel art, elemental rules and bounded stats. An explicit confirmation prevents accidental consumption.
+- **Monster Support Attack:** The most recently captured companion can attack once per encounter, with an elemental bonus and enemy retaliation. Support-use state is preserved in local saves.
+- [Detailed implementation notes](docs/CREATIVE_FEATURES_JA.md)
+
+All new features require physical-device verification beyond the Android build and unit tests. The standard CI APK still does **not** control Glyph hardware.

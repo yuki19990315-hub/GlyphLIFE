@@ -23,7 +23,7 @@
 |Glyph Matrix SDK前景表示・AOD Toy|公式SDK 2.0でコンパイル成功、実機未検証|
 |Gemini AI会話・ドット絵生成|プログラムと入力検証実装、API実通信未検証|
 
-## Monster Quest（現在v0.3）
+## Monster Quest（現在v0.4）
 
 - 独立Android APK。5部屋の探索、通常敵、最終ボス、属性戦闘、回復・防御、捕獲、保存を実装。
 - Monster Questの戦闘ロジック、ボス、生成ドット絵、JSON連携の単体テスト成功。
@@ -46,3 +46,10 @@
 - Gemini APIキーを用いた任意の低回数接続・料金条件・データ取り扱いの確認。
 
 詳細は`docs/WINDOWS_GLYPH_BUILD_JA.md`参照。
+
+## v0.12追加（テストはGitHub Actionsを確認）
+- Creatorに7種の生成アニメエフェクト、プレビュー、ギャラリー保存、確認後の読み込みを追加。
+- Link画面に時計・バッテリー表示モードを追加。AOD Glyph Toyのペット/時計切り替えを端末内保存。
+- Monster Questに捕獲図鑑と2匹合成、合成素材消費確認、戦闘ごと1回の援護を追加。
+- Glyph Clock、Effects、Fusion、Supportの各モデル単体テストを追加。
+- 端末実機でのNFC/Glyph/AOD/時計/2アプリ操作は未検証。SDK付きAPKはGitHub Actionsで配布しない。

@@ -16,8 +16,13 @@ import com.nothing.ketchum.GlyphMatrixFrame
 import com.nothing.ketchum.GlyphMatrixManager
 import com.nothing.ketchum.GlyphMatrixObject
 import com.nothing.ketchum.GlyphToy
+import dev.glyphlife.app.data.GlyphToyMode
+import dev.glyphlife.app.data.GlyphToyPreferences
 import dev.glyphlife.app.data.PetRepository
+import dev.glyphlife.app.data.PhoneBattery
 import dev.glyphlife.app.model.GlyphMask
+import dev.glyphlife.app.model.GlyphClock
+import java.time.LocalDateTime
 
 /**
  * Phone (4a) Pro AOD Glyph Toy.
@@ -81,9 +86,14 @@ class PetAodToyService : Service() {
     private fun renderSavedFrame() {
         val m = manager ?: return
         if (!ready || stopped) return
-        val frames = PetRepository(applicationContext).loadAnimation().frames
-        if (frames.isEmpty()) return
-        val pixels = GlyphMask.normalize(frames[frameIndex % frames.size].pixels)
+        val pixels = if (GlyphToyPreferences(applicationContext).mode == GlyphToyMode.CLOCK) {
+            val now = LocalDateTime.now()
+            GlyphClock.draw(now.hour, now.minute, PhoneBattery.percentage(applicationContext))
+        } else {
+            val frames = PetRepository(applicationContext).loadAnimation().frames
+            if (frames.isEmpty()) return
+            GlyphMask.normalize(frames[frameIndex % frames.size].pixels)
+        }
         val bitmap = Bitmap.createBitmap(13, 13, Bitmap.Config.ARGB_8888)
         try {
             pixels.forEachIndexed { index, on ->
