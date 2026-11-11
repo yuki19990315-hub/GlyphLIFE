@@ -56,7 +56,8 @@ class MonsterQuestActivity : ComponentActivity() {
                 }
             }
             fun createMonster(image: ByteArray?) {
-                if (aiBusy || aiKey.isBlank() || state.inBattle || state.completed) return
+                if (aiBusy || aiKey.isBlank() || state.inBattle || state.completed ||
+                    state.room == QuestRules.ROOM_COUNT) return
                 val key = aiKey
                 val instruction = aiDescription.ifBlank { "不思議な生き物" }
                 aiBusy = true
@@ -130,6 +131,8 @@ class MonsterQuestActivity : ComponentActivity() {
                         },
                         onAttack = { magic -> if (!aiBusy) update(QuestRules.attack(state, magic)) },
                         onCapture = { if (!aiBusy) update(QuestRules.capture(state)) },
+                        onPotion = { if (!aiBusy) update(QuestRules.usePotion(state)) },
+                        onDefend = { if (!aiBusy) update(QuestRules.defend(state)) },
                         onNextRoom = { update(QuestRules.nextRoom(state)) },
                         onEnd = { update(QuestRules.endRun(state)) },
                         onNewRun = {
@@ -179,6 +182,8 @@ private fun QuestScreen(
     onMove: (Int, Int) -> Unit,
     onAttack: (Boolean) -> Unit,
     onCapture: () -> Unit,
+    onPotion: () -> Unit,
+    onDefend: () -> Unit,
     onNextRoom: () -> Unit,
     onEnd: () -> Unit,
     onNewRun: () -> Unit,
@@ -196,7 +201,7 @@ private fun QuestScreen(
              else "体験用の相棒です。Glyph Lifeの「連携」タブから送ると変更できます。")
         LinearProgressIndicator(
             progress = { state.playerHp / 100f }, modifier = Modifier.fillMaxWidth())
-        Text("HP ${state.playerHp}/100　撃破${state.defeated}　捕獲${state.captures.size}匹")
+        Text("HP ${state.playerHp}/100　回復薬${state.potions}個　撃破${state.defeated}　捕獲${state.captures.size}匹")
         Card(modifier = Modifier.fillMaxWidth()) {
             Text(state.message, modifier = Modifier.padding(12.dp))
         }
@@ -244,7 +249,7 @@ private fun QuestScreen(
         if (state.inBattle) {
             val enemy = state.enemy
             if (enemy != null) {
-                Text("${enemy.species}（${enemy.element}）が出現！",
+                Text("${if (enemy.isBoss) "★ BOSS ★  " else ""}${enemy.species}（${enemy.element}）が出現！",
                     style = MaterialTheme.typography.titleLarge)
                 LinearProgressIndicator(
                     progress = { state.enemyHp.toFloat() / enemy.maxHp }, modifier = Modifier.fillMaxWidth())
@@ -264,7 +269,13 @@ private fun QuestScreen(
                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                     Button(onClick = { onAttack(false) }) { Text("攻撃") }
                     Button(onClick = { onAttack(true) }) { Text("属性魔法") }
-                    OutlinedButton(onClick = onCapture) { Text("捕獲") }
+                    OutlinedButton(onClick = onCapture, enabled = !enemy.isBoss) { Text("捕獲") }
+                }
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    OutlinedButton(onClick = onDefend) { Text("防御") }
+                    OutlinedButton(enabled = state.potions > 0, onClick = onPotion) {
+                        Text("回復薬（${state.potions}）")
+                    }
                 }
             }
         }
@@ -303,12 +314,14 @@ private fun QuestScreen(
         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             Button(
                 enabled = !aiBusy && aiKey.isNotBlank() && aiDescription.isNotBlank() &&
-                    !state.inBattle && !state.completed && !state.roomCleared,
+                    !state.inBattle && !state.completed && !state.roomCleared &&
+                    state.room < QuestRules.ROOM_COUNT,
                 onClick = onAiText
             ) { Text("AIで召喚") }
             OutlinedButton(
                 enabled = !aiBusy && aiKey.isNotBlank() &&
-                    !state.inBattle && !state.completed && !state.roomCleared,
+                    !state.inBattle && !state.completed && !state.roomCleared &&
+                    state.room < QuestRules.ROOM_COUNT,
                 onClick = onAiPhoto
             ) { Text("写真からAI召喚") }
         }

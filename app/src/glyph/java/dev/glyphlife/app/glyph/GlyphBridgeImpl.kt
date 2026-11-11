@@ -70,7 +70,7 @@ internal class GlyphBridgeImpl(private val context: Context) : GlyphBridge {
                 .build()
             val rendered = GlyphMatrixFrame.Builder()
                 .addTop(item)
-                .build(context)
+                .build()
                 .render()
             manager?.setAppMatrixFrame(rendered)
         } finally {

@@ -33,6 +33,7 @@ class QuestStorage(context: Context) {
                 enemy = obj.optJSONObject("enemy")?.let(::wildFromJson),
                 enemyHp = obj.optInt("enemyHp", 0).coerceAtLeast(0),
                 playerHp = obj.getInt("playerHp").coerceIn(0, 100),
+                potions = obj.optInt("potions", 2).coerceIn(0, 2),
                 inBattle = obj.optBoolean("inBattle", false),
                 roomCleared = obj.optBoolean("roomCleared", false),
                 completed = obj.optBoolean("completed", false),
@@ -57,6 +58,7 @@ class QuestStorage(context: Context) {
             .put("walls", JSONArray().apply { s.walls.forEach { put(it) } })
             .put("enemy", s.enemy?.let(::wildToJson))
             .put("enemyHp", s.enemyHp).put("playerHp", s.playerHp)
+            .put("potions", s.potions)
             .put("inBattle", s.inBattle).put("roomCleared", s.roomCleared)
             .put("completed", s.completed).put("defeated", s.defeated)
             .put("earnedXp", s.earnedXp).put("earnedHappiness", s.earnedHappiness)
@@ -70,12 +72,14 @@ class QuestStorage(context: Context) {
         .put("id", w.id).put("species", w.species).put("element", w.element)
         .put("maxHp", w.maxHp).put("attack", w.attack)
         .put("description", w.description).put("pixels", w.pixels)
+        .put("isBoss", w.isBoss)
 
     private fun wildFromJson(o: JSONObject): WildMonster = WildMonster(
         id = o.getString("id"), species = o.getString("species"),
         element = o.getString("element"), maxHp = o.getInt("maxHp"),
         attack = o.getInt("attack"),
         description = o.optString("description", "").take(160),
-        pixels = o.optString("pixels", "").take(169)
+        pixels = o.optString("pixels", "").take(169),
+        isBoss = o.optBoolean("isBoss", false)
     )
 }
