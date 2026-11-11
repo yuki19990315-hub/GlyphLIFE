@@ -97,7 +97,7 @@ class PetAodToyService : Service() {
                 .setBrightness(255)
                 .build()
             val frame = GlyphMatrixFrame.Builder()
-                .addTop(shape).build()
+                .addTop(shape).build(applicationContext)
             m.setMatrixFrame(frame.render())
         } catch (e: Exception) {
             Log.w(TAG, "Glyph Toy frame failed", e)

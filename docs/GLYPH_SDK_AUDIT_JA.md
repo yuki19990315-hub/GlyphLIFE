@@ -3,8 +3,8 @@
 公式資料: https://github.com/Nothing-Developer-Programme/GlyphMatrix-Developer-Kit
 
 ## v0.8 ソース修正
-- GlyphMatrixFrame.Builderの`build()`は公式サンプルで引数なし。
-- v0.7以前の`build(context)`を両SDKアダプタから削除。
+- 公式READMEのJavaサンプルは`build()`と記載されているが、CIで取得した公式SDK 2.0 AARは`build(Context)`を要求した。
+- 2026-11-11のSDK同梱コンパイル結果を優先し、両アダプタを`build(context)`/`build(applicationContext)`へ修正。
 - 前景: `setAppMatrixFrame(frame.render())`。
 - AOD Glyph Toy: `setMatrixFrame(frame.render())`。
 - 端末: Phone (4a) Pro / `Glyph.DEVICE_25111p`。
