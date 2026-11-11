@@ -1,5 +1,10 @@
 package dev.glyphlife.app.ui
 
+import android.content.Context
+import android.hardware.Sensor
+import android.hardware.SensorEvent
+import android.hardware.SensorEventListener
+import android.hardware.SensorManager
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
@@ -7,6 +12,8 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
+import androidx.compose.ui.platform.LocalContext
+import kotlin.math.abs
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import dev.glyphlife.app.model.*
@@ -33,6 +40,32 @@ fun FluidScreen(
     var frame by remember { mutableIntStateOf(0) }
     var stepMs by remember { mutableFloatStateOf(160f) }
     var confirmCopy by remember { mutableStateOf(false) }
+    var tiltEnabled by remember { mutableStateOf(false) }
+    val context = LocalContext.current
+    val sensorManager = remember(context) {
+        context.getSystemService(Context.SENSOR_SERVICE) as SensorManager
+    }
+    val accelerometer = remember(sensorManager) {
+        sensorManager.getDefaultSensor(Sensor.TYPE_ACCELEROMETER)
+    }
+    DisposableEffect(tiltEnabled, accelerometer) {
+        val listener = object : SensorEventListener {
+            override fun onSensorChanged(event: SensorEvent) {
+                val x = event.values[0]
+                val y = event.values[1]
+                if (abs(x) > abs(y) && abs(x) >= 2.5f) {
+                    gravity = if (x > 0) FluidGravity.RIGHT else FluidGravity.LEFT
+                } else if (abs(y) >= 2.5f) {
+                    gravity = if (y > 0) FluidGravity.UP else FluidGravity.DOWN
+                }
+            }
+            override fun onAccuracyChanged(sensor: Sensor?, accuracy: Int) = Unit
+        }
+        if (tiltEnabled && accelerometer != null) {
+            sensorManager.registerListener(listener, accelerometer, SensorManager.SENSOR_DELAY_GAME)
+        }
+        onDispose { sensorManager.unregisterListener(listener) }
+    }
 
     LaunchedEffect(pixels) { onPreviewFrame(pixels) }
 
@@ -76,6 +109,21 @@ fun FluidScreen(
             OutlinedButton(onClick = { pixels = GlyphFluid.addDrop(pixels, frame++) }) {
                 Text("水を追加")
             }
+        }
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Text("スマホの傾きで重力を変更")
+            Spacer(Modifier.width(8.dp))
+            Switch(
+                checked = tiltEnabled,
+                enabled = accelerometer != null,
+                onCheckedChange = { tiltEnabled = it }
+            )
+        }
+        if (accelerometer == null) {
+            Text("この端末では加速度センサーを利用できません。")
+        } else if (tiltEnabled) {
+            Text("傾けた方向へ水が移動します。方向と感度は実機確認が必要です。",
+                style = MaterialTheme.typography.bodySmall)
         }
         Text("重力の向き")
         Row(

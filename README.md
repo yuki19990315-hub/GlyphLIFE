@@ -55,3 +55,11 @@ A dedicated foreground-only 13×13 cellular-fluid screen uses the actual 137-LED
 ## NFC Ring Mode Switch (v0.10)
 
 Glyph Life can optionally enroll an NFC ring and use it to cycle the **Pet → Creator → Fluid** screen/matrix display while the app is foregrounded. Enrollment stores a SHA-256 fingerprint of the tag UID locally; no UID or NFC content is uploaded. NFC UID is spoofable or randomized on some tags, so this is **not authentication** and must not protect sensitive data. Without the Nothing SDK AAR, the ring can switch the visible screen, but cannot control hardware Glyph LEDs. Real NFC detection and Glyph output remain untested on a Phone (4a) Pro. See [NFC instructions](docs/NFC_RING_JA.md).
+
+## New in the current development branch
+
+- Monster Quest final-floor bosses, guarding, limited healing items, and elemental pixel-art portraits.
+- Direct app-to-app JSON transfer with share-sheet fallback and delayed AI reply isolation per pet.
+- Fluid Lab motion driven by the phone accelerometer (optional, device test pending).
+- NFC ring enrollment for foreground-only mode cycling: Pet / Creator / Fluid (requires a stable NFC tag UID).
+- A vendor-SDK compile-only GitHub Actions job downloads the official Nothing AAR temporarily and **does not upload or distribute the SDK or an SDK-enabled APK**. Always inspect the latest CI run rather than assuming success.
