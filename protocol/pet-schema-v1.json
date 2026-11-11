@@ -1,0 +1,99 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://glyph-life.invalid/schema/pet-v1.json",
+  "title": "Glyph Life Pet Snapshot v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schemaVersion",
+    "source",
+    "pet",
+    "glyph"
+  ],
+  "properties": {
+    "schemaVersion": {
+      "const": 1
+    },
+    "source": {
+      "const": "glyph-life"
+    },
+    "pet": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "id",
+        "name",
+        "species",
+        "element",
+        "personality",
+        "level",
+        "experience",
+        "happiness",
+        "energy"
+      ],
+      "properties": {
+        "id": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "name": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 50
+        },
+        "species": {
+          "type": "string",
+          "minLength": 1
+        },
+        "element": {
+          "type": "string",
+          "minLength": 1
+        },
+        "personality": {
+          "type": "string",
+          "minLength": 1
+        },
+        "level": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "experience": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 99
+        },
+        "happiness": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 100
+        },
+        "energy": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 100
+        }
+      }
+    },
+    "glyph": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "width",
+        "height",
+        "pixels"
+      ],
+      "properties": {
+        "width": {
+          "const": 13
+        },
+        "height": {
+          "const": 13
+        },
+        "pixels": {
+          "type": "string",
+          "pattern": "^[01]{169}$"
+        }
+      }
+    }
+  }
+}
