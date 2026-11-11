@@ -198,7 +198,9 @@ class PetRepository(context: Context) {
         // Update roster and consumed event atomically to prevent double awards.
         check(preferences.edit()
             .putString("roster_v1", encodeRoster(next))
-            .putString("pet", petObject(updated).toString())
+            .apply {
+                if (loadPet().id == updated.id) putString("pet", petObject(updated).toString())
+            }
             .putStringSet("used_quests", used + result.eventId)
             .commit()) { "保存に失敗しました" }
         return updated

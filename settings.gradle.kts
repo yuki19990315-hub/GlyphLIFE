@@ -6,4 +6,4 @@ dependencyResolutionManagement {
     repositories { google(); mavenCentral() }
 }
 rootProject.name = "GlyphLife"
-include(":app")
+include(":app", ":monsterquest")

@@ -20,10 +20,18 @@
             <meta-data android:name="com.nothing.glyph.toy.image" android:resource="@drawable/glyph_pet_aod_preview" />
             <meta-data android:name="com.nothing.glyph.toy.aod_support" android:value="1" />
         </service>
-        <activity android:name=".MainActivity" android:exported="true">
+        <activity android:name=".MainActivity" android:exported="true"
+            android:launchMode="singleTop">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
                 <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+            <!-- Receive Monster Quest JSON through the Android share sheet. -->
+            <intent-filter>
+                <action android:name="android.intent.action.SEND" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <data android:mimeType="application/json" />
+                <data android:mimeType="text/plain" />
             </intent-filter>
         </activity>
     </application>

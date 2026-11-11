@@ -23,8 +23,23 @@ import dev.glyphlife.app.ui.*
 import kotlinx.coroutines.launch
 
 class MainActivity : ComponentActivity() {
+    private var incomingQuestPayload by mutableStateOf<String?>(null)
+
+    override fun onNewIntent(intent: Intent) {
+        super.onNewIntent(intent)
+        setIntent(intent)
+        incomingQuestPayload = sharedText(intent)
+    }
+
+    private fun sharedText(intent: Intent?): String? =
+        if (intent?.action == Intent.ACTION_SEND &&
+            (intent.type == "application/json" || intent.type == "text/plain"))
+            intent.getStringExtra(Intent.EXTRA_TEXT)
+        else null
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        incomingQuestPayload = sharedText(intent)
         val repo = PetRepository(this)
         val gallery = ArtworkLibrary(this)
         val glyph = createGlyphBridge(this)
@@ -40,6 +55,20 @@ class MainActivity : ComponentActivity() {
             var aiKey by remember { mutableStateOf("") }
             var aiBusy by remember { mutableStateOf(false) }
             val scope = rememberCoroutineScope()
+            LaunchedEffect(incomingQuestPayload) {
+                val raw = incomingQuestPayload ?: return@LaunchedEffect
+                incomingQuestPayload = null
+                runCatching {
+                    val event = QuestResult.parse(raw)
+                    val target = repo.loadPets().firstOrNull { it.id == event.petId }
+                        ?: throw IllegalArgumentException("対象ペットが見つかりません")
+                    val updated = repo.applyQuestResult(raw, target)
+                    roster = repo.loadPets()
+                    if (pet.id == updated.id) pet = updated
+                    questStatus = "${updated.name}の冒険結果を反映しました"
+                }.onFailure { e -> questStatus = "受信失敗：${e.message}" }
+                tab = 3
+            }
             val questPicker = rememberLauncherForActivityResult(ActivityResultContracts.GetContent()) { uri ->
                 if (uri != null) runCatching {
                     val payload = readTextFromUri(uri, 65_536)
