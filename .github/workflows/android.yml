@@ -12,17 +12,20 @@ jobs:
         with:
           distribution: temurin
           java-version: '17'
-      - uses: android-actions/setup-android@v3
+      # GitHub-hosted ubuntu-latest already includes Android SDK cmdline tools.
+      # android-actions/setup-android@v3 currently attempts to install the
+      # obsolete 'tools' package and fails before building.
       - uses: gradle/actions/setup-gradle@v4
         with:
           gradle-version: '8.14'
       - name: Install Android SDK 35
-        run: sdkmanager 'platforms;android-35' 'build-tools;35.0.0'
+        run: sdkmanager --install 'platforms;android-35' 'build-tools;35.0.0'
       - name: Check protocol sample
         run: python3 scripts/check_protocol.py
       - name: Build debug APK (stub Glyph)
         run: gradle --no-daemon :app:testDebugUnitTest :app:assembleDebug
       - uses: actions/upload-artifact@v4
+        if: success()
         with:
           name: GlyphLife-debug-stub
           path: app/build/outputs/apk/debug/*.apk
