@@ -69,10 +69,13 @@ class QuestStorage(context: Context) {
     private fun wildToJson(w: WildMonster) = JSONObject()
         .put("id", w.id).put("species", w.species).put("element", w.element)
         .put("maxHp", w.maxHp).put("attack", w.attack)
+        .put("description", w.description).put("pixels", w.pixels)
 
     private fun wildFromJson(o: JSONObject): WildMonster = WildMonster(
         id = o.getString("id"), species = o.getString("species"),
         element = o.getString("element"), maxHp = o.getInt("maxHp"),
-        attack = o.getInt("attack")
+        attack = o.getInt("attack"),
+        description = o.optString("description", "").take(160),
+        pixels = o.optString("pixels", "").take(169)
     )
 }

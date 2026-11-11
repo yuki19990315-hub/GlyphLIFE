@@ -19,7 +19,9 @@ data class WildMonster(
     val species: String,
     val element: String,
     val maxHp: Int,
-    val attack: Int
+    val attack: Int,
+    val description: String = "",
+    val pixels: String = ""
 )
 
 data class QuestState(
@@ -139,6 +141,14 @@ object QuestRules {
             message = if (captured) "仲間を捕獲した！"
                       else if (end) "5部屋を突破！ 冒険クリア！"
                       else "敵を倒した！ 次の部屋へ"
+        )
+    }
+
+    fun summon(state: QuestState, wild: WildMonster): QuestState {
+        if (state.inBattle || state.completed || state.roomCleared) return state
+        return state.copy(
+            enemy = wild, enemyHp = wild.maxHp, position = 15, inBattle = true,
+            message = "AI生成の${wild.species}が現れた！"
         )
     }
 

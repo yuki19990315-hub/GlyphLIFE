@@ -5,6 +5,8 @@ import android.os.Bundle
 import android.widget.Toast
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
@@ -18,6 +20,9 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.ui.unit.dp
 import dev.glyphlife.monsterquest.data.QuestStorage
 import dev.glyphlife.monsterquest.model.*
+import dev.glyphlife.monsterquest.ai.MonsterAi
+import dev.glyphlife.monsterquest.ai.MonsterIdea
+import kotlinx.coroutines.launch
 
 class MonsterQuestActivity : ComponentActivity() {
     private var incoming by mutableStateOf<String?>(null)
@@ -29,6 +34,10 @@ class MonsterQuestActivity : ComponentActivity() {
         setContent {
             var state by remember { mutableStateOf(storage.load()) }
             var status by remember { mutableStateOf("オフラインで遊べます") }
+            var aiKey by remember { mutableStateOf("") }
+            var aiDescription by remember { mutableStateOf("") }
+            var aiBusy by remember { mutableStateOf(false) }
+            val scope = rememberCoroutineScope()
 
             fun update(next: QuestState) {
                 state = next
@@ -37,6 +46,48 @@ class MonsterQuestActivity : ComponentActivity() {
             fun notify(text: String) {
                 status = text
                 Toast.makeText(this@MonsterQuestActivity, text, Toast.LENGTH_SHORT).show()
+            }
+            fun applyIdea(idea: MonsterIdea) {
+                val next = QuestRules.summon(state, idea.asWildMonster(state.room))
+                if (next === state || next == state) notify("冒険中のこの状態では召喚できません")
+                else {
+                    update(next)
+                    notify("AIモンスター「${idea.name}」を召喚しました")
+                }
+            }
+            fun createMonster(image: ByteArray?) {
+                if (aiBusy || aiKey.isBlank() || state.inBattle || state.completed) return
+                val key = aiKey
+                val instruction = aiDescription.ifBlank { "不思議な生き物" }
+                aiBusy = true
+                scope.launch {
+                    try {
+                        applyIdea(MonsterAi.generate(key, instruction, image))
+                    } catch (e: Exception) {
+                        notify("AI生成に失敗：${e.message}")
+                    } finally {
+                        aiBusy = false
+                    }
+                }
+            }
+            val photoPicker = rememberLauncherForActivityResult(
+                ActivityResultContracts.GetContent()
+            ) { uri ->
+                if (uri != null && !aiBusy && aiKey.isNotBlank()) {
+                    val key = aiKey
+                    val description = aiDescription.ifBlank { "この写真をもとに独自のモンスターを作って" }
+                    aiBusy = true
+                    scope.launch {
+                        try {
+                            val jpeg = MonsterAi.preparePhoto(this@MonsterQuestActivity, uri)
+                            applyIdea(MonsterAi.generate(key, description, jpeg))
+                        } catch (e: Exception) {
+                            notify("写真AI生成に失敗：${e.message}")
+                        } finally {
+                            aiBusy = false
+                        }
+                    }
+                }
             }
             LaunchedEffect(incoming) {
                 val raw = incoming ?: return@LaunchedEffect
@@ -55,23 +106,30 @@ class MonsterQuestActivity : ComponentActivity() {
             ) {
                 Scaffold(topBar = {
                     Surface(tonalElevation = 2.dp) {
-                        Text("MONSTER QUEST  /  MVP 0.1",
+                        Text("MONSTER QUEST  /  MVP 0.2",
                             modifier = Modifier.padding(18.dp),
                             style = MaterialTheme.typography.titleMedium)
                     }
                 }) { padding ->
                     QuestScreen(
                         state = state, status = status,
+                        aiKey = aiKey, aiDescription = aiDescription,
+                        aiBusy = aiBusy,
+                        onAiKeyChange = { aiKey = it.take(256) },
+                        onAiDescriptionChange = { aiDescription = it.take(250) },
+                        onAiText = { createMonster(null) },
+                        onAiPhoto = { photoPicker.launch("image/*") },
                         modifier = Modifier.padding(padding),
                         onMove = { x, y ->
+                            if (aiBusy) return@QuestScreen
                             val nextX = state.position % 4 + x
                             val nextY = state.position / 4 + y
                             if (nextX in 0..3 && nextY in 0..3) {
                                 update(QuestRules.move(state, nextY * 4 + nextX))
                             }
                         },
-                        onAttack = { magic -> update(QuestRules.attack(state, magic)) },
-                        onCapture = { update(QuestRules.capture(state)) },
+                        onAttack = { magic -> if (!aiBusy) update(QuestRules.attack(state, magic)) },
+                        onCapture = { if (!aiBusy) update(QuestRules.capture(state)) },
                         onNextRoom = { update(QuestRules.nextRoom(state)) },
                         onEnd = { update(QuestRules.endRun(state)) },
                         onNewRun = {
@@ -110,6 +168,13 @@ class MonsterQuestActivity : ComponentActivity() {
 private fun QuestScreen(
     state: QuestState,
     status: String,
+    aiKey: String,
+    aiDescription: String,
+    aiBusy: Boolean,
+    onAiKeyChange: (String) -> Unit,
+    onAiDescriptionChange: (String) -> Unit,
+    onAiText: () -> Unit,
+    onAiPhoto: () -> Unit,
     modifier: Modifier = Modifier,
     onMove: (Int, Int) -> Unit,
     onAttack: (Boolean) -> Unit,
@@ -184,6 +249,18 @@ private fun QuestScreen(
                 LinearProgressIndicator(
                     progress = { state.enemyHp.toFloat() / enemy.maxHp }, modifier = Modifier.fillMaxWidth())
                 Text("敵HP：${state.enemyHp}/${enemy.maxHp}")
+                if (enemy.description.isNotBlank()) {
+                    Text(enemy.description, style = MaterialTheme.typography.bodyMedium)
+                }
+                if (enemy.pixels.length == 169) {
+                    Text(
+                        enemy.pixels.chunked(13).joinToString("\n") {
+                            it.replace('0', '·').replace('1', '■')
+                        },
+                        style = MaterialTheme.typography.bodySmall,
+                        fontFamily = androidx.compose.ui.text.font.FontFamily.Monospace
+                    )
+                }
                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                     Button(onClick = { onAttack(false) }) { Text("攻撃") }
                     Button(onClick = { onAttack(true) }) { Text("属性魔法") }
@@ -206,6 +283,37 @@ private fun QuestScreen(
             OutlinedButton(onClick = onNewRun) { Text("新しい冒険を始める") }
         }
         HorizontalDivider()
+        Text("AIモンスター召喚（任意）", style = MaterialTheme.typography.titleMedium)
+        Text("Gemini APIキーを入力すると文章からモンスターを生成できます。" +
+            "写真を選ぶと、縮小したJPEG画像をGoogleに送信します。キーは保存しません。" +
+            "料金・無料枠・データの扱いはGoogleの条件に従います。",
+            style = MaterialTheme.typography.bodySmall)
+        OutlinedTextField(
+            value = aiKey, onValueChange = onAiKeyChange,
+            label = { Text("Gemini APIキー（この起動中のみ）") },
+            visualTransformation = androidx.compose.ui.text.input.PasswordVisualTransformation(),
+            modifier = Modifier.fillMaxWidth(), singleLine = true
+        )
+        OutlinedTextField(
+            value = aiDescription, onValueChange = onAiDescriptionChange,
+            label = { Text("モンスターのイメージ") },
+            placeholder = { Text("例：雷と機械の小さなドラゴン") },
+            modifier = Modifier.fillMaxWidth()
+        )
+        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            Button(
+                enabled = !aiBusy && aiKey.isNotBlank() && aiDescription.isNotBlank() &&
+                    !state.inBattle && !state.completed && !state.roomCleared,
+                onClick = onAiText
+            ) { Text("AIで召喚") }
+            OutlinedButton(
+                enabled = !aiBusy && aiKey.isNotBlank() &&
+                    !state.inBattle && !state.completed && !state.roomCleared,
+                onClick = onAiPhoto
+            ) { Text("写真からAI召喚") }
+        }
+        if (aiBusy) LinearProgressIndicator(modifier = Modifier.fillMaxWidth())
+        HorizontalDivider()
         Text("冒険履歴：捕獲したモンスター",
             style = MaterialTheme.typography.titleMedium)
         if (state.captures.isEmpty()) Text("まだ捕獲していません")
@@ -214,8 +322,8 @@ private fun QuestScreen(
         }
         Text("状態：$status", style = MaterialTheme.typography.bodySmall)
         Text(
-            "この版は手続き生成・オフライン戦闘のMVPです。AI生成の見た目や画像生成、" +
-                "オンライン対戦は未実装です。連携データに改ざん防止署名はありません。",
+            "この版はオフライン戦闘のMVPです。AIモンスターの13×13ドット絵生成は任意のGemini接続で提供しますが、" +
+                "高解像度画像の生成とオンライン対戦は未実装です。連携データに改ざん防止署名はありません。",
             style = MaterialTheme.typography.bodySmall
         )
     }
