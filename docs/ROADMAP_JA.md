@@ -39,3 +39,9 @@
 - [ ] SDKのEULAに従う配布、署名APKとアップデート手順
 
 別構想：AI App Factoryは将来、Nothing OS Custom Labは低優先の配布用。
+
+## 2026-11-11追加実装（v0.5）
+- [x] Phone (4a) ProのAOD Toyのソース/Manifest登録（SDKビルド限定）。実機未検証。
+- [x] オフラインの5種族3コマ生成（幼体/成長体/進化体）。
+- [x] 20匹までのペット保存、切替、個体別チャット/画像保存と旧単体データ移行。
+- [ ] AOD Toy実機検証、Google AI通信実機検証、APK実機テスト。

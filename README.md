@@ -1,4 +1,4 @@
-# Glyph Life v0.3 — Glyph animation × AI Pet × Monster Quest link
+# Glyph Life v0.5 — Glyph animation × AI Pet × Monster Quest link
 
 Android app for Nothing Phone (4a) Pro. It combines virtual pet care, a 13×13 pixel-art/animation editor, optional Gemini AI, and JSON exchange with a **future separate** Monster Quest game.
 
@@ -7,12 +7,12 @@ Android app for Nothing Phone (4a) Pro. It combines virtual pet care, a 13×13 p
 - 13×13 animation timeline: 1–64 frames, 100–2000 ms/frame, looping playback and auto-save.
 - Draw, erase, flood fill, 90° rotate, mirror, invert, clear, duplicate/add/delete and in-session undo/redo.
 - Convert imported photos to Glyph pixels (Floyd–Steinberg), export PNG, import/export animation JSON.
-- Pet: play/feed/rest, level/happiness/energy, randomized hatch, local history and offline rule-based fallback.
+- Pet: play/feed/rest, level/happiness/energy, up to **20 saved pets**, persistent active selection, per-pet sprite and per-pet chat history, randomized hatch, offline rule-based fallback.
 - Original offline pet sprite generator (5 species, blink/hop 3-frame animation, growth stages at Lv5 and Lv12). A confirmation protects existing hand-drawn art from overwrite.
 - **Optional Gemini AI chat and text-to-13×13 animation generation** (Google API key entered by the user; not embedded or persisted, actual API requests NOT YET TESTED). Model `gemini-3.5-flash-lite`. Only sends on explicit user action; provider terms/rates apply.
 - Monster Quest pet export; import individual quest-result JSON with basic validation and duplicate event ID protection.
 - Foreground Glyph SDK adapter that sends frames for real-device live playback if user locally installs official SDK AAR.
-- AOD Glyph Toy Service included in SDK builds: shows one saved animation frame per OS AOD tick (about once a minute), not fast playback. SDK-free debug APK uses a stub; real-device output is **NOT YET VERIFIED**.
+- AOD Glyph Toy Service included in SDK builds: shows one saved animation frame per OS AOD tick (about once a minute), not fast playback. AOD is disabled in the SDK-free APK. SDK-free debug APK uses a stub; real-device output is **NOT YET VERIFIED**.
 
 ## Build & tests
 Open [GitHub Actions](https://github.com/yuki19990315-hub/GlyphLIFE/actions). On a successful run for a particular commit, download the `GlyphLife-debug-stub` artifact. This APK supports all screen features and BYOK AI but **does not control the rear Glyph LEDs**. Built with Android SDK 35, JDK 17, Gradle 8.14. Run locally with `gradle :app:testDebugUnitTest :app:assembleDebug`.

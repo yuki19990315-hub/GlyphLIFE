@@ -29,8 +29,9 @@ class MainActivity : ComponentActivity() {
         val glyph = createGlyphBridge(this)
         setContent {
             var pet by remember { mutableStateOf(repo.loadPet()) }
-            var animation by remember { mutableStateOf(repo.loadAnimation()) }
-            var chat by remember { mutableStateOf(repo.loadChat()) }
+            var roster by remember { mutableStateOf(repo.loadPets()) }
+            var animation by remember { mutableStateOf(repo.loadAnimation(pet.id)) }
+            var chat by remember { mutableStateOf(repo.loadChat(pet.id)) }
             var tab by remember { mutableIntStateOf(0) }
             var glyphStatus by remember { mutableStateOf("未接続") }
             var questStatus by remember { mutableStateOf("取り込み待ち") }
@@ -41,6 +42,7 @@ class MainActivity : ComponentActivity() {
                 if (uri != null) runCatching {
                     val payload = readTextFromUri(uri, 65_536)
                     pet = repo.applyQuestResult(payload, pet)
+                    roster = repo.loadPets()
                     questStatus = "冒険結果を反映しました"
                 }.onFailure { e -> questStatus = "反映できません：${e.message}" }
             }
@@ -48,7 +50,7 @@ class MainActivity : ComponentActivity() {
             fun notify(text: String) { Toast.makeText(this@MainActivity, text, Toast.LENGTH_SHORT).show() }
             fun updateAnimation(next: GlyphAnimation) {
                 animation = next
-                repo.saveAnimation(next)
+                repo.saveAnimation(next, pet.id)
             }
             fun shareJson(payload: String) {
                 val intent = Intent(Intent.ACTION_SEND).apply {
@@ -68,7 +70,7 @@ class MainActivity : ComponentActivity() {
                 Scaffold(
                     topBar = {
                         Surface(tonalElevation = 2.dp) {
-                            Text("GLYPH LIFE  /  v0.4",
+                            Text("GLYPH LIFE  /  v0.5",
                                 modifier = Modifier.padding(20.dp),
                                 style = MaterialTheme.typography.titleMedium)
                         }
@@ -89,14 +91,27 @@ class MainActivity : ComponentActivity() {
                 ) { padding ->
                     when (tab) {
                         0 -> PetScreen(
-                            pet = pet, animation = animation, chat = chat,
+                            pet = pet, roster = roster, animation = animation, chat = chat,
                             modifier = Modifier.padding(padding),
-                            onPetChange = { changed -> pet = changed; repo.savePet(changed) },
+                            onPetChange = { changed ->
+                                pet = changed
+                                repo.savePet(changed)
+                                roster = repo.loadPets()
+                            },
                             onHatch = {
-                                pet = PetFactory.hatch()
-                                repo.savePet(pet)
-                                chat = emptyList()
-                                repo.saveChat(chat)
+                                runCatching {
+                                    pet = repo.addPet(PetFactory.hatch())
+                                    roster = repo.loadPets()
+                                    animation = repo.loadAnimation(pet.id)
+                                    chat = repo.loadChat(pet.id)
+                                }.onFailure { notify("ペット追加失敗：${it.message}") }
+                            },
+                            onSelectPet = { id ->
+                                runCatching {
+                                    pet = repo.selectPet(id)
+                                    animation = repo.loadAnimation(pet.id)
+                                    chat = repo.loadChat(pet.id)
+                                }.onFailure { notify("切り替え失敗：${it.message}") }
                             },
                             onGeneratePetArt = {
                                 updateAnimation(PetSpriteGenerator.create(pet))
@@ -108,10 +123,10 @@ class MainActivity : ComponentActivity() {
                                     (if (it.fromUser) "user: " else "pet: ") + it.text.take(150)
                                 }
                                 chat = (chat + ChatEntry(true, message)).takeLast(30)
-                                repo.saveChat(chat)
+                                repo.saveChat(chat, pet.id)
                                 if (aiKey.isBlank()) {
                                     chat = (chat + ChatEntry(false, PetChat.reply(pet, message))).takeLast(30)
-                                    repo.saveChat(chat)
+                                    repo.saveChat(chat, pet.id)
                                 } else {
                                     aiBusy = true
                                     val prompt = GeminiClient.petPrompt(
@@ -123,7 +138,7 @@ class MainActivity : ComponentActivity() {
                                         try {
                                             val reply = GeminiClient.generate(activeKey, prompt)
                                             chat = (chat + ChatEntry(false, reply.take(1000))).takeLast(30)
-                                            repo.saveChat(chat)
+                                            repo.saveChat(chat, pet.id)
                                         } catch (e: Exception) {
                                             notify("AI会話の失敗：${e.message}")
                                         } finally {
