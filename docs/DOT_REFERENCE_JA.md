@@ -25,7 +25,7 @@ Nothing公式： https://github.com/Nothing-Developer-Programme/GlyphMatrix-Deve
 
 ## Glyph表示の仕様
 - 公式SDKの`setAppMatrixFrame`で前景アプリから画像を送信。
-- Device IDは`Glyph.DEVICE_25111p`。13×13固定。
+- Device IDは`Glyph.DEVICE_25111p`。13×13固定（実際の点灯範囲は円形137LED、四隅32マスは無効）。
 - 連続送信は再生ループとフレームのdurationMsに同期。変化が速い連打はUIから75ms程度間引く。
 - 未接続中は送信せず、端末画面のプレビューで代替。
 - Glyph Toy（特にAOD）はサービス登録とOS側の管理が必要。Phone (4a) ProはGlyph Touch非対応、AOD Toyのみ。

@@ -3,6 +3,7 @@ package dev.glyphlife.app.ai
 import dev.glyphlife.app.model.GlyphAnimation
 import dev.glyphlife.app.model.GlyphFrame
 import dev.glyphlife.app.model.GlyphOps
+import dev.glyphlife.app.model.GlyphMask
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import org.json.JSONArray
@@ -74,7 +75,7 @@ object GeminiClient {
         val values = (0 until frames.length()).map { i ->
             val frame = frames.getJSONObject(i)
             GlyphFrame(
-                pixels = GlyphOps.decode(frame.getString("pixels")),
+                pixels = GlyphMask.normalize(GlyphOps.decode(frame.getString("pixels"))),
                 durationMs = frame.optInt("durationMs", 350)
             )
         }

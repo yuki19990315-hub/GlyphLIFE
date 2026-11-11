@@ -8,7 +8,7 @@ import android.graphics.Color
 import android.net.Uri
 import android.os.Environment
 import android.provider.MediaStore
-import dev.glyphlife.app.model.GlyphOps
+import dev.glyphlife.app.model.GlyphMask
 import dev.glyphlife.app.model.PixelArt
 
 /** Locally converts an image to a 13x13 monochrome Glyph sprite. No AI or upload. */
@@ -48,7 +48,7 @@ object GlyphImage {
                 spread(x, y + 1, 5f / 16)
                 spread(x + 1, y + 1, 1f / 16)
             }
-            return lit.toList()
+            return GlyphMask.normalize(lit.toList())
         } finally {
             if (!scaled.isRecycled) scaled.recycle()
         }

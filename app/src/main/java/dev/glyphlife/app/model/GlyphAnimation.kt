@@ -26,7 +26,9 @@ data class GlyphAnimation(
         if (index in frames.indices) copy(selected = index) else this
 
     fun replace(pixels: List<Boolean>): GlyphAnimation = copy(
-        frames = frames.toMutableList().apply { set(selected, current.copy(pixels = pixels)) }
+        frames = frames.toMutableList().apply {
+            set(selected, current.copy(pixels = GlyphMask.normalize(pixels)))
+        }
     )
 
     fun setDuration(duration: Int): GlyphAnimation = copy(
@@ -60,6 +62,7 @@ object GlyphOps {
 
     fun set(p: List<Boolean>, index: Int, state: Boolean): List<Boolean> {
         require(p.size == PixelArt.COUNT && index in p.indices)
+        if (!GlyphMask.isPhysical(index)) return p
         return p.toMutableList().apply { this[index] = state }
     }
 
@@ -72,17 +75,20 @@ object GlyphOps {
     fun rotateRight(p: List<Boolean>): List<Boolean> =
         List(PixelArt.COUNT) { i -> p[ix(i / S, S - 1 - i % S)] }
 
-    fun invert(p: List<Boolean>): List<Boolean> = p.map { !it }
+    fun invert(p: List<Boolean>): List<Boolean> =
+        p.mapIndexed { i, on -> GlyphMask.isPhysical(i) && !on }
 
     fun shift(p: List<Boolean>, dx: Int, dy: Int): List<Boolean> =
         List(PixelArt.COUNT) { i ->
             val sx = i % S - dx
             val sy = i / S - dy
-            sx in 0 until S && sy in 0 until S && p[ix(sx, sy)]
+            GlyphMask.isPhysical(i) && sx in 0 until S && sy in 0 until S &&
+                p[ix(sx, sy)]
         }
 
     fun floodFill(p: List<Boolean>, index: Int, value: Boolean): List<Boolean> {
         require(p.size == PixelArt.COUNT && index in p.indices)
+        if (!GlyphMask.isPhysical(index)) return p
         val source = p[index]
         if (source == value) return p
         val out = p.toMutableList()
@@ -90,7 +96,7 @@ object GlyphOps {
         queue.add(index)
         while (queue.isNotEmpty()) {
             val i = queue.removeFirst()
-            if (out[i] != source) continue
+            if (!GlyphMask.isPhysical(i) || out[i] != source) continue
             out[i] = value
             val x = i % S
             val y = i / S
@@ -104,11 +110,12 @@ object GlyphOps {
 
     fun encode(p: List<Boolean>): String {
         require(p.size == PixelArt.COUNT)
-        return p.joinToString("") { if (it) "1" else "0" }
+        return p.mapIndexed { i, on -> if (on && GlyphMask.isPhysical(i)) "1" else "0" }
+            .joinToString("")
     }
 
     fun decode(raw: String): List<Boolean> {
         require(raw.length == PixelArt.COUNT && raw.all { it in "01" })
-        return raw.map { it == '1' }
+        return raw.mapIndexed { i, c -> c == '1' && GlyphMask.isPhysical(i) }
     }
 }

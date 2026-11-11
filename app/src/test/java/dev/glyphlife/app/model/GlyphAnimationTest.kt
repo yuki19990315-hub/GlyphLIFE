@@ -33,10 +33,11 @@ class GlyphAnimationTest {
 
     @Test fun fillRespectsConnectedRegion() {
         val p = List(169) { index -> index % 13 == 6 }
-        val f = GlyphOps.floodFill(p, 0, true)
-        assertTrue(f[0])
-        assertTrue(f[6])
-        assertFalse(f[7])
+        val start = 5 * 13 + 1
+        val f = GlyphOps.floodFill(p, start, true)
+        assertTrue(f[start])
+        assertTrue(f[5 * 13 + 6])
+        assertFalse(f[5 * 13 + 7])
     }
 
     @Test fun encodeDecodeRoundTrip() {
@@ -48,9 +49,17 @@ class GlyphAnimationTest {
         } catch (_: IllegalArgumentException) {}
     }
 
-    @Test fun shiftDropsPixelsAtBoundary() {
-        val p = GlyphOps.set(PixelArt.empty(), 0, true)
+    @Test fun shiftDropsPixelsAtCircularBoundary() {
+        val p = GlyphOps.set(PixelArt.empty(), 4, true)
         val shifted = GlyphOps.shift(p, -1, 0)
         assertEquals(0, shifted.count { it })
+    }
+
+    @Test fun physicalMaskIs137Pixels() {
+        assertEquals(137, (0 until 169).count(GlyphMask::isPhysical))
+        assertFalse(GlyphMask.isPhysical(0))
+        assertFalse(GlyphMask.isPhysical(168))
+        assertTrue(GlyphMask.isPhysical(4))
+        assertTrue(GlyphMask.isPhysical(6 * 13))
     }
 }

@@ -9,6 +9,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
 import dev.glyphlife.app.model.PixelArt
+import dev.glyphlife.app.model.GlyphMask
 
 @Composable
 fun PixelGrid(
@@ -27,10 +28,12 @@ fun PixelGrid(
                     val index = y * PixelArt.WIDTH + x
                     val base = Modifier.weight(1f).aspectRatio(1f)
                         .background(
-                            if (pixels[index]) Color(0xFFF7F7F0) else Color(0xFF303737),
+                            if (!GlyphMask.isPhysical(index)) Color(0xFF131616)
+                            else if (pixels[index]) Color(0xFFF7F7F0) else Color(0xFF303737),
                             RoundedCornerShape(2.dp)
                         )
-                    Spacer(modifier = if (onClick != null) base.clickable { onClick(index) } else base)
+                    Spacer(modifier = if (onClick != null && GlyphMask.isPhysical(index))
+                        base.clickable { onClick(index) } else base)
                 }
             }
         }

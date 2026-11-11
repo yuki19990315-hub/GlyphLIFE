@@ -3,6 +3,7 @@
 Android app for Nothing Phone (4a) Pro. It combines virtual pet care, a 13×13 pixel-art/animation editor, optional Gemini AI, and JSON exchange with a **future separate** Monster Quest game.
 
 ## Implemented features
+- Circular 13×13 editor with a **137-LED physical mask**: the 32 unwired corners are not editable.
 - 13×13 animation timeline: 1–64 frames, 100–2000 ms/frame, looping playback and auto-save.
 - Draw, erase, flood fill, 90° rotate, mirror, invert, clear, duplicate/add/delete and in-session undo/redo.
 - Convert imported photos to Glyph pixels (Floyd–Steinberg), export PNG, import/export animation JSON.

@@ -9,6 +9,7 @@ import com.nothing.ketchum.GlyphMatrixFrame
 import com.nothing.ketchum.GlyphMatrixManager
 import com.nothing.ketchum.GlyphMatrixObject
 import dev.glyphlife.app.model.PixelArt
+import dev.glyphlife.app.model.GlyphMask
 
 /**
  * Real-device adapter for the official Nothing 2.0 AAR. Only compiled when
@@ -52,11 +53,12 @@ internal class GlyphBridgeImpl(private val context: Context) : GlyphBridge {
 
     override fun showFrame(pixels: List<Boolean>) {
         require(pixels.size == PixelArt.COUNT)
-        latest = pixels.toList()
+        val visiblePixels = GlyphMask.normalize(pixels)
+        latest = visiblePixels
         if (!connected) return
         val image = Bitmap.createBitmap(PixelArt.WIDTH, PixelArt.HEIGHT, Bitmap.Config.ARGB_8888)
         try {
-            pixels.forEachIndexed { i, lit ->
+            visiblePixels.forEachIndexed { i, lit ->
                 image.setPixel(i % 13, i / 13, if (lit) Color.WHITE else Color.BLACK)
             }
             val item = GlyphMatrixObject.Builder()
