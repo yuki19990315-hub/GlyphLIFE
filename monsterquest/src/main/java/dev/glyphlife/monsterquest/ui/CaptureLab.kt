@@ -7,6 +7,7 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
+import dev.glyphlife.monsterquest.data.MonsterArtworkStore
 import dev.glyphlife.monsterquest.model.FusionRules
 import dev.glyphlife.monsterquest.model.WildMonster
 
@@ -18,6 +19,8 @@ import dev.glyphlife.monsterquest.model.WildMonster
 fun CaptureLab(
     captured: List<WildMonster>,
     inBattle: Boolean,
+    artworkStore: MonsterArtworkStore,
+    artworkRevision: Int,
     onFuse: (String, String) -> Unit
 ) {
     var expanded by remember { mutableStateOf(false) }
@@ -75,13 +78,13 @@ fun CaptureLab(
             Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                 first?.let {
                     Column {
-                        MonsterPortrait(MonsterArt.forWild(it), it.element, Modifier.size(116.dp))
+                        MonsterArtworkView(it, artworkStore, artworkRevision, Modifier.size(116.dp))
                         Text("A：${it.species} ${it.element}")
                     }
                 }
                 second?.let {
                     Column {
-                        MonsterPortrait(MonsterArt.forWild(it), it.element, Modifier.size(116.dp))
+                        MonsterArtworkView(it, artworkStore, artworkRevision, Modifier.size(116.dp))
                         Text("B：${it.species} ${it.element}")
                     }
                 }

@@ -20,11 +20,15 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.ui.unit.dp
 import dev.glyphlife.monsterquest.data.QuestStorage
+import dev.glyphlife.monsterquest.data.MonsterArtworkStore
 import dev.glyphlife.monsterquest.model.*
 import dev.glyphlife.monsterquest.ai.MonsterAi
 import dev.glyphlife.monsterquest.ai.MonsterIdea
+import dev.glyphlife.monsterquest.ai.MonsterConceptArt
+import dev.glyphlife.monsterquest.ai.ConceptStyle
 import dev.glyphlife.monsterquest.ui.MonsterArt
 import dev.glyphlife.monsterquest.ui.MonsterPortrait
+import dev.glyphlife.monsterquest.ui.MonsterArtworkView
 import dev.glyphlife.monsterquest.ui.CaptureLab
 import kotlinx.coroutines.launch
 
@@ -35,12 +39,15 @@ class MonsterQuestActivity : ComponentActivity() {
         super.onCreate(savedInstanceState)
         incoming = sharedJson(intent)
         val storage = QuestStorage(this)
+        val artworkStore = MonsterArtworkStore(this)
         setContent {
             var state by remember { mutableStateOf(storage.load()) }
             var status by remember { mutableStateOf("オフラインで遊べます") }
             var aiKey by remember { mutableStateOf("") }
             var aiDescription by remember { mutableStateOf("") }
             var aiBusy by remember { mutableStateOf(false) }
+            var artworkRevision by remember { mutableIntStateOf(0) }
+            var artImportId by remember { mutableStateOf<String?>(null) }
             val scope = rememberCoroutineScope()
 
             fun update(next: QuestState) {
@@ -94,6 +101,38 @@ class MonsterQuestActivity : ComponentActivity() {
                     }
                 }
             }
+            val artworkPicker = rememberLauncherForActivityResult(
+                ActivityResultContracts.GetContent()
+            ) { uri ->
+                val id = artImportId
+                artImportId = null
+                if (uri != null && id != null) {
+                    scope.launch {
+                        runCatching {
+                            artworkStore.importFromUri(id, uri)
+                            artworkRevision += 1
+                            notify("高精細イラストを端末に保存しました")
+                        }.onFailure { notify("イラスト読み込み失敗：${it.message}") }
+                    }
+                }
+            }
+            fun generatePortrait(wild: WildMonster, style: ConceptStyle) {
+                if (aiBusy || aiKey.isBlank()) return
+                aiBusy = true
+                val key = aiKey
+                scope.launch {
+                    try {
+                        val image = MonsterConceptArt.generate(key, wild, style)
+                        artworkStore.store(wild.id, image)
+                        artworkRevision += 1
+                        notify("${wild.species}の高精細イラストを保存しました")
+                    } catch (e: Exception) {
+                        notify("立ち絵の生成に失敗：${e.message}")
+                    } finally {
+                        aiBusy = false
+                    }
+                }
+            }
             LaunchedEffect(incoming) {
                 val raw = incoming ?: return@LaunchedEffect
                 incoming = null
@@ -111,13 +150,19 @@ class MonsterQuestActivity : ComponentActivity() {
             ) {
                 Scaffold(topBar = {
                     Surface(tonalElevation = 2.dp) {
-                        Text("MONSTER QUEST  /  MVP 0.4",
+                        Text("MONSTER QUEST  /  MVP 0.5",
                             modifier = Modifier.padding(18.dp),
                             style = MaterialTheme.typography.titleMedium)
                     }
                 }) { padding ->
                     QuestScreen(
                         state = state, status = status,
+                        artworkStore = artworkStore, artworkRevision = artworkRevision,
+                        onGenerateArt = ::generatePortrait,
+                        onImportArt = { wild ->
+                            artImportId = wild.id
+                            artworkPicker.launch("image/*")
+                        },
                         aiKey = aiKey, aiDescription = aiDescription,
                         aiBusy = aiBusy,
                         onAiKeyChange = { aiKey = it.take(256) },
@@ -191,6 +236,10 @@ class MonsterQuestActivity : ComponentActivity() {
 private fun QuestScreen(
     state: QuestState,
     status: String,
+    artworkStore: MonsterArtworkStore,
+    artworkRevision: Int,
+    onGenerateArt: (WildMonster, ConceptStyle) -> Unit,
+    onImportArt: (WildMonster) -> Unit,
     aiKey: String,
     aiDescription: String,
     aiBusy: Boolean,
@@ -211,6 +260,7 @@ private fun QuestScreen(
     onNewRun: () -> Unit,
     onSendResult: () -> Unit
 ) {
+    var artStyle by remember { mutableStateOf(ConceptStyle.DARK_FANTASY) }
     Column(
         modifier = modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(16.dp),
         verticalArrangement = Arrangement.spacedBy(10.dp)
@@ -287,11 +337,45 @@ private fun QuestScreen(
                 if (enemy.description.isNotBlank()) {
                     Text(enemy.description, style = MaterialTheme.typography.bodyMedium)
                 }
-                MonsterPortrait(
-                    pixels = MonsterArt.forWild(enemy),
-                    element = enemy.element,
-                    modifier = Modifier.size(if (enemy.isBoss) 220.dp else 180.dp)
+                MonsterArtworkView(
+                    monster = enemy,
+                    store = artworkStore,
+                    revision = artworkRevision,
+                    modifier = Modifier.fillMaxWidth().height(320.dp)
                 )
+                Text("ゲーム用立ち絵：${if (artworkStore.hasArt(enemy.id)) "高精細イラスト" else "簡易13×13ドット"}",
+                    style = MaterialTheme.typography.bodySmall)
+                Text("高精細デザイン（有料API・任意）",
+                    style = MaterialTheme.typography.titleMedium)
+                Text("画像生成は通常のモンスターAIと別のAPI呼び出しです。Gemini 3.1 Flash Imageは" +
+                    "無料枠なし。1K画像1枚の出力料金は約$0.067＋入力料金。課金設定のあるAPIキーが必要です。" +
+                    "画像が気に入らないときは別のテイストで再生成できます。既存の画像は保存成功まで維持されます。",
+                    style = MaterialTheme.typography.bodySmall)
+                Row(
+                    modifier = Modifier.horizontalScroll(rememberScrollState()),
+                    horizontalArrangement = Arrangement.spacedBy(6.dp)
+                ) {
+                    ConceptStyle.entries.forEach { candidate ->
+                        FilterChip(
+                            selected = artStyle == candidate,
+                            onClick = { artStyle = candidate },
+                            label = { Text(candidate.label) }
+                        )
+                    }
+                }
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Button(
+                        enabled = !aiBusy && aiKey.isNotBlank(),
+                        onClick = { onGenerateArt(enemy, artStyle) }
+                    ) { Text(if (aiBusy) "処理中…" else "立ち絵をAI生成") }
+                    OutlinedButton(
+                        enabled = !aiBusy,
+                        onClick = { onImportArt(enemy) }
+                    ) { Text("持っている絵を使う") }
+                }
+                Text("外部で作ったイラストも画像選択から読み込めます。読み込みだけなら追加AI料金なし。" +
+                    "バトル用画像は端末内保存、背面Glyphの13×13とは別管理です。",
+                    style = MaterialTheme.typography.bodySmall)
                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                     Button(onClick = { onAttack(false) }) { Text("攻撃") }
                     Button(onClick = { onAttack(true) }) { Text("属性魔法") }
@@ -366,6 +450,8 @@ private fun QuestScreen(
         CaptureLab(
             captured = state.captures,
             inBattle = state.inBattle,
+            artworkStore = artworkStore,
+            artworkRevision = artworkRevision,
             onFuse = onFuse
         )
         Text("状態：$status", style = MaterialTheme.typography.bodySmall)

@@ -58,14 +58,19 @@ object MonsterAi {
     }
 
     fun prompt(userPrompt: String): String = """
-        Invent one original cute but distinctive fantasy monster for a mobile collection game.
+        Invent one ORIGINAL, imposing and visually memorable fantasy monster
+        for a serious dark-fantasy mobile RPG. Not a cute mascot or simple blob.
+        Create a unique anatomical concept with dramatic shape language:
+        layered armored anatomy, imposing horns/claws/wing silhouettes, an
+        elemental power source, distinct head geometry, asymmetrical details
+        and a strong original visual identity.
         Inspiration: ${userPrompt.take(240)}
         Return ONLY valid JSON in the form:
         {"name":"...","element":"水","description":"...",
         "pixels":"169 binary digits"}
         - name: original Japanese name, max 16 chars.
         - element: EXACTLY one of 火, 水, 草, 雷, 光, 闇, 無.
-        - description: a fun Japanese one-sentence description, max 160 chars.
+        - description: a serious cinematic Japanese bestiary description, max 160 chars.
         - pixels: ONE string of 169 characters, each 0 or 1, representing
           13 rows × 13 columns in row-major order. 1 is a lit white LED.
           Draw a readable 13x13 pixel art portrait with a distinctive silhouette.

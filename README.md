@@ -1,4 +1,4 @@
-# GlyphLIFE v0.13 / Monster Quest v0.4
+# GlyphLIFE v0.13 / Monster Quest v0.5
 
 Two **independently installable Android apps** in one repository:
 
@@ -99,3 +99,11 @@ All new features require physical-device verification beyond the Android build a
 ## Glyph Snake mini-game (v0.13)
 
 The **Playground** tab now offers **Fluid** or **Snake**. Snake is an entirely offline 137-pixel mini-game with food, wall/self-collision, high-score saving and adjustable speed. With the licensed Nothing SDK installed for local testing, its frames can stream to the rear Glyph Matrix while the app is foregrounded. The last 64 frames of play can be sent to Creator or saved in the artwork gallery as an editable replay. Details: [Glyph Snake spec](docs/GLYPH_SNAKE_JA.md).
+
+## Monster design overhaul (v0.5)
+
+Monster Quest now keeps **two different visual assets**: a tiny 13×13 monochrome Glyph sprite for hardware display and an optional **high-resolution full-body illustration** for battles and the collection. A new advanced art direction prompt emphasizes original, formidable creatures with detailed anatomy, layered armor, wing/horn silhouettes, multicolor elemental accents and professional shading instead of cute blobs. Players may choose a dark-fantasy, mech, dragon or celestial style.
+
+**Explicit opt-in paid service:** The battle screen has a separate button for high-resolution Gemini 3.1 Flash Image generation; this model has no free API tier (Google's 1K image output rate is about $0.067, plus input costs as of Nov 2026). An existing image can also be imported from the Android photo picker with **no additional Monster Quest image-generation API charge**. Images are stored in the app's private directory by monster ID and displayed in battles / the fusion collection; prior 13×13 art remains as the fallback. Real image API calls and output quality remain untested.
+
+See [Monster design pipeline](docs/MONSTER_ARTWORK_JA.md).
