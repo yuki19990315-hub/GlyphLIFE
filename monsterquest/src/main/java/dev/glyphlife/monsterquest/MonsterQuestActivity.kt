@@ -25,6 +25,7 @@ import dev.glyphlife.monsterquest.ai.MonsterAi
 import dev.glyphlife.monsterquest.ai.MonsterIdea
 import dev.glyphlife.monsterquest.ui.MonsterArt
 import dev.glyphlife.monsterquest.ui.MonsterPortrait
+import dev.glyphlife.monsterquest.ui.CaptureLab
 import kotlinx.coroutines.launch
 
 class MonsterQuestActivity : ComponentActivity() {
@@ -110,7 +111,7 @@ class MonsterQuestActivity : ComponentActivity() {
             ) {
                 Scaffold(topBar = {
                     Surface(tonalElevation = 2.dp) {
-                        Text("MONSTER QUEST  /  MVP 0.3",
+                        Text("MONSTER QUEST  /  MVP 0.4",
                             modifier = Modifier.padding(18.dp),
                             style = MaterialTheme.typography.titleMedium)
                     }
@@ -135,6 +136,13 @@ class MonsterQuestActivity : ComponentActivity() {
                         onAttack = { magic -> if (!aiBusy) update(QuestRules.attack(state, magic)) },
                         onCapture = { if (!aiBusy) update(QuestRules.capture(state)) },
                         onPotion = { if (!aiBusy) update(QuestRules.usePotion(state)) },
+                        onSupport = {
+                            if (!aiBusy) update(QuestRules.supportAttack(state))
+                        },
+                        onFuse = { a, b ->
+                            runCatching { update(FusionRules.fuse(state, a, b)) }
+                                .onFailure { notify("合成に失敗：${it.message}") }
+                        },
                         onDefend = { if (!aiBusy) update(QuestRules.defend(state)) },
                         onNextRoom = { update(QuestRules.nextRoom(state)) },
                         onEnd = { update(QuestRules.endRun(state)) },
@@ -195,6 +203,8 @@ private fun QuestScreen(
     onAttack: (Boolean) -> Unit,
     onCapture: () -> Unit,
     onPotion: () -> Unit,
+    onSupport: () -> Unit,
+    onFuse: (String, String) -> Unit,
     onDefend: () -> Unit,
     onNextRoom: () -> Unit,
     onEnd: () -> Unit,
@@ -293,6 +303,17 @@ private fun QuestScreen(
                         Text("回復薬（${state.potions}）")
                     }
                 }
+                if (state.captures.isNotEmpty()) {
+                    OutlinedButton(
+                        enabled = !state.supportUsedInBattle,
+                        onClick = onSupport
+                    ) {
+                        Text(if (state.supportUsedInBattle) "援護は使用済み"
+                            else "仲間の援護：${state.captures.last().species}")
+                    }
+                    Text("捕獲した最後の仲間が1戦に1回、援護攻撃します。",
+                        style = MaterialTheme.typography.bodySmall)
+                }
             }
         }
         if (state.roomCleared && !state.completed) {
@@ -342,13 +363,11 @@ private fun QuestScreen(
             ) { Text("写真からAI召喚") }
         }
         if (aiBusy) LinearProgressIndicator(modifier = Modifier.fillMaxWidth())
-        HorizontalDivider()
-        Text("冒険履歴：捕獲したモンスター",
-            style = MaterialTheme.typography.titleMedium)
-        if (state.captures.isEmpty()) Text("まだ捕獲していません")
-        state.captures.takeLast(15).forEach { monster ->
-            Text("・${monster.species} / ${monster.element}")
-        }
+        CaptureLab(
+            captured = state.captures,
+            inBattle = state.inBattle,
+            onFuse = onFuse
+        )
         Text("状態：$status", style = MaterialTheme.typography.bodySmall)
         Text(
             "この版はオフライン戦闘のMVPです。AIモンスターの13×13ドット絵生成は任意のGemini接続で提供しますが、" +

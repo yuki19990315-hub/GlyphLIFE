@@ -1,0 +1,58 @@
+package dev.glyphlife.monsterquest.model
+
+import org.junit.Assert.*
+import org.junit.Test
+
+class FusionRulesTest {
+    private val a = WildMonster("id-a", "フレア", "火", 35, 7, pixels="1".repeat(169))
+    private val b = WildMonster("id-b", "アクア", "水", 40, 8, pixels="0".repeat(169))
+    private val c = WildMonster("id-c", "モコ", "草", 24, 4)
+
+    @Test fun fuseConsumesTwoAndProducesOneStrongerMonster() {
+        val original = QuestState(captures = listOf(a, b, c))
+        val result = FusionRules.fuse(original, a.id, b.id)
+        assertEquals(2, result.captures.size)
+        assertEquals(listOf("id-c"), result.captures.take(1).map { it.id })
+        val fusion = result.captures.last()
+        assertNotEquals(a.id, fusion.id)
+        assertNotEquals(b.id, fusion.id)
+        assertEquals("無", fusion.element)
+        assertTrue(fusion.maxHp > maxOf(a.maxHp, b.maxHp))
+        assertTrue(fusion.attack > maxOf(a.attack, b.attack))
+        assertEquals(169, fusion.pixels.length)
+        assertTrue(fusion.pixels.take(6).all { it == '1' })
+        assertTrue(fusion.pixels.drop(7).take(6).all { it == '0' })
+        assertEquals(3, original.captures.size)
+    }
+
+    @Test fun fusionRejectsSameIdOrMissingMaterial() {
+        val state = QuestState(captures = listOf(a, b))
+        try {
+            FusionRules.fuse(state, a.id, a.id)
+            fail("same id")
+        } catch (_: IllegalArgumentException) {}
+        try {
+            FusionRules.fuse(state, a.id, "missing")
+            fail("missing id")
+        } catch (_: IllegalArgumentException) {}
+    }
+
+    @Test fun fusionRejectsBattleAndCannotConsumeBoss() {
+        val battle = QuestState(inBattle = true, captures = listOf(a,b))
+        try {
+            FusionRules.fuse(battle,a.id,b.id)
+            fail("battle")
+        } catch (_: IllegalArgumentException) {}
+        val boss = b.copy(isBoss = true)
+        try {
+            FusionRules.fuse(QuestState(captures=listOf(a,boss)),a.id,boss.id)
+            fail("boss")
+        } catch (_: IllegalArgumentException) {}
+    }
+
+    @Test fun synthesizedElementRulesAreCommutative() {
+        assertEquals("無", FusionRules.resultElement(a,b))
+        assertEquals(FusionRules.resultElement(a,b), FusionRules.resultElement(b,a))
+        assertEquals("草", FusionRules.resultElement(c,c))
+    }
+}

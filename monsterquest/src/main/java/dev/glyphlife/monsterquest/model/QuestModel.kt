@@ -34,6 +34,7 @@ data class QuestState(
     val enemyHp: Int = 0,
     val playerHp: Int = 100,
     val potions: Int = 2,
+    val supportUsedInBattle: Boolean = false,
     val inBattle: Boolean = false,
     val roomCleared: Boolean = false,
     val completed: Boolean = false,
@@ -75,7 +76,8 @@ object QuestRules {
         )
         return state.copy(
             position = 0, walls = walls, enemy = wild, enemyHp = wild.maxHp,
-            inBattle = false, roomCleared = false, completed = false,
+            inBattle = false, supportUsedInBattle = false,
+            roomCleared = false, completed = false,
             message = if (bossRoom) "最終階層：ボス${wild.species}を倒そう！"
                       else "部屋${state.room}：モンスターを探そう"
         )
@@ -117,8 +119,8 @@ object QuestRules {
         val damageTaken = wild.attack + (if (enraged) 4 else 0) + random.nextInt(3)
         val hp = (state.playerHp - damageTaken).coerceAtLeast(0)
         if (hp == 0) return state.copy(
-            playerHp = 100, inBattle = false, completed = true,
-            message = "力尽きた。冒険終了。報酬を戻してから再挑戦できます"
+            playerHp = 0, inBattle = false, completed = true,
+            message = "力尽きた。冒険終了。報酬を確定してから再挑戦できます"
         )
         return state.copy(
             enemyHp = remaining, playerHp = hp,
@@ -130,6 +132,8 @@ object QuestRules {
         val wild = state.enemy ?: return state
         if (!state.inBattle) return state
         if (wild.isBoss) return state.copy(message = "ボスは捕獲できない！ 戦って倒そう")
+        if (state.captures.size >= 100)
+            return state.copy(message = "仲間は最大100匹です。先に合成して空きを作ろう")
         val hpRatio = state.enemyHp.toFloat() / wild.maxHp.toFloat()
         val chance = (75 - hpRatio * 55).toInt().coerceIn(15, 80)
         if (random.nextInt(100) < chance) {
@@ -139,8 +143,36 @@ object QuestRules {
         }
         val hp = (state.playerHp - wild.attack).coerceAtLeast(0)
         return if (hp == 0) state.copy(
-            playerHp = 100, inBattle = false, completed = true, message = "捕獲失敗。冒険終了"
+            playerHp = 0, inBattle = false, completed = true, message = "捕獲失敗。冒険終了"
         ) else state.copy(playerHp = hp, message = "捕獲失敗！ HP -${wild.attack}")
+    }
+
+    /**
+     * Once per encounter, a previously captured monster can assist the active
+     * GlyphLIFE pet. The original companion UUID and rewards are unchanged.
+     */
+    fun supportAttack(state: QuestState, random: Random = Random.Default): QuestState {
+        if (!state.inBattle || state.supportUsedInBattle) return state
+        val assistant = state.captures.lastOrNull() ?: return state
+        val wild = state.enemy ?: return state
+        val baseDamage = 4 + assistant.attack.coerceIn(1, 30)
+        val damage = if (advantage(assistant.element, wild.element)) baseDamage * 2
+                     else baseDamage
+        val remaining = (state.enemyHp - damage).coerceAtLeast(0)
+        val assisted = state.copy(
+            enemyHp = remaining,
+            supportUsedInBattle = true
+        )
+        if (remaining == 0) return finishRoom(assisted, captured = false)
+        val taken = wild.attack + random.nextInt(2)
+        val hp = (state.playerHp - taken).coerceAtLeast(0)
+        return if (hp == 0) assisted.copy(
+            playerHp = 0, inBattle = false, completed = true,
+            message = "${assistant.species}が援護したが、敵の反撃で倒れた"
+        ) else assisted.copy(
+            playerHp = hp,
+            message = "${assistant.species}の援護！ 敵に${damage}ダメージ、反撃で${taken}ダメージ"
+        )
     }
 
     /** Uses a limited item; healing is followed by a counterattack. */
@@ -186,6 +218,7 @@ object QuestRules {
             return state
         return state.copy(
             enemy = wild, enemyHp = wild.maxHp, position = 15, inBattle = true,
+            supportUsedInBattle = false,
             message = "AI生成の${wild.species}が現れた！"
         )
     }
