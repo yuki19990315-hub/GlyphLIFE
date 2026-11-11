@@ -2,6 +2,8 @@ package dev.glyphlife.app
 
 import android.content.ActivityNotFoundException
 import android.content.Intent
+import android.nfc.NfcAdapter
+import android.os.SystemClock
 import android.net.Uri
 import android.os.Bundle
 import android.widget.Toast
@@ -10,6 +12,8 @@ import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.compose.setContent
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
@@ -20,11 +24,79 @@ import dev.glyphlife.app.data.*
 import dev.glyphlife.app.glyph.createGlyphBridge
 import dev.glyphlife.app.media.GlyphImage
 import dev.glyphlife.app.model.*
+import dev.glyphlife.app.nfc.RingNfcStore
+import dev.glyphlife.app.nfc.RingTagFingerprint
 import dev.glyphlife.app.ui.*
 import kotlinx.coroutines.launch
 
 class MainActivity : ComponentActivity() {
     private var incomingQuestPayload by mutableStateOf<String?>(null)
+    private val ringStore by lazy { RingNfcStore(this) }
+    private val adapter by lazy { NfcAdapter.getDefaultAdapter(this) }
+    private var readerResumed = false
+    private var ringEnabled by mutableStateOf(false)
+    private var ringEnrolling by mutableStateOf(false)
+    private var ringStatus by mutableStateOf("未登録")
+    private var ringScans by mutableIntStateOf(0)
+    private var lastScanMs = 0L
+
+    private fun refreshRingReader() {
+        val nfc = adapter ?: return
+        if (!readerResumed) return
+        if (!ringEnabled && !ringEnrolling) {
+            runCatching { nfc.disableReaderMode(this) }
+            return
+        }
+        if (!nfc.isEnabled) {
+            ringStatus = "端末のNFC設定をONにしてください"
+            return
+        }
+        val flags = NfcAdapter.FLAG_READER_NFC_A or
+            NfcAdapter.FLAG_READER_NFC_B or
+            NfcAdapter.FLAG_READER_NFC_F or
+            NfcAdapter.FLAG_READER_NFC_V or
+            NfcAdapter.FLAG_READER_SKIP_NDEF_CHECK
+        try {
+            nfc.enableReaderMode(this, { tag ->
+                val uid = tag.id
+                if (uid.isEmpty()) return@enableReaderMode
+                val fingerprint = RingTagFingerprint.fromUid(uid)
+                runOnUiThread {
+                    val now = SystemClock.elapsedRealtime()
+                    if (now - lastScanMs >= 1500) {
+                        lastScanMs = now
+                        if (ringEnrolling) {
+                            ringStore.enrolledFingerprint = fingerprint
+                            ringStore.enabled = true
+                            ringEnabled = true
+                            ringEnrolling = false
+                            ringStatus = "リングを登録しました（前景で有効）"
+                            refreshRingReader()
+                        } else if (ringEnabled && ringStore.enrolledFingerprint == fingerprint) {
+                            ringScans += 1
+                            ringStatus = "リングを認識：モードを切り替えました"
+                        } else {
+                            ringStatus = "登録済みリングとは一致しません"
+                        }
+                    }
+                }
+            }, flags, null)
+        } catch (e: Exception) {
+            ringStatus = "NFCリーダーを起動できません：${e.message}"
+        }
+    }
+
+    override fun onResume() {
+        super.onResume()
+        readerResumed = true
+        refreshRingReader()
+    }
+
+    override fun onPause() {
+        readerResumed = false
+        runCatching { adapter?.disableReaderMode(this) }
+        super.onPause()
+    }
 
     override fun onNewIntent(intent: Intent) {
         super.onNewIntent(intent)
@@ -41,6 +113,8 @@ class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         incomingQuestPayload = sharedText(intent)
+        ringEnabled = ringStore.enabled
+        ringStatus = if (ringStore.isEnrolled()) "登録済み" else "まだリングを登録していません"
         val repo = PetRepository(this)
         val gallery = ArtworkLibrary(this)
         val glyph = createGlyphBridge(this)
@@ -51,11 +125,29 @@ class MainActivity : ComponentActivity() {
             var animation by remember { mutableStateOf(repo.loadAnimation(pet.id)) }
             var chat by remember { mutableStateOf(repo.loadChat(pet.id)) }
             var tab by remember { mutableIntStateOf(0) }
+            var fluidPreview by remember { mutableStateOf(GlyphFluid.initial()) }
             var glyphStatus by remember { mutableStateOf("未接続") }
             var questStatus by remember { mutableStateOf("取り込み待ち") }
             var aiKey by remember { mutableStateOf("") }
             var aiBusy by remember { mutableStateOf(false) }
             val scope = rememberCoroutineScope()
+            LaunchedEffect(ringScans) {
+                if (ringScans > 0) {
+                    val mode = ringScans % 3
+                    tab = when (mode) { 1 -> 1; 2 -> 2; else -> 0 }
+                    if (glyph.isSupported) {
+                        val frame = when (mode) {
+                            1 -> animation.current.pixels
+                            2 -> fluidPreview
+                            else -> PetSpriteGenerator.create(pet).frames.first().pixels
+                        }
+                        runCatching {
+                            glyph.connect { glyphStatus = it }
+                            glyph.showFrame(frame)
+                        }.onFailure { ringStatus = "Glyph出力失敗：${it.message}" }
+                    }
+                }
+            }
             LaunchedEffect(incomingQuestPayload) {
                 val raw = incomingQuestPayload ?: return@LaunchedEffect
                 incomingQuestPayload = null
@@ -274,6 +366,7 @@ class MainActivity : ComponentActivity() {
                                 runCatching { glyph.showFrame(frame) }
                                     .onFailure { notify("Glyph出力失敗：${it.message}") }
                             },
+                            onPreviewFrame = { fluidPreview = it },
                             onCopyToCreator = { frame ->
                                 updateAnimation(animation.replace(frame))
                                 tab = 1
@@ -314,7 +407,26 @@ class MainActivity : ComponentActivity() {
                             modifier = Modifier.padding(padding),
                             status = questStatus,
                             onShare = { sendToMonsterQuest(repo.exportPet(pet, animation)) },
-                            onImportResult = { questPicker.launch("*/*") }
+                            onImportResult = { questPicker.launch("*/*") },
+                            nfcAvailable = adapter != null,
+                            nfcEnabled = ringEnabled,
+                            nfcRegistered = ringStore.isEnrolled(),
+                            nfcEnrolling = ringEnrolling,
+                            nfcStatus = ringStatus,
+                            onEnrollRing = {
+                                if (adapter?.isEnabled != true) {
+                                    ringStatus = "端末のNFCを有効化してください"
+                                } else {
+                                    ringEnrolling = true
+                                    ringStatus = "リングをスマホのNFC位置へかざしてください"
+                                    refreshRingReader()
+                                }
+                            },
+                            onRingEnabledChange = { enabled ->
+                                ringEnabled = enabled && ringStore.isEnrolled()
+                                ringStore.enabled = ringEnabled
+                                refreshRingReader()
+                            }
                         )
                     }
                 }
@@ -335,20 +447,48 @@ private fun LinkScreen(
     modifier: Modifier = Modifier,
     status: String,
     onShare: () -> Unit,
-    onImportResult: () -> Unit
+    onImportResult: () -> Unit,
+    nfcAvailable: Boolean,
+    nfcEnabled: Boolean,
+    nfcRegistered: Boolean,
+    nfcEnrolling: Boolean,
+    nfcStatus: String,
+    onEnrollRing: () -> Unit,
+    onRingEnabledChange: (Boolean) -> Unit
 ) {
     Column(
-        modifier = modifier.fillMaxSize().padding(20.dp),
+        modifier = modifier.fillMaxSize()
+            .verticalScroll(rememberScrollState()).padding(20.dp),
         verticalArrangement = Arrangement.spacedBy(16.dp)
     ) {
         Text("Monster Quest連携", style = MaterialTheme.typography.headlineSmall)
-        Text("ペット情報をJSON v1で共有できます。別アプリ側でデータを受け取る機能は今後実装します。")
+        Text("ペット情報をJSON v1でMonster Questへ送り、冒険結果を受け取れます。相手のアプリが未インストールなら共有メニューを開きます。")
         Button(onClick = onShare) { Text("ペットデータを共有") }
-        Text("将来のMonster Quest用の冒険結果JSONを読み込めます。" +
+        Text("Monster Questの冒険結果JSONを読み込めます。" +
             " 経験値と幸福度の上限、個体IDと重複イベントIDを検証します。")
         OutlinedButton(onClick = onImportResult) { Text("冒険結果JSONを取り込む") }
         Text("状態：$status")
         Text("注意：現在のJSONには電子署名はなく、競争モードやオンライン対戦用の改ざん耐性はありません。",
+            style = MaterialTheme.typography.bodySmall)
+        HorizontalDivider()
+        Text("NFCリングでGlyphモード切り替え", style = MaterialTheme.typography.titleMedium)
+        Text("登録したリングを読み取るたびに Pet → Creator → Fluid → Pet と切り替えます。リングのIDのハッシュだけ端末内に保存します。")
+        Text(if (nfcAvailable) "NFC読み取り対応端末です" else "この端末ではNFCが利用できません")
+        OutlinedButton(
+            enabled = nfcAvailable && !nfcEnrolling,
+            onClick = onEnrollRing
+        ) { Text(if (nfcRegistered) "別のリングで再登録" else "NFCリングを登録") }
+        Row(verticalAlignment = androidx.compose.ui.Alignment.CenterVertically) {
+            Text("リング操作を有効にする")
+            Spacer(Modifier.width(8.dp))
+            Switch(
+                checked = nfcEnabled,
+                enabled = nfcAvailable && nfcRegistered,
+                onCheckedChange = onRingEnabledChange
+            )
+        }
+        Text("NFC：$nfcStatus", style = MaterialTheme.typography.bodySmall)
+        Text("アプリが前面にある間だけ使用できます。NFCのUIDは複製・変化する場合があるため本人認証には使いません。実機検証は未実施。",
             style = MaterialTheme.typography.bodySmall)
     }
 }

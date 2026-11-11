@@ -51,3 +51,7 @@ In Monster Quest, provide your own Gemini API key to generate a custom monster f
 ## Glyph Fluid Lab (v0.9)
 
 A dedicated foreground-only 13×13 cellular-fluid screen uses the actual 137-LED circular mask. It can simulate gravity in four directions, add droplets, change playback speed and copy a frame to Glyph Creator. The screen runs completely offline and can optionally stream frames to the Glyph Matrix on a vendor-SDK-enabled local build. The SDK-free GitHub Actions APK only displays it on the phone screen. See [Fluid Lab implementation notes](docs/GLYPH_FLUID_JA.md).
+
+## NFC Ring Mode Switch (v0.10)
+
+Glyph Life can optionally enroll an NFC ring and use it to cycle the **Pet → Creator → Fluid** screen/matrix display while the app is foregrounded. Enrollment stores a SHA-256 fingerprint of the tag UID locally; no UID or NFC content is uploaded. NFC UID is spoofable or randomized on some tags, so this is **not authentication** and must not protect sensitive data. Without the Nothing SDK AAR, the ring can switch the visible screen, but cannot control hardware Glyph LEDs. Real NFC detection and Glyph output remain untested on a Phone (4a) Pro. See [NFC instructions](docs/NFC_RING_JA.md).

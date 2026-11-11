@@ -23,6 +23,7 @@ fun FluidScreen(
     glyphStatus: String,
     onConnect: () -> Unit,
     onFrame: (List<Boolean>) -> Unit,
+    onPreviewFrame: (List<Boolean>) -> Unit,
     onCopyToCreator: (List<Boolean>) -> Unit
 ) {
     var pixels by remember { mutableStateOf(GlyphFluid.initial()) }
@@ -32,6 +33,8 @@ fun FluidScreen(
     var frame by remember { mutableIntStateOf(0) }
     var stepMs by remember { mutableFloatStateOf(160f) }
     var confirmCopy by remember { mutableStateOf(false) }
+
+    LaunchedEffect(pixels) { onPreviewFrame(pixels) }
 
     LaunchedEffect(running, gravity, stepMs, live, glyphStatus) {
         while (running) {
