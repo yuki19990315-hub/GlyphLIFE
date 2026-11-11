@@ -1,4 +1,4 @@
-name: Android MVP Build (without proprietary SDK)
+name: Android Build and Glyph SDK Type Check
 on:
   push:
   pull_request:
@@ -40,3 +40,41 @@ jobs:
         with:
           name: MonsterQuest-debug
           path: monsterquest/build/outputs/apk/debug/*.apk
+
+  glyph-sdk-compile:
+    name: Compile Nothing Glyph SDK adapter (no artifact)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+      - uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '8.14'
+      - name: Install Android SDK 35
+        shell: bash
+        run: |
+          SDK_ROOT="${ANDROID_HOME:-/usr/local/lib/android/sdk}"
+          SDKMANAGER="$SDK_ROOT/cmdline-tools/latest/bin/sdkmanager"
+          if [ ! -x "$SDKMANAGER" ]; then
+            SDKMANAGER="$(find "$SDK_ROOT/cmdline-tools" -type f -name sdkmanager | head -n 1)"
+          fi
+          test -n "$SDKMANAGER" && test -x "$SDKMANAGER"
+          yes | "$SDKMANAGER" --licenses >/dev/null || true
+          "$SDKMANAGER" --install 'platforms;android-35' 'build-tools;35.0.0'
+      - name: Fetch SDK from the official Nothing repo for compilation only
+        shell: bash
+        run: |
+          mkdir -p app/libs
+          curl --fail --location --silent --show-error --retry 3 \
+            "https://raw.githubusercontent.com/Nothing-Developer-Programme/GlyphMatrix-Developer-Kit/main/glyph-matrix-sdk-2.0.aar" \
+            --output app/libs/glyph-matrix-sdk-2.0.aar
+          test -s app/libs/glyph-matrix-sdk-2.0.aar
+          echo "Official SDK downloaded for local compilation; it will not be uploaded."
+      - name: Compile SDK-specific Kotlin code (no APK distribution)
+        run: gradle --no-daemon :app:compileDebugKotlin
+      - name: Remove temporary vendor binary
+        if: always()
+        run: rm -f app/libs/glyph-matrix-sdk-2.0.aar
