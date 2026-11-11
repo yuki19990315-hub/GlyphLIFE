@@ -13,7 +13,7 @@ import dev.glyphlife.app.model.PixelArt
 
 /** Locally converts an image to a 13x13 monochrome Glyph sprite. No AI or upload. */
 object GlyphImage {
-    fun import(context: Context, uri: Uri): List<Boolean> {
+    fun importFromUri(context: Context, uri: Uri): List<Boolean> {
         val resolver = context.contentResolver
         val options = BitmapFactory.Options().apply { inJustDecodeBounds = true }
         resolver.openInputStream(uri)?.use { BitmapFactory.decodeStream(it, null, options) }

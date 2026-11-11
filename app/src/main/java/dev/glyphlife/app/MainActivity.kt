@@ -113,7 +113,7 @@ class MainActivity : ComponentActivity() {
                             },
                             onImportImage = { uri ->
                                 runCatching {
-                                    updateAnimation(animation.replace(GlyphImage.import(this@MainActivity, uri)))
+                                    updateAnimation(animation.replace(GlyphImage.importFromUri(this@MainActivity, uri)))
                                     notify("画像を13×13に変換しました")
                                 }.onFailure { notify("読み込み失敗：${it.message}") }
                             },
