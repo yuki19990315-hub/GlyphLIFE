@@ -1,5 +1,6 @@
 package dev.glyphlife.app
 
+import android.content.ActivityNotFoundException
 import android.content.Intent
 import android.net.Uri
 import android.os.Bundle
@@ -90,6 +91,20 @@ class MainActivity : ComponentActivity() {
                 }
                 startActivity(Intent.createChooser(intent, "JSONデータを共有"))
             }
+            fun sendToMonsterQuest(payload: String) {
+                val intent = Intent(Intent.ACTION_SEND).apply {
+                    type = "application/json"
+                    putExtra(Intent.EXTRA_TEXT, payload)
+                    setClassName("dev.glyphlife.monsterquest",
+                        "dev.glyphlife.monsterquest.MonsterQuestActivity")
+                }
+                try {
+                    startActivity(intent)
+                } catch (_: ActivityNotFoundException) {
+                    // Monster Quest is optional. Let the user save/share the JSON otherwise.
+                    shareJson(payload)
+                }
+            }
 
             DisposableEffect(glyph) { onDispose { glyph.close() } }
 
@@ -153,26 +168,32 @@ class MainActivity : ComponentActivity() {
                                 notify("ペットの専用アニメを作成しました")
                             },
                             onChat = { message ->
+                                val petAtRequest = pet
+                                val requestPetId = petAtRequest.id
                                 val context = chat.takeLast(8).joinToString("\n") {
                                     (if (it.fromUser) "user: " else "pet: ") + it.text.take(150)
                                 }
                                 chat = (chat + ChatEntry(true, message)).takeLast(30)
-                                repo.saveChat(chat, pet.id)
+                                repo.saveChat(chat, requestPetId)
                                 if (aiKey.isBlank()) {
                                     chat = (chat + ChatEntry(false, PetChat.reply(pet, message))).takeLast(30)
-                                    repo.saveChat(chat, pet.id)
+                                    repo.saveChat(chat, requestPetId)
                                 } else {
                                     aiBusy = true
                                     val prompt = GeminiClient.petPrompt(
-                                        pet.name, pet.species, pet.element,
-                                        pet.personality, context, message
+                                        petAtRequest.name, petAtRequest.species, petAtRequest.element,
+                                        petAtRequest.personality, context, message
                                     )
                                     val activeKey = aiKey
                                     scope.launch {
                                         try {
                                             val reply = GeminiClient.generate(activeKey, prompt)
-                                            chat = (chat + ChatEntry(false, reply.take(1000))).takeLast(30)
-                                            repo.saveChat(chat, pet.id)
+                                            val previous = repo.loadChat(requestPetId)
+                                            val updated = (previous +
+                                                ChatEntry(false, reply.take(1000))).takeLast(30)
+                                            repo.saveChat(updated, requestPetId)
+                                            // Never attach a delayed reply to a newly selected pet.
+                                            if (pet.id == requestPetId) chat = updated
                                         } catch (e: Exception) {
                                             notify("AI会話の失敗：${e.message}")
                                         } finally {
@@ -274,7 +295,7 @@ class MainActivity : ComponentActivity() {
                         else -> LinkScreen(
                             modifier = Modifier.padding(padding),
                             status = questStatus,
-                            onShare = { shareJson(repo.exportPet(pet, animation)) },
+                            onShare = { sendToMonsterQuest(repo.exportPet(pet, animation)) },
                             onImportResult = { questPicker.launch("*/*") }
                         )
                     }

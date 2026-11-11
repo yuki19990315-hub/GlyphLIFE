@@ -1,5 +1,6 @@
 package dev.glyphlife.monsterquest
 
+import android.content.ActivityNotFoundException
 import android.content.Intent
 import android.os.Bundle
 import android.widget.Toast
@@ -145,7 +146,16 @@ class MonsterQuestActivity : ComponentActivity() {
                                     type = "application/json"
                                     putExtra(Intent.EXTRA_TEXT, payload)
                                 }
-                                startActivity(Intent.createChooser(share, "Glyph Lifeに冒険結果を渡す"))
+                                val direct = Intent(share).apply {
+                                    setClassName("dev.glyphlife.app",
+                                        "dev.glyphlife.app.MainActivity")
+                                }
+                                try {
+                                    startActivity(direct)
+                                } catch (_: ActivityNotFoundException) {
+                                    startActivity(Intent.createChooser(share,
+                                        "Glyph Lifeに冒険結果を渡す"))
+                                }
                             }.onFailure { notify("共有できません：${it.message}") }
                         }
                     )
