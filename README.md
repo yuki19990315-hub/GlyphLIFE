@@ -1,34 +1,43 @@
-# Glyph Life — AI Pet × Glyph Creator
+# Glyph Life v0.2 — Pixel animation × Pet × Monster Quest bridge
 
-**Glyph Life** is an Android app combining an AI-pet concept and a 13×13 Glyph Matrix pixel editor for Nothing Phone (4a) Pro. A separate future game, **Monster Quest**, will exchange versioned pet data with it.
+An Android app for Nothing Phone (4a) Pro combining a local pet, a 13×13 Glyph Matrix sprite/animation editor, and a versioned data bridge for a future, **separate** Monster Quest game.
 
-**Current status (2026-11-11): Android MVP source added; APK compilation and on-device Glyph output NOT YET VERIFIED.** This is a development prototype. AI chat, AI sprite generation, animations, evolution, Monster Quest game and bidirectional sync are not implemented.
+## Features now in source
 
-## MVP features
-- One default pet ("ピコ") with Play / Feed / Rest interactions, leveling and local persistence.
-- 13×13 bitmap edit / erase / reset; local storage and pet sprite preview.
-- Manual JSON v1 pet snapshot export through Android's share sheet.
-- Optional adapter for Nothing's proprietary Glyph Matrix SDK, excluded from the repository.
-- GitHub Actions stub (no Nothing SDK) debug APK build and unit tests.
+- 13×13 **multi-frame animation** (up to 64 frames), 100–2000 ms per frame, playback, frame duplicate/delete/add and autosave.
+- Pixel editor with paint/erase/flood-fill, mirror, rotate, invert, clear and undo/redo (history in current session).
+- Local image-to-pixel import using Floyd–Steinberg dithering; PNG to Pictures/GlyphLife; animation JSON import/export.
+- Pet basic leveling, energy, happiness, randomized egg hatching, and local **rule-based** chat (NOT a real AI model).
+- Pet snapshot JSON export for a future **separate Monster Quest** app.
+- Local quest-result JSON import with pet ID check, reward limits, and consumed event IDs. This is offline, not tamper-proof.
+- Optional Nothing SDK adapter for **foreground/live** Glyph Matrix output. The stub APK cannot access rear LEDs.
 
-## Project structure
-- `app/` — Kotlin, Jetpack Compose, SharedPreferences, pet state, pixel grid, optional Glyph bridge.
-- `docs/PRODUCT_SPEC_JA.md` — Japanese requirements and acceptance criteria.
-- `docs/ARCHITECTURE_JA.md` — interfaces, storage and Monster Quest protocol.
-- `docs/ROADMAP_JA.md` — phased plan and verified/unverified features.
-- `docs/NOTHING_SDK_JA.md` — official SDK integration notes.
-- `protocol/` — JSON Schema and sample; `scripts/check_protocol.py` — validator.
+## Verified / not verified
 
-## Build
-Use Android Studio / JDK 17 / Android SDK 35 with Gradle 8.14. The project does **not** currently bundle Gradle Wrapper. Run `gradle :app:testDebugUnitTest :app:assembleDebug` in an Android SDK environment. GitHub Actions is configured to run the same tests/build. Successful CI is not yet confirmed.
+- Android debug APK + unit tests: see GitHub Actions for each commit (do not infer success from a prior commit).
+- On-device Glyph output: **NOT VERIFIED**; vendor SDK binary excluded by licensing.
+- AI-based conversations and AI sprite generation: **NOT IMPLEMENTED**. No cloud provider or secrets bundled.
+- AOD Glyph Toy, Monster Quest game, secure inter-app synchronization: **NOT IMPLEMENTED**.
 
-To attempt real hardware Glyph output, review Nothing's SDK license and manually put the compatible SDK AAR at `app/libs/glyph-matrix-sdk-2.0.aar`; the `src/glyph` adapter is still untested against hardware. Without it, the app uses `src/stub`, so editor/pet functionality remains usable but Glyph output is disabled.
+## Getting an APK
 
-## Data ownership
-Glyph Life is the authoritative store for pet stats. Monster Quest will import a snapshot and later return validated quest events by unique IDs, preventing duplicate awards. Initial JSON export is **not** live sync.
+Open [GitHub Actions](https://github.com/yuki19990315-hub/GlyphLIFE/actions), select the successful **Android MVP Build** run for the desired commit, then download `GlyphLife-debug-stub` from **Artifacts**. It is a debug APK for the pet/editor; its matrix hardware calls are disabled. The build step uses Android SDK 35, JDK 17 and Gradle 8.14.
 
-## Security and licensing
-Do not hard-code cloud AI secrets in the APK. Do not commit Android signing keys or Nothing SDK binaries. This repository's original source currently has no general open-source license. Vendor SDK terms are separate. Before commercial release, confirm vendor requirements.
+## Nothing SDK
 
-Official SDK: https://github.com/Nothing-Developer-Programme/GlyphMatrix-Developer-Kit
-Android Compose: https://developer.android.com/develop/ui/compose
+Official: https://github.com/Nothing-Developer-Programme/GlyphMatrix-Developer-Kit
+
+Read its SDK license and place the AAR locally at `app/libs/glyph-matrix-sdk-2.0.aar`. That creates a hardware-capable build of the adapter, but still requires real-device testing; **do not upload or redistribute the proprietary binary**. Android manifest has the SDK permission. Phone (4a) Pro uses a 13×13 matrix and does not support Glyph Touch. Foreground display is distinct from the separate AOD Glyph Toy service.
+
+## Source layout
+
+- `app/src/main/java`: UI, immutable animation tools, pet and quest-result logic, storage, image dithering and PNG export.
+- `app/src/stub`: safe No-op Glyph implementation, used by GitHub Actions.
+- `app/src/glyph`: optional, unverified real-device Glyph SDK adapter.
+- `protocol/`: pet snapshot and quest-result examples.
+- `docs/`: Japanese specs, build guidance and roadmap.
+- `scripts/check_protocol.py`: offline payload validation.
+
+Source license: not assigned. Third-party Nothing SDK terms are separate.
+
+This is original code inspired by publicly described editor capabilities. No source from the Dot. app is copied.

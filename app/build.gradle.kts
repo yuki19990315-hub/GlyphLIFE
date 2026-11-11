@@ -13,8 +13,8 @@ android {
         applicationId = "dev.glyphlife.app"
         minSdk = 29
         targetSdk = 35
-        versionCode = 1
-        versionName = "0.1.0"
+        versionCode = 2
+        versionName = "0.2.0"
     }
     buildFeatures {
         compose = true
@@ -45,5 +45,6 @@ dependencies {
     implementation("androidx.compose.material:material-icons-extended")
     debugImplementation("androidx.compose.ui:ui-tooling")
     testImplementation("junit:junit:4.13.2")
+    testImplementation("org.json:json:20240303")
     if (nothingSdk.exists()) { implementation(files(nothingSdk)) }
 }
