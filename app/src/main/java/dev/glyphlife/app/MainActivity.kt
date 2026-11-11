@@ -208,7 +208,7 @@ class MainActivity : ComponentActivity() {
                 Scaffold(
                     topBar = {
                         Surface(tonalElevation = 2.dp) {
-                            Text("GLYPH LIFE  /  v0.10",
+                            Text("GLYPH LIFE  /  v0.11",
                                 modifier = Modifier.padding(20.dp),
                                 style = MaterialTheme.typography.titleMedium)
                         }
@@ -330,6 +330,15 @@ class MainActivity : ComponentActivity() {
                                     GlyphImage.savePng(this@MainActivity, animation.current.pixels)
                                     notify("写真フォルダにPNGを保存しました")
                                 }.onFailure { notify("保存失敗：${it.message}") }
+                            },
+                            onSaveEffect = { name, frames ->
+                                runCatching {
+                                    gallery.save(name, frames)
+                                    artworks = gallery.list()
+                                    notify("エフェクトを作品ギャラリーに保存しました")
+                                }.onFailure {
+                                    notify("作品保存失敗：${it.message}")
+                                }
                             },
                             aiKey = aiKey,
                             aiBusy = aiBusy,

@@ -27,6 +27,7 @@ fun CreatorScreen(
     onImportAnimation: (Uri) -> Unit,
     onExportAnimation: () -> Unit,
     onSavePng: () -> Unit,
+    onSaveEffect: (String, GlyphAnimation) -> Unit,
     aiKey: String,
     aiBusy: Boolean,
     onAiKeyChange: (String) -> Unit,
@@ -175,6 +176,10 @@ fun CreatorScreen(
             OutlinedButton(onClick = onExportAnimation) { Text("JSON共有") }
             OutlinedButton(onClick = { jsonPicker.launch("*/*") }) { Text("JSON読込") }
         }
+        GlyphEffectsPanel(
+            onApply = { change(it) },
+            onSaveToGallery = onSaveEffect
+        )
         HorizontalDivider()
         Text("AIからアニメーション生成（任意）", style = MaterialTheme.typography.titleMedium)
         Text("Gemini APIキーがある場合のみ実際のAIを使用。キーは保存しません。送信内容には指示文を含みます。")
