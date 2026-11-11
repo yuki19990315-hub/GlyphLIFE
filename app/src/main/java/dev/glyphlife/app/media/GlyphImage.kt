@@ -5,6 +5,9 @@ import android.content.Context
 import android.graphics.Bitmap
 import android.graphics.BitmapFactory
 import android.graphics.Color
+import android.graphics.Canvas
+import android.graphics.Paint
+import dev.glyphlife.app.model.GlyphAnimation
 import android.net.Uri
 import android.os.Environment
 import android.provider.MediaStore
@@ -84,6 +87,65 @@ object GlyphImage {
             throw e
         } finally {
             enlarged.recycle()
+        }
+    }
+
+    /** Export ALL animation frames as a compact 8-column PNG sprite sheet. */
+    fun saveSpriteSheet(context: Context, animation: GlyphAnimation): Uri {
+        val scale = 24
+        val cellSize = 13 * scale
+        val cols = minOf(8, animation.frames.size)
+        val rows = (animation.frames.size + cols - 1) / cols
+        val sheet = Bitmap.createBitmap(
+            cellSize * cols, cellSize * rows, Bitmap.Config.ARGB_8888
+        )
+        try {
+            val canvas = Canvas(sheet)
+            canvas.drawColor(Color.BLACK)
+            val white = Paint().apply {
+                color = Color.WHITE
+                style = Paint.Style.FILL
+                isAntiAlias = false
+            }
+            animation.frames.forEachIndexed { frameIndex, frame ->
+                val ox = (frameIndex % cols) * cellSize
+                val oy = (frameIndex / cols) * cellSize
+                frame.pixels.forEachIndexed { index, lit ->
+                    if (lit && GlyphMask.isPhysical(index)) {
+                        val x = ox + (index % 13) * scale
+                        val y = oy + (index / 13) * scale
+                        canvas.drawRect(x.toFloat(), y.toFloat(),
+                            (x + scale).toFloat(), (y + scale).toFloat(), white)
+                    }
+                }
+            }
+            return saveToGallery(context, sheet, "glyph-life-spritesheet")
+        } finally {
+            sheet.recycle()
+        }
+    }
+
+    private fun saveToGallery(context: Context, bitmap: Bitmap, prefix: String): Uri {
+        val resolver = context.contentResolver
+        val values = ContentValues().apply {
+            put(MediaStore.MediaColumns.DISPLAY_NAME, "$prefix-${System.currentTimeMillis()}.png")
+            put(MediaStore.MediaColumns.MIME_TYPE, "image/png")
+            put(MediaStore.MediaColumns.RELATIVE_PATH, Environment.DIRECTORY_PICTURES + "/GlyphLife")
+            put(MediaStore.MediaColumns.IS_PENDING, 1)
+        }
+        val target = resolver.insert(MediaStore.Images.Media.EXTERNAL_CONTENT_URI, values)
+            ?: error("画像保存先を作れません")
+        try {
+            resolver.openOutputStream(target)?.use { stream ->
+                check(bitmap.compress(Bitmap.CompressFormat.PNG, 100, stream))
+            } ?: error("画像の書き込みに失敗しました")
+            resolver.update(target, ContentValues().apply {
+                put(MediaStore.MediaColumns.IS_PENDING, 0)
+            }, null, null)
+            return target
+        } catch (e: Exception) {
+            resolver.delete(target, null, null)
+            throw e
         }
     }
 }
