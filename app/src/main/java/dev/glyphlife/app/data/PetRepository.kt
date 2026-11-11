@@ -12,7 +12,7 @@ class PetRepository(context: Context) {
     private val preferences = context.getSharedPreferences("glyph_life_v1", Context.MODE_PRIVATE)
 
     fun loadPet(): PetState {
-        val raw = preferences.getString("pet", null) ?: return PetState()
+        val raw = preferences.getString("pet", null) ?: return PetState().also(::savePet)
         return runCatching {
             val o = JSONObject(raw)
             PetState(
@@ -25,7 +25,7 @@ class PetRepository(context: Context) {
                 happiness = o.optInt("happiness", 60).coerceIn(0, 100),
                 energy = o.optInt("energy", 80).coerceIn(0, 100)
             )
-        }.getOrDefault(PetState())
+        }.getOrElse { PetState().also(::savePet) }
     }
 
     fun savePet(p: PetState) {

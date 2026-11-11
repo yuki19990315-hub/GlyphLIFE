@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="aod_toy_name">Glyph Life Pet</string>
+    <string name="aod_toy_summary">Flip to Glyphでペットのドットアニメを表示</string>
+</resources>

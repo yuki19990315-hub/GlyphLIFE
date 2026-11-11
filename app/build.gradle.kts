@@ -13,8 +13,10 @@ android {
         applicationId = "dev.glyphlife.app"
         minSdk = 29
         targetSdk = 35
-        versionCode = 2
-        versionName = "0.2.0"
+        versionCode = 4
+        versionName = "0.4.0"
+        // AOD Toy is only offered in explicit Nothing SDK builds.
+        resValue("bool", "glyph_aod_enabled", nothingSdk.exists().toString())
     }
     buildFeatures {
         compose = true

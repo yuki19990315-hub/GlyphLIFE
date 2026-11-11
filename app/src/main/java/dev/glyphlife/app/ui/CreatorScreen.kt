@@ -192,6 +192,13 @@ fun CreatorScreen(
         Text("背面Glyphプレビュー", style = MaterialTheme.typography.titleMedium)
         Text(if (isGlyphSupported) "Nothing SDK組み込みビルド" else "SDKなし：背面表示は利用できません")
         Text("状態：$glyphStatus", style = MaterialTheme.typography.bodySmall)
+        Text(
+            if (isGlyphSupported)
+                "Flip to GlyphのAOD Toyは端末の「設定 → Glyph Interface → Flip to Glyph → Always-on Glyph Toy」でGlyph Life Petを選択。AOD更新は約1分に1コマです。"
+            else
+                "このAPKはNothing SDKを含みません。AOD Toyは無効で、背面点灯はできません。",
+            style = MaterialTheme.typography.bodySmall
+        )
         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             Button(enabled = isGlyphSupported, onClick = onConnect) { Text("接続") }
             Button(enabled = isGlyphSupported && glyphStatus == "接続済み",
@@ -203,7 +210,7 @@ fun CreatorScreen(
             Switch(checked = live, onCheckedChange = { live = it }, enabled = isGlyphSupported)
         }
         Text(
-            "Phone (4a) Proの前景アプリ表示用。AOD Toyとしての常時表示は別機能です。" +
+            "前景アプリ内のライブ再生とAODの1分ごとの更新は別機能です。" +
                 "AI生成はAPIキー入力時のみ使用できます（実ネットワーク通信は未検証）。",
             style = MaterialTheme.typography.bodySmall
         )
