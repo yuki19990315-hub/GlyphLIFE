@@ -1,43 +1,32 @@
-# Glyph Life v0.2 — Pixel animation × Pet × Monster Quest bridge
+# Glyph Life v0.3 — Glyph animation × AI Pet × Monster Quest link
 
-An Android app for Nothing Phone (4a) Pro combining a local pet, a 13×13 Glyph Matrix sprite/animation editor, and a versioned data bridge for a future, **separate** Monster Quest game.
+Android app for Nothing Phone (4a) Pro. It combines virtual pet care, a 13×13 pixel-art/animation editor, optional Gemini AI, and JSON exchange with a **future separate** Monster Quest game.
 
-## Features now in source
+## Implemented features
+- 13×13 animation timeline: 1–64 frames, 100–2000 ms/frame, looping playback and auto-save.
+- Draw, erase, flood fill, 90° rotate, mirror, invert, clear, duplicate/add/delete and in-session undo/redo.
+- Convert imported photos to Glyph pixels (Floyd–Steinberg), export PNG, import/export animation JSON.
+- Pet: play/feed/rest, level/happiness/energy, randomized hatch, local history and offline rule-based fallback.
+- **Optional Gemini AI chat and text-to-13×13 animation generation** (Google API key entered by the user; not embedded or persisted, actual API requests NOT YET TESTED). Model `gemini-3.5-flash-lite`. Only sends on explicit user action; provider terms/rates apply.
+- Monster Quest pet export; import individual quest-result JSON with basic validation and duplicate event ID protection.
+- Foreground Glyph SDK adapter that sends frames for real-device live playback if user locally installs official SDK AAR. SDK-free debug APK uses a stub; real-device output is **NOT YET VERIFIED**.
 
-- 13×13 **multi-frame animation** (up to 64 frames), 100–2000 ms per frame, playback, frame duplicate/delete/add and autosave.
-- Pixel editor with paint/erase/flood-fill, mirror, rotate, invert, clear and undo/redo (history in current session).
-- Local image-to-pixel import using Floyd–Steinberg dithering; PNG to Pictures/GlyphLife; animation JSON import/export.
-- Pet basic leveling, energy, happiness, randomized egg hatching, and local **rule-based** chat (NOT a real AI model).
-- Pet snapshot JSON export for a future **separate Monster Quest** app.
-- Local quest-result JSON import with pet ID check, reward limits, and consumed event IDs. This is offline, not tamper-proof.
-- Optional Nothing SDK adapter for **foreground/live** Glyph Matrix output. The stub APK cannot access rear LEDs.
+## Build & tests
+Open [GitHub Actions](https://github.com/yuki19990315-hub/GlyphLIFE/actions). On a successful run for a particular commit, download the `GlyphLife-debug-stub` artifact. This APK supports all screen features and BYOK AI but **does not control the rear Glyph LEDs**. Built with Android SDK 35, JDK 17, Gradle 8.14. Run locally with `gradle :app:testDebugUnitTest :app:assembleDebug`.
 
-## Verified / not verified
+## Optional hardware SDK
+The proprietary Nothing Glyph Matrix SDK **is not included**. Read https://github.com/Nothing-Developer-Programme/GlyphMatrix-Developer-Kit and its license. To build the real SDK adapter, place `glyph-matrix-sdk-2.0.aar` in `app/libs/` on your own development machine, then rebuild and validate on a Phone (4a) Pro. No hardware success can be claimed without that step. AOD Toy is separate and currently NOT implemented.
 
-- Android debug APK + unit tests: see GitHub Actions for each commit (do not infer success from a prior commit).
-- On-device Glyph output: **NOT VERIFIED**; vendor SDK binary excluded by licensing.
-- AI-based conversations and AI sprite generation: **NOT IMPLEMENTED**. No cloud provider or secrets bundled.
-- AOD Glyph Toy, Monster Quest game, secure inter-app synchronization: **NOT IMPLEMENTED**.
+## Optional AI (bring your own key)
+Google Gemini REST API, model `gemini-3.5-flash-lite`. Create an API key in Google AI Studio, review Google's terms/free-tier eligibility and costs, and type it into the Pet or Creator screen. It is kept in memory only, not saved on disk. Chat sends your recent messages and pet profile; pixel generation sends your requested subject. If there is no key, offline pet replies and the manual editor still work. API availability depends on your account/region; generation can fail and existing data stays intact. See [AI provider notes](docs/AI_PROVIDER_JA.md).
 
-## Getting an APK
+## Source
+- `app/src/main` Kotlin/Jetpack Compose app: pet, pixel editor, network client, JSON storage, photo conversion.
+- `app/src/stub` Glyph no-op (build/test without vendor SDK).
+- `app/src/glyph` official SDK adapter (requires manual AAR).
+- `protocol/` JSON v1 examples and schemas.
+- `docs/` specifications, validation limits, roadmap, Dot. research.
 
-Open [GitHub Actions](https://github.com/yuki19990315-hub/GlyphLIFE/actions), select the successful **Android MVP Build** run for the desired commit, then download `GlyphLife-debug-stub` from **Artifacts**. It is a debug APK for the pet/editor; its matrix hardware calls are disabled. The build step uses Android SDK 35, JDK 17 and Gradle 8.14.
+Original project code, **not copied** from Dot. Reference: https://github.com/kavastore/nothing-dot
 
-## Nothing SDK
-
-Official: https://github.com/Nothing-Developer-Programme/GlyphMatrix-Developer-Kit
-
-Read its SDK license and place the AAR locally at `app/libs/glyph-matrix-sdk-2.0.aar`. That creates a hardware-capable build of the adapter, but still requires real-device testing; **do not upload or redistribute the proprietary binary**. Android manifest has the SDK permission. Phone (4a) Pro uses a 13×13 matrix and does not support Glyph Touch. Foreground display is distinct from the separate AOD Glyph Toy service.
-
-## Source layout
-
-- `app/src/main/java`: UI, immutable animation tools, pet and quest-result logic, storage, image dithering and PNG export.
-- `app/src/stub`: safe No-op Glyph implementation, used by GitHub Actions.
-- `app/src/glyph`: optional, unverified real-device Glyph SDK adapter.
-- `protocol/`: pet snapshot and quest-result examples.
-- `docs/`: Japanese specs, build guidance and roadmap.
-- `scripts/check_protocol.py`: offline payload validation.
-
-Source license: not assigned. Third-party Nothing SDK terms are separate.
-
-This is original code inspired by publicly described editor capabilities. No source from the Dot. app is copied.
+**Not yet implemented or verified:** AOD Glyph Toy, native on-device generative model, real-world Gemini network test, real-device LED test, Monster Quest game, secure inter-app sync, evolving species models. App code currently has no open-source license.

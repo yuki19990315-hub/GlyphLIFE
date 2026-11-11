@@ -14,11 +14,13 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
+import dev.glyphlife.app.ai.GeminiClient
 import dev.glyphlife.app.data.*
 import dev.glyphlife.app.glyph.createGlyphBridge
 import dev.glyphlife.app.media.GlyphImage
 import dev.glyphlife.app.model.*
 import dev.glyphlife.app.ui.*
+import kotlinx.coroutines.launch
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -32,6 +34,9 @@ class MainActivity : ComponentActivity() {
             var tab by remember { mutableIntStateOf(0) }
             var glyphStatus by remember { mutableStateOf("未接続") }
             var questStatus by remember { mutableStateOf("取り込み待ち") }
+            var aiKey by remember { mutableStateOf("") }
+            var aiBusy by remember { mutableStateOf(false) }
+            val scope = rememberCoroutineScope()
             val questPicker = rememberLauncherForActivityResult(ActivityResultContracts.GetContent()) { uri ->
                 if (uri != null) runCatching {
                     val payload = readTextFromUri(uri, 65_536)
@@ -63,7 +68,7 @@ class MainActivity : ComponentActivity() {
                 Scaffold(
                     topBar = {
                         Surface(tonalElevation = 2.dp) {
-                            Text("GLYPH LIFE  /  v0.2",
+                            Text("GLYPH LIFE  /  v0.3",
                                 modifier = Modifier.padding(20.dp),
                                 style = MaterialTheme.typography.titleMedium)
                         }
@@ -94,11 +99,37 @@ class MainActivity : ComponentActivity() {
                                 repo.saveChat(chat)
                             },
                             onChat = { message ->
-                                val updated = chat + ChatEntry(true, message) +
-                                    ChatEntry(false, PetChat.reply(pet, message))
-                                chat = updated.takeLast(30)
+                                val context = chat.takeLast(8).joinToString("\n") {
+                                    (if (it.fromUser) "user: " else "pet: ") + it.text.take(150)
+                                }
+                                chat = (chat + ChatEntry(true, message)).takeLast(30)
                                 repo.saveChat(chat)
-                            }
+                                if (aiKey.isBlank()) {
+                                    chat = (chat + ChatEntry(false, PetChat.reply(pet, message))).takeLast(30)
+                                    repo.saveChat(chat)
+                                } else {
+                                    aiBusy = true
+                                    val prompt = GeminiClient.petPrompt(
+                                        pet.name, pet.species, pet.element,
+                                        pet.personality, context, message
+                                    )
+                                    val activeKey = aiKey
+                                    scope.launch {
+                                        try {
+                                            val reply = GeminiClient.generate(activeKey, prompt)
+                                            chat = (chat + ChatEntry(false, reply.take(1000))).takeLast(30)
+                                            repo.saveChat(chat)
+                                        } catch (e: Exception) {
+                                            notify("AI会話の失敗：${e.message}")
+                                        } finally {
+                                            aiBusy = false
+                                        }
+                                    }
+                                }
+                            },
+                            aiKey = aiKey,
+                            aiBusy = aiBusy,
+                            onAiKeyChange = { aiKey = it.take(256) }
                         )
                         1 -> CreatorScreen(
                             animation = animation,
@@ -129,6 +160,31 @@ class MainActivity : ComponentActivity() {
                                     GlyphImage.savePng(this@MainActivity, animation.current.pixels)
                                     notify("写真フォルダにPNGを保存しました")
                                 }.onFailure { notify("保存失敗：${it.message}") }
+                            },
+                            aiKey = aiKey,
+                            aiBusy = aiBusy,
+                            onAiKeyChange = { aiKey = it.take(256) },
+                            onAiGenerate = { instruction ->
+                                if (aiKey.isBlank()) {
+                                    notify("先にGemini APIキーを設定してください")
+                                } else {
+                                    aiBusy = true
+                                    val activeKey = aiKey
+                                    scope.launch {
+                                        try {
+                                            val response = GeminiClient.generate(
+                                                activeKey, GeminiClient.spritePrompt(instruction), true
+                                            )
+                                            val generated = GeminiClient.parseSprite(response)
+                                            updateAnimation(generated)
+                                            notify("AIで${generated.frames.size}フレーム生成しました")
+                                        } catch (e: Exception) {
+                                            notify("AI生成失敗：${e.message}")
+                                        } finally {
+                                            aiBusy = false
+                                        }
+                                    }
+                                }
                             }
                         )
                         else -> LinkScreen(

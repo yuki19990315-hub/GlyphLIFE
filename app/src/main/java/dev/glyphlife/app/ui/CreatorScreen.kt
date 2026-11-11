@@ -26,9 +26,14 @@ fun CreatorScreen(
     onImportImage: (Uri) -> Unit,
     onImportAnimation: (Uri) -> Unit,
     onExportAnimation: () -> Unit,
-    onSavePng: () -> Unit
+    onSavePng: () -> Unit,
+    aiKey: String,
+    aiBusy: Boolean,
+    onAiKeyChange: (String) -> Unit,
+    onAiGenerate: (String) -> Unit
 ) {
     var tool by remember { mutableStateOf("描く") }
+    var aiPrompt by remember { mutableStateOf("") }
     var playing by remember { mutableStateOf(false) }
     var live by remember { mutableStateOf(false) }
     var visibleFrame by remember { mutableIntStateOf(animation.selected) }
@@ -171,6 +176,19 @@ fun CreatorScreen(
             OutlinedButton(onClick = { jsonPicker.launch("*/*") }) { Text("JSON読込") }
         }
         HorizontalDivider()
+        Text("AIからアニメーション生成（任意）", style = MaterialTheme.typography.titleMedium)
+        Text("Gemini APIキーがある場合のみ実際のAIを使用。キーは保存しません。送信内容には指示文を含みます。")
+        OutlinedTextField(value = aiKey, onValueChange = onAiKeyChange,
+            label = { Text("Gemini APIキー（この起動中だけ）") },
+            visualTransformation = androidx.compose.ui.text.input.PasswordVisualTransformation(),
+            modifier = Modifier.fillMaxWidth(), singleLine = true)
+        OutlinedTextField(value = aiPrompt, onValueChange = { aiPrompt = it.take(250) },
+            label = { Text("例：小さなドラゴンがジャンプ") }, modifier = Modifier.fillMaxWidth())
+        Button(enabled = !aiBusy && aiKey.isNotBlank() && aiPrompt.isNotBlank(),
+            onClick = { playing = false; onAiGenerate(aiPrompt) }) {
+            Text(if (aiBusy) "AI生成中…" else "AIでドット絵を生成")
+        }
+        HorizontalDivider()
         Text("背面Glyphプレビュー", style = MaterialTheme.typography.titleMedium)
         Text(if (isGlyphSupported) "Nothing SDK組み込みビルド" else "SDKなし：背面表示は利用できません")
         Text("状態：$glyphStatus", style = MaterialTheme.typography.bodySmall)
@@ -186,7 +204,7 @@ fun CreatorScreen(
         }
         Text(
             "Phone (4a) Proの前景アプリ表示用。AOD Toyとしての常時表示は別機能です。" +
-                "AIドット絵生成は未接続（文章からの本物のAI生成はまだ使えません）。",
+                "AI生成はAPIキー入力時のみ使用できます（実ネットワーク通信は未検証）。",
             style = MaterialTheme.typography.bodySmall
         )
     }

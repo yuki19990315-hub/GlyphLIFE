@@ -19,7 +19,10 @@ fun PetScreen(
     modifier: Modifier = Modifier,
     onPetChange: (PetState) -> Unit,
     onHatch: () -> Unit,
-    onChat: (String) -> Unit
+    onChat: (String) -> Unit,
+    aiKey: String,
+    aiBusy: Boolean,
+    onAiKeyChange: (String) -> Unit
 ) {
     var draft by remember { mutableStateOf("") }
     var confirmHatch by remember { mutableStateOf(false) }
@@ -54,8 +57,13 @@ fun PetScreen(
         OutlinedButton(onClick = { confirmHatch = true }) { Text("新しい卵をかえす") }
         HorizontalDivider()
         Text("ペットとおしゃべり", style = MaterialTheme.typography.titleMedium)
-        Text("現在は通信不要の簡易返答です。AI言語モデルとの会話はまだ未実装です。",
+        Text("キー未入力ならローカルの簡易返答、入力するとGeminiへ会話内容を送信します。" +
+            "APIキーはこの起動中だけ保持。無料枠・料金・データ取扱いは提供元の条件を確認してください。",
             style = MaterialTheme.typography.bodySmall)
+        OutlinedTextField(value = aiKey, onValueChange = onAiKeyChange,
+            label = { Text("Gemini APIキー（任意・保存しません）") },
+            visualTransformation = androidx.compose.ui.text.input.PasswordVisualTransformation(),
+            modifier = Modifier.fillMaxWidth(), singleLine = true)
         chat.takeLast(8).forEach {
             Text(if (it.fromUser) "あなた：${it.text}" else "${pet.name}：${it.text}")
         }
@@ -65,10 +73,10 @@ fun PetScreen(
             label = { Text("話しかける（200字まで）") },
             modifier = Modifier.fillMaxWidth()
         )
-        Button(enabled = draft.isNotBlank(), onClick = {
+        Button(enabled = !aiBusy && draft.isNotBlank(), onClick = {
             onChat(draft)
             draft = ""
-        }) { Text("話しかける") }
+        }) { Text(if (aiBusy) "AI応答待ち…" else "話しかける") }
     }
     if (confirmHatch) AlertDialog(
         onDismissRequest = { confirmHatch = false },
