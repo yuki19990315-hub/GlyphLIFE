@@ -3,15 +3,15 @@ package dev.glyphlife.monsterquest.pixel
 import dev.glyphlife.monsterquest.model.WildMonster
 import org.junit.Assert.*
 import org.junit.Test
-import java.awt.Color
-import java.awt.Font
-import java.awt.image.BufferedImage
+import java.io.ByteArrayOutputStream
+import java.io.DataOutputStream
 import java.io.File
-import javax.imageio.ImageIO
+import java.util.zip.CRC32
+import java.util.zip.DeflaterOutputStream
 
 /**
- * Visual QA samples are rendered from the EXACT runtime 64x64 procedural
- * sprite generator, not separately invented reference artwork.
+ * Produces actual pixel previews from the runtime generator. A standalone
+ * PNG encoder avoids java.awt (unavailable to Android's JVM test classpath).
  */
 class MonsterPixelPreviewTest {
     private fun monster(type:MonsterBodyType, element:String="雷", stage:Int=1):WildMonster =
@@ -29,55 +29,94 @@ class MonsterPixelPreviewTest {
         return File(root,"monsterquest/build/pixel-preview").also { check(it.isDirectory || it.mkdirs()) }
     }
 
-    private fun spriteToSheet(
-        sheet:BufferedImage, sprite:PixelSprite,
-        col:Int,row:Int,cols:Int, scale:Int=4
+    private fun drawCell(
+        sheet:IntArray,width:Int,sprite:PixelSprite,
+        col:Int,row:Int,scale:Int=4
     ) {
         val cell=64*scale
-        val originX=col*cell;val originY=row*cell
-        // Opaque dark stage with transparent pixel artwork on top.
+        val x0=col*cell;val y0=row*cell
         for(y in 0 until cell)for(x in 0 until cell)
-            sheet.setRGB(originX+x,originY+y,0xff19222f.toInt())
+            sheet[(y0+y)*width+x0+x]=0xff19222f.toInt()
         for(y in 0 until 64)for(x in 0 until 64) {
             val color=sprite.pixel(x,y)
             if((color ushr 24)<96)continue
-            for(dy in 0 until scale)for(dx in 0 until scale) {
-                sheet.setRGB(originX+x*scale+dx,originY+y*scale+dy,color)
-            }
+            for(dy in 0 until scale)for(dx in 0 until scale)
+                sheet[(y0+y*scale+dy)*width+x0+x*scale+dx]=color
         }
     }
 
-    private fun save(sheet:BufferedImage,name:String):File {
+    private fun writeChunk(out:DataOutputStream,name:String,data:ByteArray) {
+        val type=name.toByteArray(Charsets.US_ASCII)
+        require(type.size==4)
+        out.writeInt(data.size)
+        out.write(type);out.write(data)
+        val crc=CRC32()
+        crc.update(type);crc.update(data)
+        out.writeInt(crc.value.toInt())
+    }
+
+    /** PNG RGBA8, filter type 0, zlib IDAT. No OS graphics API required. */
+    private fun png(width:Int,height:Int,pixels:IntArray):ByteArray {
+        require(pixels.size==width*height)
+        val raw=ByteArrayOutputStream(height*(width*4+1))
+        for(y in 0 until height) {
+            raw.write(0)
+            for(x in 0 until width) {
+                val color=pixels[y*width+x]
+                raw.write((color ushr 16) and 255)
+                raw.write((color ushr 8) and 255)
+                raw.write(color and 255)
+                raw.write((color ushr 24) and 255)
+            }
+        }
+        val compressed=ByteArrayOutputStream()
+        DeflaterOutputStream(compressed).use { it.write(raw.toByteArray()) }
+        val output=ByteArrayOutputStream()
+        val out=DataOutputStream(output)
+        out.write(byteArrayOf(137.toByte(),80,78,71,13,10,26,10))
+        val header=ByteArrayOutputStream()
+        DataOutputStream(header).use {
+            it.writeInt(width);it.writeInt(height)
+            it.writeByte(8);it.writeByte(6);it.writeByte(0)
+            it.writeByte(0);it.writeByte(0)
+        }
+        writeChunk(out,"IHDR",header.toByteArray())
+        writeChunk(out,"IDAT",compressed.toByteArray())
+        writeChunk(out,"IEND",byteArrayOf())
+        out.flush()
+        return output.toByteArray()
+    }
+
+    private fun save(width:Int,height:Int,data:IntArray,name:String):File {
         val file=File(outputDir(),name)
-        check(ImageIO.write(sheet,"png",file))
+        file.writeBytes(png(width,height,data))
         assertTrue(file.isFile && file.length()>1000)
         return file
     }
 
     @Test fun allBodyTypesVisualReview() {
         val types=MonsterBodyType.entries
-        val sheet=BufferedImage(5*256,2*256,BufferedImage.TYPE_INT_ARGB)
+        val w=5*256;val h=2*256;val data=IntArray(w*h)
         types.forEachIndexed { i,type ->
-            spriteToSheet(sheet,MonsterDesign.sprite(monster(type)),i%5,i/5,5)
+            drawCell(data,w,MonsterDesign.sprite(monster(type)),i%5,i/5)
         }
-        save(sheet,"01-10-body-types.png")
+        save(w,h,data,"01-10-body-types.png")
     }
 
     @Test fun allSevenElementsVisualReview() {
         val elements=listOf("火","水","草","雷","光","闇","無")
-        val sheet=BufferedImage(7*256,256,BufferedImage.TYPE_INT_ARGB)
+        val w=7*256;val h=256;val data=IntArray(w*h)
         elements.forEachIndexed { i,element ->
-            spriteToSheet(sheet,MonsterDesign.sprite(monster(MonsterBodyType.DRAGON,element)),i,0,7)
+            drawCell(data,w,MonsterDesign.sprite(monster(MonsterBodyType.DRAGON,element)),i,0)
         }
-        save(sheet,"02-7-elements.png")
+        save(w,h,data,"02-7-elements.png")
     }
 
     @Test fun threeEvolutionStagesVisualReview() {
-        val sheet=BufferedImage(3*256,256,BufferedImage.TYPE_INT_ARGB)
-        for(stage in 1..3) {
-            spriteToSheet(sheet,MonsterDesign.sprite(monster(MonsterBodyType.MECHA,"闇",stage)),
-                stage-1,0,3)
-        }
-        save(sheet,"03-three-evolution-stages.png")
+        val w=3*256;val h=256;val data=IntArray(w*h)
+        for(stage in 1..3)
+            drawCell(data,w,MonsterDesign.sprite(monster(MonsterBodyType.MECHA,"闇",stage)),
+                stage-1,0)
+        save(w,h,data,"03-three-evolution-stages.png")
     }
 }
