@@ -32,6 +32,7 @@ import dev.glyphlife.monsterquest.ui.MonsterPortrait
 import dev.glyphlife.monsterquest.ui.MonsterArtworkView
 import dev.glyphlife.monsterquest.ui.CaptureLab
 import dev.glyphlife.monsterquest.ui.MonsterDesignerPanel
+import dev.glyphlife.monsterquest.ui.MonsterStaticSprite
 import dev.glyphlife.monsterquest.pixel.GlyphProjector
 import dev.glyphlife.monsterquest.pixel.MonsterAnimation
 import dev.glyphlife.monsterquest.pixel.MonsterDesign
