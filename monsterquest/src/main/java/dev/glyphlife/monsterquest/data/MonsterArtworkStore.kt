@@ -9,6 +9,7 @@ import android.graphics.BitmapFactory
 import android.net.Uri
 import dev.glyphlife.monsterquest.model.WildMonster
 import dev.glyphlife.monsterquest.pixel.GlyphProjector
+import dev.glyphlife.monsterquest.pixel.FullBodyGlyphProjector
 import dev.glyphlife.monsterquest.pixel.MonsterDesign
 import dev.glyphlife.monsterquest.pixel.MonsterAnimation
 import dev.glyphlife.monsterquest.pixel.PixelAssetPipeline
@@ -189,15 +190,22 @@ class MonsterArtworkStore(private val context: Context) {
     fun load(id: String, stage:Int=1): Bitmap? =
         loadNative(id,stage)?.let(PixelAssetPipeline::display256)
 
-    /** 13x13 Glyph variant. A custom imported body image always uses its actual
-     * pixels instead of the built-in family's authored face insignia.
+    /** Always use the actual full-body composited sprite, including imported
+     * PNGs and individual armor parts. Never replace it with a face symbol.
      */
+    fun glyphBrightnessFor(monster: WildMonster): IntArray =
+        FullBodyGlyphProjector.project(spriteFor(monster))
+
+    @Suppress("UNUSED_PARAMETER")
+    fun glyphBrightnessFrameFor(monster: WildMonster, frame: PixelSprite, pose: Int): IntArray =
+        FullBodyGlyphProjector.project(frame)
+
+    /** Legacy bitmap: derived from the exact same brightness data. */
     fun glyphFor(monster: WildMonster): String =
-        glyphFrameFor(monster, spriteFor(monster), 0)
+        FullBodyGlyphProjector.asBinary(glyphBrightnessFor(monster))
 
     fun glyphFrameFor(monster: WildMonster, frame: PixelSprite, pose: Int): String =
-        if (hasArt(monster.id, monster.stage)) GlyphProjector.project(frame)
-        else GlyphProjector.projectFor(monster, frame, pose)
+        FullBodyGlyphProjector.asBinary(glyphBrightnessFrameFor(monster, frame, pose))
 
     suspend fun importFromUri(id: String, uri: Uri, stage:Int=1) = withContext(Dispatchers.IO) {
         val bytes=context.contentResolver.openInputStream(uri)?.use { it.readNBytes(12_000_001) }
