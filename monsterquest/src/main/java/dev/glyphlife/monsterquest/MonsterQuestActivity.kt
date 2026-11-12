@@ -694,6 +694,7 @@ private fun QuestScreen(
                 id = state.companion.id, species = state.companion.species,
                 element = state.companion.element, maxHp = 100,
                 attack = 10 + state.companion.level,
+                artFamily = state.companion.gameArtFamily(),
                 stage = when {
                     state.companion.level >= 12 -> 3
                     state.companion.level >= 5 -> 2
