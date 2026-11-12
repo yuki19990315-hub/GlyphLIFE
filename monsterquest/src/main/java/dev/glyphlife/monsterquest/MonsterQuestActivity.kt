@@ -33,6 +33,7 @@ import dev.glyphlife.monsterquest.ui.MonsterArtworkView
 import dev.glyphlife.monsterquest.ui.CaptureLab
 import dev.glyphlife.monsterquest.ui.MonsterDesignerPanel
 import dev.glyphlife.monsterquest.ui.MonsterStaticSprite
+import dev.glyphlife.monsterquest.ui.ArmorPlacementControls
 import dev.glyphlife.monsterquest.pixel.GlyphProjector
 import dev.glyphlife.monsterquest.pixel.MonsterAnimation
 import dev.glyphlife.monsterquest.pixel.MonsterDesign
@@ -42,6 +43,7 @@ import dev.glyphlife.monsterquest.ai.ArmorImageAi
 import dev.glyphlife.monsterquest.pixel.ArmorSlot
 import dev.glyphlife.monsterquest.pixel.CustomArmorLayers
 import dev.glyphlife.monsterquest.pixel.ArmorOffset
+import dev.glyphlife.monsterquest.pixel.ArmorPlacementDraft
 import kotlinx.coroutines.launch
 
 private data class PendingArmorStyles(
@@ -250,38 +252,24 @@ class MonsterQuestActivity : ComponentActivity() {
                 }.onFailure { notify("解除に失敗：${it.message}") }
             }
 
-            fun moveCustomPart(
-                wild: WildMonster, slot: ArmorSlot, dx: Int, dy: Int
+            fun setCustomPlacement(
+                wild: WildMonster, slot: ArmorSlot, placement: ArmorOffset
             ) {
                 if (state.inBattle || aiBusy) return
-                val current=state.captures.firstOrNull { it.id==wild.id } ?: return
-                if (current != wild || slot.name !in current.customArmorParts) return
-                val old=current.customArmorOffsets[slot.name] ?: ArmorOffset()
-                val updated=current.copy(
-                    customArmorOffsets = current.customArmorOffsets +
-                        (slot.name to old.moved(dx,dy))
-                ).let { it.copy(pixels=artworkStore.glyphFor(it)) }
-                update(state.copy(captures=state.captures.map {
-                    if(it.id==current.id) updated else it
-                }))
-                artworkRevision++
-            }
-
-            fun scaleCustomPart(
-                wild: WildMonster, slot: ArmorSlot, delta: Int
-            ) {
-                if (state.inBattle || aiBusy) return
-                val current=state.captures.firstOrNull { it.id==wild.id } ?: return
-                if (current != wild || slot.name !in current.customArmorParts) return
-                val old=current.customArmorOffsets[slot.name] ?: ArmorOffset()
-                val updated=current.copy(
-                    customArmorOffsets=current.customArmorOffsets +
-                        (slot.name to old.scaled(delta))
-                ).let { it.copy(pixels=artworkStore.glyphFor(it)) }
-                update(state.copy(captures=state.captures.map {
-                    if(it.id==current.id) updated else it
-                }))
-                artworkRevision++
+                val current = state.captures.firstOrNull { it.id == wild.id }
+                if (current != wild) {
+                    notify("仲間が変更されています。もう一度位置を調整してください")
+                    return
+                }
+                runCatching {
+                    val updated = ArmorPlacementDraft.reposition(current, slot, placement)
+                        .let { it.copy(pixels = artworkStore.glyphFor(it)) }
+                    update(state.copy(captures = state.captures.map {
+                        if (it.id == current.id) updated else it
+                    }))
+                    artworkRevision++
+                    notify("${wild.species}の${slot.label}の位置と大きさを保存しました")
+                }.onFailure { notify("装備位置を保存できません：${it.message}") }
             }
 
             fun generatePortrait(wild: WildMonster, style: ConceptStyle) {
@@ -390,7 +378,7 @@ class MonsterQuestActivity : ComponentActivity() {
             ) {
                 Scaffold(topBar = {
                     Surface(tonalElevation = 2.dp) {
-                        Text("MONSTER QUEST  /  v2.9",
+                        Text("MONSTER QUEST  /  v3.0",
                             modifier = Modifier.padding(18.dp),
                             style = MaterialTheme.typography.titleMedium)
                     }
@@ -423,8 +411,7 @@ class MonsterQuestActivity : ComponentActivity() {
                             }
                         },
                         onRemovePart = ::removeCustomPart,
-                        onMovePart = ::moveCustomPart,
-                        onScalePart = ::scaleCustomPart,
+                        onSetPlacement = ::setCustomPlacement,
                         onEvolve = { id ->
                             runCatching {
                                 val evolved = EvolutionRules.evolve(state,id)
@@ -548,6 +535,11 @@ class MonsterQuestActivity : ComponentActivity() {
                 }
                 val pending = pendingPartImage
                 if (pending != null) {
+                    // Draft lives only in this confirmation panel; cancel and
+                    // stale-target paths never alter saved placement metadata.
+                    var draftPosition by remember(pending.assetId, pending.slot) {
+                        mutableStateOf(ArmorOffset())
+                    }
                     val current = state.captures.firstOrNull { it.id == pending.monster.id }
                     if (current == null || current != pending.monster || state.inBattle) {
                         LaunchedEffect(pending, state.inBattle, current) {
@@ -555,17 +547,12 @@ class MonsterQuestActivity : ComponentActivity() {
                             pendingPartImage = null
                         }
                     } else {
-                        val candidate = remember(pending, current) {
-                            current.copy(
-                                customArmorParts = current.customArmorParts +
-                                    (pending.slot.name to pending.assetId),
-                                customArmorOffsets = current.customArmorOffsets - pending.slot.name
-                            )
+                        val candidate = remember(pending, current, draftPosition) {
+                            ArmorPlacementDraft.withAsset(
+                                current, pending.slot, pending.assetId, draftPosition)
                         }
-                        val visibleCandidate=remember(candidate,pending.slot) {
-                            if (candidate.stage < pending.slot.minStage)
-                                candidate.copy(stage=pending.slot.minStage)
-                            else candidate
+                        val visibleCandidate = remember(candidate, pending.slot) {
+                            ArmorPlacementDraft.visiblePreview(candidate, pending.slot)
                         }
                         AlertDialog(
                             onDismissRequest = {
@@ -574,14 +561,24 @@ class MonsterQuestActivity : ComponentActivity() {
                             },
                             title = { Text("装備画像を確認") },
                             text = {
-                                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                                Column(
+                                    modifier = Modifier.heightIn(max = 530.dp)
+                                        .verticalScroll(rememberScrollState()),
+                                    verticalArrangement = Arrangement.spacedBy(8.dp)
+                                ) {
                                     Text("${current.species}：${pending.slot.label}の画像パーツ")
                                     MonsterStaticSprite(
                                         visibleCandidate, Modifier.size(192.dp),
                                         store = artworkStore,
                                         revision = artworkRevision
                                     )
-                                    Text("元の64×64素体に、画像を自動配置した完成予想です。")
+                                    Text("元の64×64素体に重ねた完成予想です。" +
+                                        " 1px単位で位置、5%単位で大きさを調整できます。")
+                                    ArmorPlacementControls(
+                                        value = draftPosition,
+                                        onChange = { draftPosition = it },
+                                        enabled = !state.inBattle && !aiBusy
+                                    )
                                     if (pending.slot.minStage > current.stage) {
                                         Text("進化${pending.slot.minStage}に到達したときの" +
                                             "完成予想を表示しています。装着しても今すぐ進化はしません。")
@@ -657,8 +654,7 @@ private fun QuestScreen(
     onImportPart: (WildMonster, ArmorSlot) -> Unit,
     onReusePart: (WildMonster, ArmorSlot, String) -> Unit,
     onRemovePart: (WildMonster, ArmorSlot) -> Unit,
-    onMovePart: (WildMonster, ArmorSlot, Int, Int) -> Unit,
-    onScalePart: (WildMonster, ArmorSlot, Int) -> Unit,
+    onSetPlacement: (WildMonster, ArmorSlot, ArmorOffset) -> Unit,
     onGenerateArt: (WildMonster, ConceptStyle) -> Unit,
     onImportArt: (WildMonster) -> Unit,
     aiKey: String,
@@ -929,8 +925,7 @@ private fun QuestScreen(
             onImportPart = onImportPart,
             onReusePart = onReusePart,
             onRemovePart = onRemovePart,
-            onMovePart = onMovePart,
-            onScalePart = onScalePart,
+            onSetPlacement = onSetPlacement,
             onSendGlyph = onSendGlyph,
             onExportPng = onExportPng,
             onExportSpriteSheet = onExportSpriteSheet,

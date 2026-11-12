@@ -1,4 +1,4 @@
-# GlyphLIFE v0.14 / Monster Quest v2.9.1
+# GlyphLIFE v0.14 / Monster Quest v3.0.1
 
 Two **independently installable Android apps** in one repository:
 
@@ -174,3 +174,9 @@ Custom AI-generated/imported PNG attachments can be resized **50–150%** in 10%
 Every AI-generated or imported armor part is an immutable 64×64 transparent PNG in the app's private local storage. The captured-monster armor editor now includes **「保存済みパーツを使う」**: browse existing components (eight at a time), preview each and reuse one on another monster without creating or paying for a new AI image request. Both monsters refer to the same file ID; each retains independently editable slot offsets and scale. The new selection uses the existing confirmation dialog and resets the target slot's alignment to its defaults. **Canceling or changing the target never deletes a reused shared PNG.** New, unconfirmed AI/imported layers still retain their previous cleanup semantics. Reused layers survive evolution, fusion, application restarts and can be exported through the existing 64×64 / 256×256 / Glyph 13×13 pipeline. The catalog is local-only, sorted newest first, paginated, and limits display to the most recent 500 correctly named assets.
 
 Details and test scope: [docs/MONSTER_ARMOR_LIBRARY_V29_JA.md](docs/MONSTER_ARMOR_LIBRARY_V29_JA.md).
+
+## Monster Quest v3.0 — non-destructive armor fitting
+
+Players can adjust attached PNG armor at **1px position / 5% size** granularity while previewing the native 64×64 monster, without modifying saved data until explicit confirmation. New AI-generated, manually imported, and reused part assets can likewise be resized and placed **before first equip**. The preview and confirmed render use the same immutable `ArmorPlacementDraft` transformation; cancelling cannot change the original monster or a shared library asset. Position/scale metadata continues to survive evolution, fusion, save/load, PNG export and derived 13×13 Glyph frames. Image generation remains optional BYOK and real-device/API visual quality is not yet verified.
+
+See [the implementation/verification notes](docs/MONSTER_V30_ARMOR_PLACEMENT_JA.md).

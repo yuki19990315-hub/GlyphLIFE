@@ -36,8 +36,7 @@ fun CaptureLab(
     onImportPart: (WildMonster, ArmorSlot) -> Unit,
     onReusePart: (WildMonster, ArmorSlot, String) -> Unit,
     onRemovePart: (WildMonster, ArmorSlot) -> Unit,
-    onMovePart: (WildMonster, ArmorSlot, Int, Int) -> Unit,
-    onScalePart: (WildMonster, ArmorSlot, Int) -> Unit,
+    onSetPlacement: (WildMonster, ArmorSlot, ArmorOffset) -> Unit,
     onSendGlyph: (WildMonster) -> Unit,
     onExportPng: (WildMonster, Int) -> Unit,
     onExportSpriteSheet: (WildMonster) -> Unit,
@@ -50,6 +49,7 @@ fun CaptureLab(
     var confirm by remember { mutableStateOf(false) }
     var armorEditing by remember { mutableStateOf(false) }
     var librarySlot by remember { mutableStateOf<ArmorSlot?>(null) }
+    var editingSlot by remember(firstId) { mutableStateOf<ArmorSlot?>(null) }
     val savedPartIds = remember(artworkStore, artworkRevision) {
         artworkStore.listArmorLayerIds()
     }
@@ -175,41 +175,29 @@ fun CaptureLab(
                         }
                         if (imported) {
                             val pos=monster.customArmorOffsets[slot.name] ?: ArmorOffset()
-                            Text("画像の位置：横${pos.dx}px、縦${pos.dy}px（±12pxまで）",
+                            Text("画像の位置：横${pos.dx}px、縦${pos.dy}px / ${pos.scalePercent}%",
                                 style=MaterialTheme.typography.bodySmall)
-                            Row(modifier=Modifier.horizontalScroll(rememberScrollState()),
-                                horizontalArrangement=Arrangement.spacedBy(5.dp)) {
-                                OutlinedButton(enabled=!inBattle && pos.dx > -12,
-                                    onClick={onMovePart(monster,slot,-2,0)}) {
-                                    Text("← 左")
+                            OutlinedButton(
+                                enabled = !inBattle && !aiBusy,
+                                onClick = {
+                                    editingSlot = if (editingSlot == slot) null else slot
                                 }
-                                OutlinedButton(enabled=!inBattle && pos.dx < 12,
-                                    onClick={onMovePart(monster,slot,2,0)}) {
-                                    Text("右 →")
-                                }
-                                OutlinedButton(enabled=!inBattle && pos.dy > -12,
-                                    onClick={onMovePart(monster,slot,0,-2)}) {
-                                    Text("↑ 上")
-                                }
-                                OutlinedButton(enabled=!inBattle && pos.dy < 12,
-                                    onClick={onMovePart(monster,slot,0,2)}) {
-                                    Text("下 ↓")
-                                }
-                            }
-                            Text("画像の大きさ：${pos.scalePercent}%",
-                                style=MaterialTheme.typography.bodySmall)
-                            Row(
-                                modifier=Modifier.horizontalScroll(rememberScrollState()),
-                                horizontalArrangement=Arrangement.spacedBy(6.dp)
                             ) {
-                                OutlinedButton(
-                                    enabled=!inBattle && pos.scalePercent>50,
-                                    onClick={onScalePart(monster,slot,-10)}
-                                ) { Text("小さく −10%") }
-                                OutlinedButton(
-                                    enabled=!inBattle && pos.scalePercent<150,
-                                    onClick={onScalePart(monster,slot,10)}
-                                ) { Text("大きく +10%") }
+                                Text(if (editingSlot == slot) "位置編集を閉じる"
+                                     else "完成形を見て位置・大きさを調整")
+                            }
+                            if (editingSlot == slot) {
+                                ArmorPlacementEditor(
+                                    monster = monster, slot = slot,
+                                    store = artworkStore,
+                                    revision = artworkRevision,
+                                    enabled = !inBattle && !aiBusy,
+                                    onSave = { chosen ->
+                                        onSetPlacement(monster, slot, chosen)
+                                        editingSlot = null
+                                    },
+                                    onCancel = { editingSlot = null }
+                                )
                             }
                         }
                         Row(modifier=Modifier.horizontalScroll(rememberScrollState()),
