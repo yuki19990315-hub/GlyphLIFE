@@ -2,14 +2,11 @@ package dev.glyphlife.monsterquest.ui
 
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.FilterQuality
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.layout.ContentScale
-import androidx.compose.ui.unit.dp
 import dev.glyphlife.monsterquest.data.MonsterArtworkStore
 import dev.glyphlife.monsterquest.model.WildMonster
 import dev.glyphlife.monsterquest.pixel.MonsterAnimation
@@ -45,7 +42,7 @@ fun MonsterArtworkView(
     Image(
         bitmap=frames[index.coerceIn(frames.indices)].second,
         contentDescription="${monster.species}：64×64カラードット絵の待機アニメーション",
-        modifier=modifier.clip(RoundedCornerShape(12.dp)),
+        modifier=modifier, // Keep the whole authored silhouette; never round-clip the image.
         contentScale=ContentScale.Fit,
         filterQuality=FilterQuality.None
     )
