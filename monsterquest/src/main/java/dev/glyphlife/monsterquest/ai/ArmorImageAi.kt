@@ -10,6 +10,7 @@ import org.json.JSONArray
 import org.json.JSONObject
 import java.net.HttpURLConnection
 import java.net.URL
+import java.util.Base64
 
 /**
  * Optional PAID/BYOK visual generation. The AI returns ONLY the isolated
@@ -40,11 +41,17 @@ object ArmorImageAi {
             Body: ${body.name}; element: ${monster.element.take(20)}.
             Equipment SLOT: ${slot.name} (${slot.label}).
             Draw exactly: $description.
-            The asset is attached to a pre-existing 64x64 body with a
-            predefined anchor and a deterministic size; no body or face may
-            appear in the output. Make it immediately recognizable at
-            12-30 pixels wide after downsampling. Crisp clusters, thick
-            silhouette, 2-level shadows and bright highlights.
+            The second input is a REFERENCE IMAGE of the exact current
+            monster as it appears in the game (including existing armor).
+            Inspect its silhouette, color palette, pose and anatomy, and
+            design ONE new part that harmonizes with this actual body.
+            This reference is NOT an output template: DO NOT redraw, edit,
+            duplicate, or include any part of the creature's face or body.
+            The requested component will be mounted at a fixed anchor
+            on its native 64x64 sprite, so keep its shape compact enough
+            to remain legible at 12-30 pixels wide after downsampling.
+            Use colors harmonious with the reference, crisp pixel clusters,
+            thick silhouette, two shadow levels and highlights.
             Draw exactly ONE separated component (paired pieces can touch),
             at center of a SQUARE canvas with generous padding.
             Use SOLID #FF00FF MAGENTA as the entire background, sharp flat
@@ -57,14 +64,30 @@ object ArmorImageAi {
         """.trimIndent()
     }
 
-    suspend fun generate(
-        apiKey: String, monster: WildMonster, slot: ArmorSlot
-    ): ByteArray = withContext(Dispatchers.IO) {
-        require(apiKey.isNotBlank() && apiKey.length <= 256)
-        val body = JSONObject()
+    /**
+     * The output is an isolated part image; the reference image is sent solely
+     * so the model can match the EXISTING monster, not generate a new body.
+     * Pure request construction permits offline JVM tests.
+     */
+    fun requestBody(monster: WildMonster, slot: ArmorSlot, referencePng: ByteArray): JSONObject {
+        require(referencePng.size in 64..2_000_000) {
+            "参考画像の容量が上限を超えました"
+        }
+        val signature = byteArrayOf(
+            137.toByte(), 80, 78, 71, 13, 10, 26, 10
+        )
+        require(referencePng.size >= signature.size &&
+            signature.indices.all { referencePng[it] == signature[it] }) {
+            "参考画像はPNG形式である必要があります"
+        }
+        val parts = JSONArray()
+            .put(JSONObject().put("text", prompt(monster, slot)))
+            .put(JSONObject().put("inlineData", JSONObject()
+                .put("mimeType", "image/png")
+                .put("data", Base64.getEncoder().encodeToString(referencePng))))
+        return JSONObject()
             .put("contents", JSONArray().put(
-                JSONObject().put("role", "user").put("parts",
-                    JSONArray().put(JSONObject().put("text", prompt(monster, slot))))
+                JSONObject().put("role", "user").put("parts", parts)
             ))
             .put("generationConfig", JSONObject()
                 .put("responseModalities", JSONArray().put("IMAGE"))
@@ -72,6 +95,14 @@ object ArmorImageAi {
                     .put("image", JSONObject()
                         .put("aspectRatio", "1:1")
                         .put("imageSize", "512"))))
+    }
+
+    suspend fun generate(
+        apiKey: String, monster: WildMonster, slot: ArmorSlot,
+        referencePng: ByteArray
+    ): ByteArray = withContext(Dispatchers.IO) {
+        require(apiKey.isNotBlank() && apiKey.length <= 256)
+        val body = requestBody(monster, slot, referencePng)
         val con = (URL(URL_PATH).openConnection() as HttpURLConnection).apply {
             requestMethod = "POST"
             connectTimeout = 15_000

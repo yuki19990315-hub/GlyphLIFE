@@ -138,7 +138,7 @@ fun CaptureLab(
                             }
                             OutlinedButton(enabled = allowAiEquip && !inBattle,
                                 onClick = { onGeneratePart(monster, slot) }) {
-                                Text("AIでパーツ画像生成")
+                                Text("素体を見せてAIパーツ生成")
                             }
                             if (imported) TextButton(enabled = !inBattle,
                                 onClick = { onRemovePart(monster, slot) }) {
@@ -177,7 +177,13 @@ fun CaptureLab(
                         enabled=allowAiEquip && !inBattle,
                         onClick={onAiEquip(monster)}
                     ) { Text("AIでこの仲間のアーマーを提案（任意）") }
-                    Text("AI機能は画面下方のGemini APIキーを使い、ボタンを押した場合のみ通信します。",
+                    Text("AI画像生成ボタンを押したときだけ、現在のモンスターの" +
+                        " 64×64ドット絵を512×512に拡大してGeminiに送信します。" +
+                        " 元の写真ファイルや他の仲間の画像は送信しません。" +
+                        " AI画像生成は有料になる場合があります。" +
+                        " 結果は装着前に確認・キャンセルできます。",
+                        style=MaterialTheme.typography.bodySmall)
+                    Text("AIの装備スタイル提案も、下部に入力したGemini APIキーを使います。",
                         style=MaterialTheme.typography.bodySmall)
                 }
                 Text(

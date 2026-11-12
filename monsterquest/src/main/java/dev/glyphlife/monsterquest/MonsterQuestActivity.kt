@@ -178,7 +178,11 @@ class MonsterQuestActivity : ComponentActivity() {
                 val key = aiKey
                 scope.launch {
                     try {
-                        val bytes = ArmorImageAi.generate(key, wild, slot)
+                        // The user explicitly requested this generated part.
+                        // Send a 512px render of the currently equipped monster
+                        // as visual context; no photo library access is involved.
+                        val referencePng = artworkStore.referencePng(wild)
+                        val bytes = ArmorImageAi.generate(key, wild, slot, referencePng)
                         val id = artworkStore.storeArmorLayer(bytes)
                         if (!state.inBattle && state.captures.any { it == wild }) {
                             pendingPartImage?.let { old ->
@@ -321,7 +325,7 @@ class MonsterQuestActivity : ComponentActivity() {
             ) {
                 Scaffold(topBar = {
                     Surface(tonalElevation = 2.dp) {
-                        Text("MONSTER QUEST  /  v2.7",
+                        Text("MONSTER QUEST  /  v2.8",
                             modifier = Modifier.padding(18.dp),
                             style = MaterialTheme.typography.titleMedium)
                     }

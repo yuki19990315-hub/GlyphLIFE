@@ -17,6 +17,7 @@ import dev.glyphlife.monsterquest.pixel.MonsterArmor
 import dev.glyphlife.monsterquest.pixel.CustomArmorLayers
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
+import java.io.ByteArrayOutputStream
 import java.io.File
 import java.util.UUID
 
@@ -139,6 +140,36 @@ class MonsterArtworkStore(private val context: Context) {
         val base = if (saved != null) MonsterArmor.compose(saved, monster)
             else MonsterDesign.sprite(monster)
         return CustomArmorLayers.compose(base, monster, ::loadArmorLayer)
+    }
+
+    /**
+     * Explicit user request only: render the actual armored monster as a compact
+     * reference image for the optional external image API. The AI sees this
+     * 512x512 nearest-neighbour copy, not personal photo files or save data.
+     * The source sprite is never modified or uploaded automatically.
+     */
+    fun referencePng(monster: WildMonster): ByteArray {
+        val source = spriteFor(monster)
+        require(source.width == 64 && source.height == 64)
+        val native = source.pixels()
+        val side = 512
+        val background = 0xff192631.toInt()
+        val displayed = IntArray(side * side) { index ->
+            val x = (index % side) / 8
+            val y = (index / side) / 8
+            val color = native[y * 64 + x]
+            if ((color ushr 24) >= 128) color else background
+        }
+        val bitmap = Bitmap.createBitmap(displayed, side, side, Bitmap.Config.ARGB_8888)
+        try {
+            val out = ByteArrayOutputStream()
+            check(bitmap.compress(Bitmap.CompressFormat.PNG, 100, out)) {
+                "参考画像をPNGに変換できませんでした"
+            }
+            val bytes = out.toByteArray()
+            require(bytes.size in 64..2_000_000) { "参考画像が大きすぎます" }
+            return bytes
+        } finally { bitmap.recycle() }
     }
 
     /** Render the 64-pixel master at 256 pixels without any interpolation. */

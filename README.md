@@ -1,4 +1,4 @@
-# GlyphLIFE v0.14 / Monster Quest v2.7
+# GlyphLIFE v0.14 / Monster Quest v2.8
 
 Two **independently installable Android apps** in one repository:
 
@@ -154,3 +154,9 @@ The captured-monster workshop can now select a **specific equipment slot** (head
 Custom PNG layers are **independent of the procedural armor styles**, unlock according to stage, follow the creature through evolution, and are inherited by fusion according to parental slot rules (head/core/shoulder A; tail/back/wing B). All rendered sprites and Glyph animations use the same compositing pipeline. The 13×13 Glyph image is always a derivative of the final 64×64 artwork, with hardware LED mask. Legacy JSON remains supported; metadata contains UUID references but no embedded images.
 
 The generated AI image's artistic quality, chroma-key cleanliness and actual device behavior remain **unverified**; visual review and an explicit confirm dialog prevent automatic application. The Google image API may incur charges and needs a user-provided key. No training on protected game IP is performed.
+
+## v2.8 — AI armor generation conditioned on the actual monster
+
+The optional image-model request now includes an **on-device rendered 512×512 PNG of the currently equipped 64×64 monster**, in addition to the armor-slot instructions. The reference image is an 8× nearest-neighbor render on a solid dark background; no user's original photo, other monsters, or game-save JSON is uploaded. The model must return **only one isolated component**, not a copy of the monster. The image is converted to a validated transparent 64px part and displayed for explicit confirmation before equipping. A request is made only when the user taps the AI component button, using their BYOK Gemini key; network image generation and visual output quality remain untested on a real device. If the user cancels or state changes, the newly generated asset is discarded.
+
+See [v2.8 source and verification guide](docs/MONSTER_V28_REFERENCE_ARMOR_JA.md).
