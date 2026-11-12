@@ -38,6 +38,8 @@ object MonsterPrototypeFactory {
             motifPrimary=type.name.lowercase(),
             motifSecondary="original",
             designSeed="atelier-$variant",
+            artFamily=if (clean == "ライゼル" && element == "雷" &&
+                type == MonsterBodyType.BEAST) MonsterArtFamilies.RAIZEL else "",
             armorParts=checkedArmor
         )
         return idea.copy(pixels=GlyphProjector.project(MonsterDesign.sprite(idea)))
