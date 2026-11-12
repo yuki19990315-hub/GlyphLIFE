@@ -37,7 +37,8 @@ fun CaptureLab(
     val first = captured.firstOrNull { it.id == firstId }
     val second = captured.firstOrNull { it.id == secondId }
     val fusionPreview = remember(first, second) {
-        if (first != null && second != null && first.id != second.id)
+        if (first != null && second != null && first.id != second.id &&
+            !first.isBoss && !second.isBoss)
             FusionRules.preview(first, second)
         else null
     }

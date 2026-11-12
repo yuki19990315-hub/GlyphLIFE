@@ -125,7 +125,7 @@ The Monster Quest → GlyphLIFE transfer now carries **all four idle animation f
 
 ## Monster Design Studio v2.4 — Choose your actual creature design
 
-- 32 procedural identity variants per anatomy/element/name, browsable in **four side-by-side native 64×64 thumbnails** per page. The selected design is shown as an animated 256×256 integer-scaled sprite and a **separate 13×13 Glyph conversion**.
+- 32 procedural identity variants per anatomy/element/name, browsable in **four side-by-side native 64×64 thumbnails** per page. The selected design is shown as an animated 256×256 integer-scaled sprite and a **separate 13×13 Glyph conversion**. Any selected prototype can be exported directly as native 64×64 or nearest-neighbour 256×256 PNG without capturing it first.
 - Design identity (`designSeed`) is independent of an encounter's random UUID. **The stage-1 design you preview is now exactly the one summoned into combat and preserved across saves.** Existing saves without `designSeed` retain their legacy rendering identity.
 - The fusion laboratory now shows a **pixel-art preview of the future hybrid** and the Glyph derivation *before* consuming either parent. Confirmation and result use a stable visual seed based on the two parent IDs, so the actual result matches the preview.
 - CI generates extra real sprite contact sheets: 10 anatomy types × 4 variants, parent-A/parent-B/result fusion, and projected 13×13 glyph portraits. These are uploaded in **MonsterQuest-PixelArt-Preview** after successful tests.

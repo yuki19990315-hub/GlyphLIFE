@@ -133,7 +133,7 @@ class MonsterPixelPreviewTest {
         save(w,h,data,"03-three-evolution-stages.png")
     }
     /** 10 anatomy types × 4 distinct seeds: actual rendered data, not sketches. */
-    @Test fun thirtyTwoVariationStudioVisualReview() {
+    @Test fun fourVariantsPerAnatomyVisualReview() {
         val variants=listOf(0,7,14,21)
         val types=MonsterBodyType.entries
         val w=variants.size*256;val h=types.size*256;val pixels=IntArray(w*h)

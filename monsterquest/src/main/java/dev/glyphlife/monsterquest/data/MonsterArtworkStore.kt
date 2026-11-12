@@ -136,9 +136,13 @@ class MonsterArtworkStore(private val context: Context) {
         val bitmap = if(size==64) PixelAssetPipeline.toBitmap(sprite)
                      else PixelAssetPipeline.display256(sprite)
         val resolver=context.contentResolver
+        val candidateNumber=monster.designSeed.removePrefix("atelier-").toIntOrNull()
+        val suffix=if(monster.designSeed.startsWith("atelier-") &&
+            candidateNumber != null && candidateNumber in 0..63)
+            "-v$candidateNumber" else ""
         val values=ContentValues().apply {
             put(MediaStore.MediaColumns.DISPLAY_NAME,
-                "monsterquest-${monster.id.take(8)}-s${monster.stage}-${size}px.png")
+                "monsterquest-${monster.id.take(8)}${suffix}-s${monster.stage}-${size}px.png")
             put(MediaStore.MediaColumns.MIME_TYPE,"image/png")
             put(MediaStore.MediaColumns.RELATIVE_PATH,
                 Environment.DIRECTORY_PICTURES + "/MonsterQuest")

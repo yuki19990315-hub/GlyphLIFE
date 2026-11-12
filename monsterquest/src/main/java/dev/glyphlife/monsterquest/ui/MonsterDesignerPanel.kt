@@ -18,7 +18,8 @@ fun MonsterDesignerPanel(
     enabled:Boolean,
     store:MonsterArtworkStore,
     revision:Int,
-    onSummon:(WildMonster)->Unit
+    onSummon:(WildMonster)->Unit,
+    onExportPng:(WildMonster,Int)->Unit
 ) {
     var expanded by remember { mutableStateOf(false) }
     var type by remember { mutableStateOf(MonsterBodyType.DRAGON) }
@@ -142,6 +143,14 @@ fun MonsterDesignerPanel(
                 MonsterPrototypeFactory.preview(name,type,element,1,selectedVariant)
             }
             MonsterStaticSprite(initial,Modifier.size(116.dp))
+        }
+        Row(horizontalArrangement=Arrangement.spacedBy(8.dp)) {
+            OutlinedButton(onClick={onExportPng(model,64)}) {
+                Text("選んだ64px画像を保存")
+            }
+            OutlinedButton(onClick={onExportPng(model,256)}) {
+                Text("256px画像を保存")
+            }
         }
         Button(enabled=enabled,onClick={onSummon(model)}) {
             Text("案${selectedVariant+1}を召喚（進化1から）")

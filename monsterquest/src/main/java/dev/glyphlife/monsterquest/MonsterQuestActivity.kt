@@ -528,7 +528,8 @@ private fun QuestScreen(
                 !state.roomCleared && state.room < QuestRules.ROOM_COUNT,
             store = artworkStore,
             revision = artworkRevision,
-            onSummon = onOfflineSummon
+            onSummon = onOfflineSummon,
+            onExportPng = onExportPng
         )
         HorizontalDivider()
         Text("AIモンスター召喚（任意）", style = MaterialTheme.typography.titleMedium)
