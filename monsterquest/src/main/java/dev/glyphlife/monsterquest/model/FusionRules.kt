@@ -59,7 +59,7 @@ object FusionRules {
             customArmorOffsets = dev.glyphlife.monsterquest.pixel.CustomArmorLayers.inheritOffsets(
                 a.customArmorOffsets, b.customArmorOffsets)
         )
-        return fusion.copy(pixels = GlyphProjector.project(MonsterDesign.sprite(fusion)))
+        return fusion.copy(pixels = GlyphProjector.projectFor(fusion, MonsterDesign.sprite(fusion)))
     }
 
     fun fuse(state: QuestState, firstId: String, secondId: String): QuestState {
