@@ -11,6 +11,9 @@ import dev.glyphlife.monsterquest.data.MonsterArtworkStore
 import dev.glyphlife.monsterquest.model.FusionRules
 import dev.glyphlife.monsterquest.model.EvolutionRules
 import dev.glyphlife.monsterquest.model.WildMonster
+import dev.glyphlife.monsterquest.pixel.ArmorSlot
+import dev.glyphlife.monsterquest.pixel.ArmorStyle
+import dev.glyphlife.monsterquest.pixel.MonsterArmor
 
 /**
  * Two-material fusion screen. A confirmation is required because selected
@@ -24,6 +27,9 @@ fun CaptureLab(
     artworkStore: MonsterArtworkStore,
     artworkRevision: Int,
     onEvolve: (String) -> Unit,
+    onEquip: (String, Map<String,String>) -> Unit,
+    onAiEquip: (WildMonster) -> Unit,
+    allowAiEquip: Boolean,
     onSendGlyph: (WildMonster) -> Unit,
     onExportPng: (WildMonster, Int) -> Unit,
     onExportSpriteSheet: (WildMonster) -> Unit,
@@ -34,6 +40,7 @@ fun CaptureLab(
     var firstId by remember { mutableStateOf<String?>(null) }
     var secondId by remember { mutableStateOf<String?>(null) }
     var confirm by remember { mutableStateOf(false) }
+    var armorEditing by remember { mutableStateOf(false) }
     val first = captured.firstOrNull { it.id == firstId }
     val second = captured.firstOrNull { it.id == secondId }
     val fusionPreview = remember(first, second) {
@@ -102,6 +109,51 @@ fun CaptureLab(
                 }
             }
             first?.let { monster ->
+                Text("素体＋装備パーツ",style=MaterialTheme.typography.titleMedium)
+                OutlinedButton(onClick={armorEditing=!armorEditing}) {
+                    Text(if(armorEditing) "装備編集を閉じる" else "選んだ仲間の装備を編集")
+                }
+                if(armorEditing) {
+                    Text("スロットごとのドット絵パーツを合成します。未進化の装備は保存され、" +
+                        "進化段階に到達すると表示されます。",
+                        style=MaterialTheme.typography.bodySmall)
+                    ArmorSlot.entries.forEach { slot ->
+                        Text(slot.label + "（進化" + slot.minStage + "から）")
+                        Row(modifier=Modifier.horizontalScroll(rememberScrollState()),
+                            horizontalArrangement=Arrangement.spacedBy(5.dp)) {
+                            FilterChip(selected=monster.armorParts[slot.name]==null,
+                                enabled=!inBattle,
+                                onClick={onEquip(monster.id,monster.armorParts-slot.name)},
+                                label={Text("なし")})
+                            ArmorStyle.entries.forEach { style ->
+                                FilterChip(
+                                    selected=monster.armorParts[slot.name]==style.name,
+                                    enabled=!inBattle,
+                                    onClick={onEquip(monster.id,
+                                        monster.armorParts+(slot.name to style.name))},
+                                    label={Text(style.label)})
+                            }
+                        }
+                    }
+                    Row(horizontalArrangement=Arrangement.spacedBy(8.dp)) {
+                        OutlinedButton(enabled=!inBattle,
+                            onClick={onEquip(monster.id,MonsterArmor.suggestion(
+                                monster.element,
+                                dev.glyphlife.monsterquest.pixel.MonsterDesign.bodyType(monster)))}) {
+                            Text("属性装備セット")
+                        }
+                        OutlinedButton(enabled=!inBattle,
+                            onClick={onEquip(monster.id,emptyMap())}) {
+                            Text("装備を全解除")
+                        }
+                    }
+                    OutlinedButton(
+                        enabled=allowAiEquip && !inBattle,
+                        onClick={onAiEquip(monster)}
+                    ) { Text("AIでこの仲間のアーマーを提案（任意）") }
+                    Text("AI機能は画面下方のGemini APIキーを使い、ボタンを押した場合のみ通信します。",
+                        style=MaterialTheme.typography.bodySmall)
+                }
                 Text(
                     if (monster.stage >= 3) "最終進化に到達済み"
                     else "次の進化条件：この冒険で${EvolutionRules.requiredVictories(monster.stage)}体撃破（現在${defeated}体）",

@@ -35,6 +35,8 @@ import dev.glyphlife.monsterquest.ui.MonsterDesignerPanel
 import dev.glyphlife.monsterquest.pixel.GlyphProjector
 import dev.glyphlife.monsterquest.pixel.MonsterAnimation
 import dev.glyphlife.monsterquest.pixel.MonsterDesign
+import dev.glyphlife.monsterquest.pixel.MonsterArmor
+import dev.glyphlife.monsterquest.ai.ArmorAi
 import kotlinx.coroutines.launch
 
 class MonsterQuestActivity : ComponentActivity() {
@@ -140,6 +142,38 @@ class MonsterQuestActivity : ComponentActivity() {
                     }
                 }
             }
+            fun equipCaptured(id: String, parts: Map<String,String>) {
+                if (state.inBattle) {
+                    notify("戦闘中は装備変更できません")
+                    return
+                }
+                runCatching {
+                    val validated = MonsterArmor.validated(parts)
+                    check(state.captures.any { it.id == id }) { "仲間が見つかりません" }
+                    val changed = state.captures.map { member ->
+                        if(member.id != id) member else {
+                            val armored = member.copy(armorParts = validated)
+                            armored.copy(pixels = artworkStore.glyphFor(armored))
+                        }
+                    }
+                    update(state.copy(captures = changed))
+                    artworkRevision++
+                }.onFailure { notify("装備を保存できません：" + it.message) }
+            }
+            fun suggestCapturedArmor(wild: WildMonster) {
+                if (aiBusy || aiKey.isBlank() || state.inBattle) return
+                aiBusy = true
+                val key = aiKey
+                scope.launch {
+                    try {
+                        val parts = ArmorAi.suggest(key, wild)
+                        equipCaptured(wild.id, parts)
+                        notify("${wild.species}にAIの装備案を適用しました")
+                    } catch(e: Exception) {
+                        notify("AI装備提案に失敗：" + (e.message ?: "通信エラー"))
+                    } finally { aiBusy = false }
+                }
+            }
             fun exportSpriteSheet(wild: WildMonster) {
                 scope.launch {
                     runCatching {
@@ -194,7 +228,7 @@ class MonsterQuestActivity : ComponentActivity() {
             ) {
                 Scaffold(topBar = {
                     Surface(tonalElevation = 2.dp) {
-                        Text("MONSTER QUEST  /  v2.6",
+                        Text("MONSTER QUEST  /  v2.5",
                             modifier = Modifier.padding(18.dp),
                             style = MaterialTheme.typography.titleMedium)
                     }
@@ -216,6 +250,8 @@ class MonsterQuestActivity : ComponentActivity() {
                         },
                         onExportPng = ::exportPixelPng,
                         onExportSpriteSheet = ::exportSpriteSheet,
+                        onEquip = ::equipCaptured,
+                        onAiEquip = ::suggestCapturedArmor,
                         onEvolve = { id ->
                             runCatching {
                                 update(EvolutionRules.evolve(state,id))
@@ -309,6 +345,8 @@ private fun QuestScreen(
     onExportPng: (WildMonster, Int) -> Unit,
     onExportSpriteSheet: (WildMonster) -> Unit,
     onEvolve: (String) -> Unit,
+    onEquip: (String, Map<String,String>) -> Unit,
+    onAiEquip: (WildMonster) -> Unit,
     onGenerateArt: (WildMonster, ConceptStyle) -> Unit,
     onImportArt: (WildMonster) -> Unit,
     aiKey: String,
@@ -571,6 +609,9 @@ private fun QuestScreen(
             artworkStore = artworkStore,
             artworkRevision = artworkRevision,
             onEvolve = onEvolve,
+            onEquip = onEquip,
+            onAiEquip = onAiEquip,
+            allowAiEquip = aiKey.isNotBlank() && !aiBusy,
             onSendGlyph = onSendGlyph,
             onExportPng = onExportPng,
             onExportSpriteSheet = onExportSpriteSheet,
