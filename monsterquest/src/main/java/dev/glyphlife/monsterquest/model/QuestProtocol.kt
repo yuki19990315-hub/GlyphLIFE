@@ -35,17 +35,33 @@ object QuestProtocol {
      * Each 64px source frame must be projected independently before calling.
      */
     fun exportGlyphAnimationFrames(
-        wild: WildMonster, sourceFrames: List<Pair<String, Int>>
+        wild: WildMonster,
+        sourceFrames: List<Pair<String, Int>>,
+        brightnessFrames: List<IntArray>? = null
     ): String {
         require(sourceFrames.size in 1..64)
         val frames = org.json.JSONArray()
-        sourceFrames.forEach { (pixels13, durationMs) ->
+        require(brightnessFrames == null || brightnessFrames.size == sourceFrames.size)
+        sourceFrames.forEachIndexed { frameIndex, (pixels13, durationMs) ->
             require(pixels13.length == 169 && pixels13.all { it == '0' || it == '1' })
             require(pixels13.withIndex().all { (i, bit) ->
                 bit != '1' || GlyphProjector.isPhysical(i)
             }) { "Glyph実LEDの範囲外に画素があります" }
             require(durationMs in 100..2000) { "コマの再生時間が範囲外です" }
-            frames.put(JSONObject().put("pixels", pixels13).put("durationMs", durationMs))
+            val frame = JSONObject().put("pixels", pixels13).put("durationMs", durationMs)
+            brightnessFrames?.get(frameIndex)?.let { brightness ->
+                require(brightness.size == 169 && brightness.all { it in 0..255 })
+                require(brightness.withIndex().all { (i, level) ->
+                    level == 0 || GlyphProjector.isPhysical(i)
+                }) { "物理LEDの範囲外に輝度があります" }
+                // Optional v1 extension. Legacy consumers ignore unknown JSON fields.
+                // Two hex characters per LED -> 338 chars per 13x13 frame.
+                val encoded = brightness.joinToString("") { level ->
+                    level.toString(16).padStart(2, '0')
+                }
+                frame.put("levelsHex", encoded)
+            }
+            frames.put(frame)
         }
         return JSONObject()
             .put("schemaVersion", 1)
