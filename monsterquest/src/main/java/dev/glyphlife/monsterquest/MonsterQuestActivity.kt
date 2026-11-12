@@ -353,6 +353,7 @@ class MonsterQuestActivity : ComponentActivity() {
                             }
                         },
                         onRemovePart = ::removeCustomPart,
+                        onPositionPart = ::positionCustomPart,
                         onEvolve = { id ->
                             runCatching {
                                 val evolved = EvolutionRules.evolve(state,id)
@@ -579,6 +580,7 @@ private fun QuestScreen(
     onGeneratePart: (WildMonster, ArmorSlot) -> Unit,
     onImportPart: (WildMonster, ArmorSlot) -> Unit,
     onRemovePart: (WildMonster, ArmorSlot) -> Unit,
+    onPositionPart: (WildMonster, ArmorSlot, ArmorPlacement) -> Unit,
     onGenerateArt: (WildMonster, ConceptStyle) -> Unit,
     onImportArt: (WildMonster) -> Unit,
     aiKey: String,
