@@ -336,6 +336,69 @@ object MonsterDesign {
             }
         }
 
+        // Species-specific anatomy. Earlier versions shared nearly identical
+        // silhouettes within each body class; these variations affect the actual
+        // outline and not just random interior speckles. The seed excludes stage
+        // so evolution preserves the creature's identifying features.
+        val morphology = Math.floorMod(seed ushr 3, 6)
+        val crest = Math.floorMod(seed ushr 12, 3)
+        when (morphology) {
+            0 -> { // Forward-swept antlers, reinforced roots.
+                line(23,17,10,8,p[0],5); line(40,17,53,8,p[0],5)
+                line(23,16,12,9,p[4],2); line(40,16,51,9,p[4],2)
+                line(13,10,8,3,p[0],3); line(50,10,55,3,p[0],3)
+            }
+            1 -> { // Jagged back plates with separated gaps.
+                for(n in 0..3) {
+                    val x=20+n*8
+                    triangle(x-4,27,x,10-(n%2)*4,x+4,27,p[0])
+                    triangle(x-2,25,x,15-(n%2)*4,x+2,25,p[3])
+                }
+            }
+            2 -> { // Heavy plated shoulders and a luminous central seam.
+                triangle(19,29,3,15,13,44,p[0])
+                triangle(45,29,61,15,51,44,p[0])
+                triangle(17,30,7,20,14,39,p[2])
+                triangle(47,30,57,20,50,39,p[2])
+                line(32,24,32,41,p[4],2)
+            }
+            3 -> { // Twin blade tails/fins: distinct wide outline.
+                line(43,41,59,50,p[0],7)
+                line(43,42,57,49,p[3],3)
+                triangle(55,48,62,38,60,57,p[0])
+                triangle(52,46,60,42,58,53,p[4])
+            }
+            4 -> { // High curved horns and lower cheek spikes.
+                line(23,18,14,6,p[0],6)
+                line(14,6,20,2,p[0],4)
+                line(40,18,49,6,p[0],6)
+                line(49,6,43,2,p[0],4)
+                line(18,31,7,34,p[0],4)
+                line(46,31,57,34,p[0],4)
+            }
+            else -> { // Asymmetric crown and one long curved dorsal blade.
+                triangle(25,19,17,2,33,14,p[0])
+                triangle(25,17,20,6,30,13,p[3])
+                line(43,33,57,17,p[0],6)
+                line(57,17,60,7,p[0],4)
+                line(43,33,56,19,p[4],2)
+            }
+        }
+        when(crest) {
+            0 -> { // Split forehead crest.
+                line(29,17,26,10,p[0],3); line(36,17,39,10,p[0],3)
+                line(29,16,27,12,p[4],1)
+            }
+            1 -> { // Faceted forehead crystal.
+                triangle(29,15,32,7,36,15,p[0])
+                triangle(31,14,32,9,34,14,p[4])
+            }
+            else -> { // Lateral brow visor.
+                line(24,17,40,17,p[0],4)
+                line(27,16,37,16,p[4],2)
+            }
+        }
+
         // Stage 2: distinct crest and a bright protective shoulder crest.
         if(stage>=2 || wild.isBoss) {
             line(29,18,23,5,p[0],5);line(36,18,43,5,p[0],5)

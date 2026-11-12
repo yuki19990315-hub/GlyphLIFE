@@ -87,4 +87,35 @@ class MonsterPixelsTest {
             fail("Expected failure")
         }catch(_:IllegalArgumentException){}
     }
+    @Test fun individualsOfSameBodyTypeHaveDistinctOutlines() {
+        val shapes=mutableSetOf<String>()
+        for(n in 1..36) {
+            val wild=WildMonster(
+                id="00000000-0000-0000-0000-"+n.toString().padStart(12,'0'),
+                species="原生装甲獣$n",element="雷",maxHp=40,attack=8,
+                bodyType=MonsterBodyType.BEAST.name
+            )
+            val art=MonsterDesign.sprite(wild)
+            assertTrue(art.colors().size in 3..16)
+            val silhouette=art.pixels().map { if((it ushr 24)>0)'1' else '0' }.joinToString("")
+            shapes.add(silhouette)
+            val glyph=GlyphProjector.project(art)
+            assertEquals(169,glyph.length)
+            glyph.forEachIndexed { i,c ->
+                if(c=='1') assertTrue(GlyphProjector.isPhysical(i))
+            }
+        }
+        assertTrue("same body type must vary in silhouette",shapes.size>=5)
+    }
+
+    @Test fun individualMorphologyRemainsStableThroughEvolution() {
+        val original=creature(MonsterBodyType.DRAGON)
+        val initial=MonsterDesign.sprite(original)
+        val again=MonsterDesign.sprite(original)
+        assertTrue(initial.pixels().contentEquals(again.pixels()))
+        val evolved=MonsterDesign.sprite(original.copy(stage=3))
+        assertFalse(initial.pixels().contentEquals(evolved.pixels()))
+        assertEquals(64,evolved.width)
+    }
+
 }
