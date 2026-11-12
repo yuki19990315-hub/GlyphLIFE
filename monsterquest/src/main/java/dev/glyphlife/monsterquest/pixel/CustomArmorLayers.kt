@@ -5,12 +5,40 @@ import java.util.UUID
 import kotlin.math.max
 import kotlin.math.min
 
+/** Strict bounded pixel offsets, persisted per slot and independent of asset ID. */
+data class ArmorOffset(val dx: Int = 0, val dy: Int = 0) {
+    init { require(dx in -12..12 && dy in -12..12) }
+    fun moved(x: Int, y: Int): ArmorOffset =
+        ArmorOffset((dx + x).coerceIn(-12, 12), (dy + y).coerceIn(-12, 12))
+}
+
 /**
  * Separately authored PNG components mounted on stable anatomy anchors.
  * The saved asset is a transparent 64x64 *part*, never a complete monster.
  * Stored UUIDs are safe identifiers and contain no absolute file paths.
  */
 object CustomArmorLayers {
+    fun validatedOffsets(offsets: Map<String, ArmorOffset>): Map<String, ArmorOffset> {
+        require(offsets.size <= ArmorSlot.entries.size)
+        require(offsets.keys.all { slot -> ArmorSlot.entries.any { it.name == slot } })
+        return offsets
+    }
+
+    /** Same parent-side selection as referenced armor assets. */
+    fun inheritOffsets(
+        a: Map<String, ArmorOffset>,
+        b: Map<String, ArmorOffset>
+    ): Map<String, ArmorOffset> {
+        val first = validatedOffsets(a)
+        val second = validatedOffsets(b)
+        return ArmorSlot.entries.mapNotNull { slot ->
+            val owner = if (slot in setOf(
+                ArmorSlot.HEAD, ArmorSlot.CORE, ArmorSlot.SHOULDER
+            )) first else second
+            owner[slot.name]?.let { slot.name to it }
+        }.toMap()
+    }
+
     fun validated(parts: Map<String, String>): Map<String, String> {
         require(parts.size <= ArmorSlot.entries.size) { "装着パーツが多すぎます" }
         return parts.entries.associate { (slot, id) ->
@@ -109,14 +137,17 @@ object CustomArmorLayers {
         ArmorSlot.WING -> Mount(47, 25, 30, 35)
     }
 
-    private fun place(sprite: PixelSprite, slot: ArmorSlot, body: MonsterBodyType): PixelSprite {
+    private fun place(
+        sprite: PixelSprite, slot: ArmorSlot, body: MonsterBodyType,
+        offset: ArmorOffset
+    ): PixelSprite {
         val bounds = opaqueBounds(sprite) ?: return PixelSprite.fromArgb(64, 64, IntArray(4096))
         val target = mount(slot, body)
         val ratio = min(target.w.toFloat() / bounds.width, target.h.toFloat() / bounds.height)
         val w = max(1, (bounds.width * ratio).toInt())
         val h = max(1, (bounds.height * ratio).toInt())
-        val left = target.centerX - w / 2
-        val top = target.centerY - h / 2
+        val left = target.centerX + offset.dx - w / 2
+        val top = target.centerY + offset.dy - h / 2
         val output = IntArray(4096)
         for (y in 0 until h) for (x in 0 until w) {
             val dx = left + x; val dy = top + y
@@ -140,6 +171,7 @@ object CustomArmorLayers {
         require(base.width == 64 && base.height == 64)
         val identifiers = validated(wild.customArmorParts)
         if (identifiers.isEmpty()) return base
+        val offsets = validatedOffsets(wild.customArmorOffsets)
         val colors = base.colors().toList()
         if (colors.isEmpty()) return base
         fun colorDistance(a: Int, b: Int): Int {
@@ -154,7 +186,8 @@ object CustomArmorLayers {
             val id = identifiers[slot.name] ?: return@mapNotNull null
             val image = findAsset(id) ?: return@mapNotNull null
             if (image.width != 64 || image.height != 64) return@mapNotNull null
-            slot to place(image, slot, body)
+            slot to place(image, slot, body,
+                offsets[slot.name] ?: ArmorOffset())
         }
         if (placed.isEmpty()) return base
         val result = base.pixels()

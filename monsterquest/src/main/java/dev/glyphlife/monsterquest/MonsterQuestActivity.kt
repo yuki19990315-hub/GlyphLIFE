@@ -41,6 +41,7 @@ import dev.glyphlife.monsterquest.ai.ArmorAi
 import dev.glyphlife.monsterquest.ai.ArmorImageAi
 import dev.glyphlife.monsterquest.pixel.ArmorSlot
 import dev.glyphlife.monsterquest.pixel.CustomArmorLayers
+import dev.glyphlife.monsterquest.pixel.ArmorOffset
 import kotlinx.coroutines.launch
 
 private data class PendingArmorStyles(
@@ -209,7 +210,8 @@ class MonsterQuestActivity : ComponentActivity() {
                 }
                 runCatching {
                     val updated = current.copy(
-                        customArmorParts = current.customArmorParts - slot.name
+                        customArmorParts = current.customArmorParts - slot.name,
+                        customArmorOffsets = current.customArmorOffsets - slot.name
                     ).let { it.copy(pixels = artworkStore.glyphFor(it)) }
                     update(state.copy(captures = state.captures.map {
                         if (it.id == wild.id) updated else it
@@ -217,6 +219,23 @@ class MonsterQuestActivity : ComponentActivity() {
                     artworkRevision++
                     notify("${wild.species}の${slot.label}画像を解除しました")
                 }.onFailure { notify("解除に失敗：${it.message}") }
+            }
+
+            fun moveCustomPart(
+                wild: WildMonster, slot: ArmorSlot, dx: Int, dy: Int
+            ) {
+                if (state.inBattle || aiBusy) return
+                val current=state.captures.firstOrNull { it.id==wild.id } ?: return
+                if (current != wild || slot.name !in current.customArmorParts) return
+                val old=current.customArmorOffsets[slot.name] ?: ArmorOffset()
+                val updated=current.copy(
+                    customArmorOffsets = current.customArmorOffsets +
+                        (slot.name to old.moved(dx,dy))
+                ).let { it.copy(pixels=artworkStore.glyphFor(it)) }
+                update(state.copy(captures=state.captures.map {
+                    if(it.id==current.id) updated else it
+                }))
+                artworkRevision++
             }
 
             fun generatePortrait(wild: WildMonster, style: ConceptStyle) {
@@ -357,6 +376,7 @@ class MonsterQuestActivity : ComponentActivity() {
                             }
                         },
                         onRemovePart = ::removeCustomPart,
+                        onMovePart = ::moveCustomPart,
                         onEvolve = { id ->
                             runCatching {
                                 val evolved = EvolutionRules.evolve(state,id)
@@ -488,8 +508,16 @@ class MonsterQuestActivity : ComponentActivity() {
                         }
                     } else {
                         val candidate = remember(pending, current) {
-                            current.copy(customArmorParts = current.customArmorParts +
-                                (pending.slot.name to pending.assetId))
+                            current.copy(
+                                customArmorParts = current.customArmorParts +
+                                    (pending.slot.name to pending.assetId),
+                                customArmorOffsets = current.customArmorOffsets - pending.slot.name
+                            )
+                        }
+                        val visibleCandidate=remember(candidate,pending.slot) {
+                            if (candidate.stage < pending.slot.minStage)
+                                candidate.copy(stage=pending.slot.minStage)
+                            else candidate
                         }
                         AlertDialog(
                             onDismissRequest = {
@@ -501,13 +529,14 @@ class MonsterQuestActivity : ComponentActivity() {
                                 Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                                     Text("${current.species}：${pending.slot.label}の画像パーツ")
                                     MonsterStaticSprite(
-                                        candidate, Modifier.size(192.dp),
+                                        visibleCandidate, Modifier.size(192.dp),
                                         store = artworkStore,
                                         revision = artworkRevision
                                     )
                                     Text("元の64×64素体に、画像を自動配置した完成予想です。")
                                     if (pending.slot.minStage > current.stage) {
-                                        Text("この部位は進化${pending.slot.minStage}から表示されます。")
+                                        Text("進化${pending.slot.minStage}に到達したときの" +
+                                            "完成予想を表示しています。装着しても今すぐ進化はしません。")
                                     }
                                     Text("透明PNGかマゼンタ背景の画像のみ。AI生成結果は" +
                                         "実際の装着位置を確認してください。",
@@ -579,6 +608,7 @@ private fun QuestScreen(
     onGeneratePart: (WildMonster, ArmorSlot) -> Unit,
     onImportPart: (WildMonster, ArmorSlot) -> Unit,
     onRemovePart: (WildMonster, ArmorSlot) -> Unit,
+    onMovePart: (WildMonster, ArmorSlot, Int, Int) -> Unit,
     onGenerateArt: (WildMonster, ConceptStyle) -> Unit,
     onImportArt: (WildMonster) -> Unit,
     aiKey: String,
@@ -847,6 +877,7 @@ private fun QuestScreen(
             onGeneratePart = onGeneratePart,
             onImportPart = onImportPart,
             onRemovePart = onRemovePart,
+            onMovePart = onMovePart,
             onSendGlyph = onSendGlyph,
             onExportPng = onExportPng,
             onExportSpriteSheet = onExportSpriteSheet,

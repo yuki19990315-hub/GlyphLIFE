@@ -96,6 +96,28 @@ class MonsterPixelPreviewTest {
         return file
     }
 
+    @Test fun armorPositionVisualReview() {
+        val base=monster(MonsterBodyType.BEAST,"雷",3)
+        val asset=IntArray(4096)
+        for(y in 18..43)for(x in 15..47) {
+            asset[y*64+x]=if((x+y)%5==0)0xfffaf4d4.toInt() else 0xff7869aa.toInt()
+        }
+        val layer=CustomArmorLayers.normalize(PixelSprite.fromArgb(64,64,asset))
+        val positions=listOf(ArmorOffset(-10,0),ArmorOffset(),ArmorOffset(10,0))
+        val width=positions.size*256
+        val data=IntArray(width*256)
+        positions.forEachIndexed { col, pos ->
+            val creature=base.copy(
+                customArmorParts=mapOf("HEAD" to
+                    "10000000-0000-4000-8000-000000000001"),
+                customArmorOffsets=mapOf("HEAD" to pos))
+            val combined=CustomArmorLayers.compose(
+                MonsterDesign.sprite(creature),creature) { layer }
+            drawCell(data,width,combined,col,0)
+        }
+        save(width,256,data,"09-armor-position-left-center-right.png")
+    }
+
     @Test fun allBodyTypesVisualReview() {
         val types=MonsterBodyType.entries
         val w=5*256;val h=2*256;val data=IntArray(w*h)
