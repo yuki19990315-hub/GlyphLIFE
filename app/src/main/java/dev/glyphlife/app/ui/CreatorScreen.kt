@@ -22,7 +22,7 @@ fun CreatorScreen(
     isGlyphSupported: Boolean,
     onAnimationChange: (GlyphAnimation) -> Unit,
     onConnect: () -> Unit,
-    onShowFrame: (List<Boolean>) -> Unit,
+    onShowFrame: (GlyphFrame) -> Unit,
     onImportImage: (Uri) -> Unit,
     onImportAnimation: (Uri) -> Unit,
     onExportAnimation: () -> Unit,
@@ -74,7 +74,7 @@ fun CreatorScreen(
     LaunchedEffect(live, visibleFrame, animation.frames, glyphStatus) {
         if (live && glyphStatus == "接続済み") {
             delay(75) // Debounce rapid screen edits and avoid spamming the SDK.
-            onShowFrame(animation.frames[visibleFrame.coerceIn(animation.frames.indices)].pixels)
+            onShowFrame(animation.frames[visibleFrame.coerceIn(animation.frames.indices)])
         }
     }
 
@@ -86,9 +86,12 @@ fun CreatorScreen(
         verticalArrangement = Arrangement.spacedBy(12.dp)
     ) {
         Text("Glyph Creator", style = MaterialTheme.typography.headlineSmall)
-        Text("13×13のアニメーション編集。画像・JSONの読み込みと自動保存に対応。")
+        Text("13×13アニメーション編集。Monster Questから取り込んだ全身の輝度は" +
+            "0〜255の濃淡で表示・送信されます。ドットを手動編集するとそのフレームは二値画像になります。")
         PixelGrid(
             pixels = drawing,
+            levels = if (playing) animation.frames[visibleFrame.coerceIn(animation.frames.indices)].levels
+                     else animation.current.levels,
             modifier = Modifier.fillMaxWidth().padding(horizontal = 12.dp),
             onClick = if (playing) null else { index ->
                 val pixels = animation.current.pixels
