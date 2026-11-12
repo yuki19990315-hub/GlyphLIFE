@@ -6,7 +6,7 @@ import org.junit.Assert.*
 import org.junit.Test
 
 class FullBodyGlyphProjectorTest {
-    private fun ra = WildMonster(
+    private val ra get() = WildMonster(
         id="00000000-0000-4000-8000-000000000111",
         species="ライゼル",element="雷",maxHp=40,attack=8,
         artFamily=MonsterArtFamilies.RAIZEL
