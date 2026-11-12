@@ -25,6 +25,7 @@ fun CaptureLab(
     artworkRevision: Int,
     onEvolve: (String) -> Unit,
     onSendGlyph: (WildMonster) -> Unit,
+    onExportPng: (WildMonster, Int) -> Unit,
     onFuse: (String, String) -> Unit
 ) {
     var expanded by remember { mutableStateOf(false) }
@@ -107,6 +108,14 @@ fun CaptureLab(
                     ) { Text("選択モンスターを進化") }
                     OutlinedButton(onClick = { onSendGlyph(monster) }) {
                         Text("Glyph用13×13へ変換")
+                    }
+                }
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    OutlinedButton(onClick = { onExportPng(monster, 64) }) {
+                        Text("64px PNG")
+                    }
+                    OutlinedButton(onClick = { onExportPng(monster, 256) }) {
+                        Text("256px PNG")
                     }
                 }
                 Text("進化後も個体IDと体型・属性は継承。" +
