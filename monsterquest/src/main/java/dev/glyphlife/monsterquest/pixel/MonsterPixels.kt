@@ -100,6 +100,7 @@ object MonsterDesign {
      * resolution with a deliberately limited (<=8) palette.
      */
     fun sprite(wild: WildMonster): PixelSprite {
+        FeaturedCompanionArt.find(wild)?.let { return MonsterArmor.compose(it, wild) }
         FeaturedPixelArt.find(wild)?.let { return MonsterArmor.compose(it, wild) }
         val w=64; val h=64
         val data=IntArray(w*h)

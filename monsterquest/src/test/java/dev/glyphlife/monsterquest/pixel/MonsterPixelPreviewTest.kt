@@ -96,6 +96,28 @@ class MonsterPixelPreviewTest {
         return file
     }
 
+    /** Exact game renderer output: compare the authored lightning and moonlight
+     * creature families side-by-side at every evolution stage.
+     */
+    @Test fun featuredArtFamilyVisualReview() {
+        val width=3*256;val height=2*256;val data=IntArray(width*height)
+        for(stage in 1..3) {
+            val ra = WildMonster(
+                id="preview-raizel",species="ライゼル",element="雷",
+                maxHp=30,attack=8,stage=stage,
+                artFamily=dev.glyphlife.monsterquest.model.MonsterArtFamilies.RAIZEL
+            )
+            val luna = WildMonster(
+                id="preview-luna",species="精霊",element="光",
+                maxHp=30,attack=8,stage=stage,
+                artFamily=dev.glyphlife.monsterquest.model.MonsterArtFamilies.LUNA
+            )
+            drawCell(data,width,MonsterDesign.sprite(ra),stage-1,0)
+            drawCell(data,width,MonsterDesign.sprite(luna),stage-1,1)
+        }
+        save(width,height,data,"10-raizel-luna-3-stages.png")
+    }
+
     @Test fun armorPositionVisualReview() {
         val base=monster(MonsterBodyType.BEAST,"雷",3)
         val asset=IntArray(4096)

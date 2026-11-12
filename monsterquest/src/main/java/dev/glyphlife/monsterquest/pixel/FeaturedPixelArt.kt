@@ -1,6 +1,7 @@
 package dev.glyphlife.monsterquest.pixel
 
 import dev.glyphlife.monsterquest.model.WildMonster
+import dev.glyphlife.monsterquest.model.MonsterArtFamilies
 import java.io.ByteArrayInputStream
 import java.util.Base64
 import java.util.zip.InflaterInputStream
@@ -39,9 +40,15 @@ object FeaturedPixelArt {
         }
     }
 
-    fun find(monster: WildMonster): PixelSprite? =
-        if (monster.species == "ライゼル" && monster.element == "雷" &&
+    /** Authoritative 64px original sprite for a selected evolution stage. */
+    internal fun stageSprite(stage: Int): PixelSprite = frames[stage.coerceIn(1, 3) - 1]
+
+    fun find(monster: WildMonster): PixelSprite? {
+        val explicitlySelected = monster.artFamily == MonsterArtFamilies.RAIZEL
+        val legacyRaizel = monster.artFamily.isBlank() && monster.species == "ライゼル"
+        return if ((explicitlySelected || legacyRaizel) && monster.element == "雷" &&
             (monster.bodyType.isBlank() || monster.bodyType == MonsterBodyType.BEAST.name)) {
-            frames[monster.stage.coerceIn(1, 3) - 1]
+            stageSprite(monster.stage)
         } else null
+    }
 }
