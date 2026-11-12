@@ -148,14 +148,16 @@ fun MonsterDesignerPanel(
         Text("ゲーム画面：ネイティブ64×64を256×256に整数拡大。" +
             " 13×13の拡大画像ではありません。",
             style=MaterialTheme.typography.bodySmall)
-        Text("背面Glyph表示（13×13の簡略アイコン）",
+        Text("背面Glyph：全身13×13・256段階の輝度表示",
             style=MaterialTheme.typography.titleSmall)
-        Text("本編の全身画像とは別表示です。ライゼルは角付きの顔、ルナは光輪の顔を優先し、" +
-            "物理137LEDの範囲に収めます。",
+        Text("本編の全身を縮小し、白色LEDの強弱で色の明暗を表現します。" +
+            "顔だけに置き換えず、角・脚・尾も表示範囲へ収めます。",
             style=MaterialTheme.typography.bodySmall)
-        MonsterPortrait(
-            pixels=model.pixels, element=model.element,
-            modifier=Modifier.size(138.dp)
+        MonsterBrightnessPreview(
+            levels=remember(model,store,revision) {
+                store.glyphBrightnessFor(model).toList()
+            },
+            modifier=Modifier.size(176.dp)
         )
         if(stage>1) {
             Text("召喚は進化1から開始。実際に出現する姿は次のとおりです。",
