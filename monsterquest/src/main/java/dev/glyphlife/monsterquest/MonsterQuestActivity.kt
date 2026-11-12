@@ -31,6 +31,7 @@ import dev.glyphlife.monsterquest.ui.MonsterArt
 import dev.glyphlife.monsterquest.ui.MonsterPortrait
 import dev.glyphlife.monsterquest.ui.MonsterArtworkView
 import dev.glyphlife.monsterquest.ui.CaptureLab
+import dev.glyphlife.monsterquest.ui.MonsterDesignerPanel
 import dev.glyphlife.monsterquest.pixel.GlyphProjector
 import dev.glyphlife.monsterquest.pixel.MonsterDesign
 import kotlinx.coroutines.launch
@@ -181,7 +182,7 @@ class MonsterQuestActivity : ComponentActivity() {
             ) {
                 Scaffold(topBar = {
                     Surface(tonalElevation = 2.dp) {
-                        Text("MONSTER QUEST  /  v2.0",
+                        Text("MONSTER QUEST  /  v2.1",
                             modifier = Modifier.padding(18.dp),
                             style = MaterialTheme.typography.titleMedium)
                     }
@@ -190,6 +191,17 @@ class MonsterQuestActivity : ComponentActivity() {
                         state = state, status = status,
                         artworkStore = artworkStore, artworkRevision = artworkRevision,
                         onSendGlyph = ::sendGlyphToLife,
+                        onOfflineSummon = { prototype ->
+                            runCatching {
+                                val spawned=MonsterPrototypeFactory.summon(prototype,state.room)
+                                val next=QuestRules.summon(state,spawned)
+                                if(next==state) notify("この場面では召喚できません")
+                                else {
+                                    update(next)
+                                    notify("無料ドット絵モンスター「${spawned.species}」を召喚")
+                                }
+                            }.onFailure { notify("試作召喚失敗：${it.message}") }
+                        },
                         onExportPng = ::exportPixelPng,
                         onEvolve = { id ->
                             runCatching {
@@ -280,6 +292,7 @@ private fun QuestScreen(
     artworkStore: MonsterArtworkStore,
     artworkRevision: Int,
     onSendGlyph: (WildMonster) -> Unit,
+    onOfflineSummon: (WildMonster) -> Unit,
     onExportPng: (WildMonster, Int) -> Unit,
     onEvolve: (String) -> Unit,
     onGenerateArt: (WildMonster, ConceptStyle) -> Unit,
@@ -493,6 +506,13 @@ private fun QuestScreen(
         if (state.completed) {
             OutlinedButton(onClick = onNewRun) { Text("新しい冒険を始める") }
         }
+        MonsterDesignerPanel(
+            enabled = !state.inBattle && !state.completed &&
+                !state.roomCleared && state.room < QuestRules.ROOM_COUNT,
+            store = artworkStore,
+            revision = artworkRevision,
+            onSummon = onOfflineSummon
+        )
         HorizontalDivider()
         Text("AIモンスター召喚（任意）", style = MaterialTheme.typography.titleMedium)
         Text("Gemini APIキーを入力すると文章からモンスターを生成できます。" +
