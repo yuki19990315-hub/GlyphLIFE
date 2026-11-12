@@ -24,6 +24,7 @@ import dev.glyphlife.monsterquest.pixel.ArmorOffset
 fun CaptureLab(
     captured: List<WildMonster>,
     inBattle: Boolean,
+    aiBusy: Boolean,
     defeated: Int,
     artworkStore: MonsterArtworkStore,
     artworkRevision: Int,
@@ -144,7 +145,7 @@ fun CaptureLab(
                                 onClick = { onImportPart(monster, slot) }) {
                                 Text("画像パーツを選ぶ")
                             }
-                            OutlinedButton(enabled = !inBattle,
+                            OutlinedButton(enabled = !inBattle && !aiBusy,
                                 onClick = {
                                     librarySlot = if (librarySlot == slot) null else slot
                                 }) {
@@ -165,7 +166,7 @@ fun CaptureLab(
                                 ids = savedPartIds,
                                 store = artworkStore,
                                 revision = artworkRevision,
-                                enabled = !inBattle,
+                                enabled = !inBattle && !aiBusy,
                                 onSelect = { assetId ->
                                     onReusePart(monster, slot, assetId)
                                     librarySlot = null

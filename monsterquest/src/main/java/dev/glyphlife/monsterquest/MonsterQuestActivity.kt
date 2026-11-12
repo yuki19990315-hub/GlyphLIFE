@@ -917,6 +917,7 @@ private fun QuestScreen(
         CaptureLab(
             captured = state.captures,
             inBattle = state.inBattle,
+            aiBusy = aiBusy,
             defeated = state.defeated,
             artworkStore = artworkStore,
             artworkRevision = artworkRevision,
