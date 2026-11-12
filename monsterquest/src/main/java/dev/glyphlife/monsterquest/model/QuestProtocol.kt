@@ -1,6 +1,7 @@
 package dev.glyphlife.monsterquest.model
 
 import org.json.JSONObject
+import dev.glyphlife.monsterquest.pixel.GlyphProjector
 import java.util.UUID
 
 /** Both applications exchange simple JSON through Android ACTION_SEND text. */
@@ -28,6 +29,9 @@ object QuestProtocol {
     /** Glyph artwork protocol intentionally has no high-res pixels. */
     fun exportGlyphAnimation(wild: WildMonster, pixels13: String): String {
         require(pixels13.length == 169 && pixels13.all { it == '0' || it == '1' })
+        require(pixels13.withIndex().all { (i, bit) ->
+            bit != '1' || GlyphProjector.isPhysical(i)
+        }) { "Glyph実LEDの範囲外に画素があります" }
         val frames = org.json.JSONArray().put(
             JSONObject().put("pixels", pixels13).put("durationMs", 350)
         )

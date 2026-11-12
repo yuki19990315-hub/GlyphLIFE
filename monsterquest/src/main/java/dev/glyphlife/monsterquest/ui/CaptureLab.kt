@@ -96,7 +96,7 @@ fun CaptureLab(
             first?.let { monster ->
                 Text(
                     if (monster.stage >= 3) "最終進化に到達済み"
-                    else "次の進化条件：この冒険で${EvolutionRules.requiredVictories(monster.stage)}体撃破（現在$defeated体）",
+                    else "次の進化条件：この冒険で${EvolutionRules.requiredVictories(monster.stage)}体撃破（現在${defeated}体）",
                     style = MaterialTheme.typography.bodySmall
                 )
                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {

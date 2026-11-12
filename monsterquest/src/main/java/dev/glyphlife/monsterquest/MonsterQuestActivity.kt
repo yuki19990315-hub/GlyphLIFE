@@ -138,6 +138,14 @@ class MonsterQuestActivity : ComponentActivity() {
                     }
                 }
             }
+            fun exportPixelPng(wild: WildMonster, size: Int) {
+                scope.launch {
+                    runCatching {
+                        artworkStore.exportPng(wild,size)
+                        notify("${wild.species}の${size}×${size} PNGを写真フォルダへ保存しました")
+                    }.onFailure { notify("PNG出力に失敗：${it.message}") }
+                }
+            }
             fun sendGlyphToLife(wild: WildMonster) {
                 runCatching {
                     val encoded=QuestProtocol.exportGlyphAnimation(
@@ -182,6 +190,7 @@ class MonsterQuestActivity : ComponentActivity() {
                         state = state, status = status,
                         artworkStore = artworkStore, artworkRevision = artworkRevision,
                         onSendGlyph = ::sendGlyphToLife,
+                        onExportPng = ::exportPixelPng,
                         onEvolve = { id ->
                             runCatching {
                                 update(EvolutionRules.evolve(state,id))
@@ -271,6 +280,7 @@ private fun QuestScreen(
     artworkStore: MonsterArtworkStore,
     artworkRevision: Int,
     onSendGlyph: (WildMonster) -> Unit,
+    onExportPng: (WildMonster, Int) -> Unit,
     onEvolve: (String) -> Unit,
     onGenerateArt: (WildMonster, ConceptStyle) -> Unit,
     onImportArt: (WildMonster) -> Unit,
@@ -401,6 +411,10 @@ private fun QuestScreen(
                         Text("GlyphLIFEへ送る")
                     }
                 }
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    OutlinedButton(onClick = { onExportPng(enemy,64) }) { Text("64px PNG保存") }
+                    OutlinedButton(onClick = { onExportPng(enemy,256) }) { Text("256px PNG保存") }
+                }
                 if (glyphPreviewId == enemy.id) {
                     MonsterPortrait(
                         pixels = artworkStore.glyphFor(enemy),
@@ -520,6 +534,7 @@ private fun QuestScreen(
             artworkRevision = artworkRevision,
             onEvolve = onEvolve,
             onSendGlyph = onSendGlyph,
+            onExportPng = onExportPng,
             onFuse = onFuse
         )
         Text("状態：$status", style = MaterialTheme.typography.bodySmall)

@@ -1,0 +1,28 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Monster Quest v2 sprite design metadata",
+  "type": "object",
+  "required": ["id", "species", "element"],
+  "properties": {
+    "id": {"type":"string","format":"uuid"},
+    "species": {"type":"string","minLength":1,"maxLength":60},
+    "element": {"enum":["火","水","草","雷","光","闇","無"]},
+    "bodyType": {"enum":["","BEAST","DRAGON","BIPED","GOLEM","SERPENT","AVIAN","INSECTOID","AQUATIC","MECHA","SPIRIT"]},
+    "stage": {"type":"integer","minimum":1,"maximum":3},
+    "lineage": {"type":"string","maxLength":130},
+    "motifPrimary": {"type":"string","maxLength":60},
+    "motifSecondary": {"type":"string","maxLength":60},
+    "asset": {
+      "type":"object",
+      "properties":{
+        "nativeSize":{"const":64},
+        "format":{"const":"PNG"},
+        "maxColors":{"const":16},
+        "bestiaryDisplaySize":{"const":256},
+        "glyphWidth":{"const":13},
+        "glyphHeight":{"const":13},
+        "physicalGlyphLeds":{"const":137}
+      }
+    }
+  }
+}

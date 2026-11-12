@@ -1,6 +1,9 @@
 package dev.glyphlife.monsterquest.data
 
 import android.content.Context
+import android.content.ContentValues
+import android.os.Environment
+import android.provider.MediaStore
 import android.graphics.Bitmap
 import android.graphics.BitmapFactory
 import android.net.Uri
@@ -90,6 +93,41 @@ class MonsterArtworkStore(private val context: Context) {
             val sprite=PixelAssetPipeline.fromBitmap(original)
             saveNative(id,sprite,stage)
         } finally { original.recycle() }
+    }
+
+    /** Export a REAL PNG containing native 64x64 or nearest-neighbour 256x256 pixels. */
+    suspend fun exportPng(monster: WildMonster, size:Int): Uri = withContext(Dispatchers.IO) {
+        require(size==64 || size==256)
+        val sprite = loadNative(monster.id,monster.stage) ?: MonsterDesign.sprite(monster)
+        val bitmap = if(size==64) PixelAssetPipeline.toBitmap(sprite)
+                     else PixelAssetPipeline.display256(sprite)
+        val resolver=context.contentResolver
+        val values=ContentValues().apply {
+            put(MediaStore.MediaColumns.DISPLAY_NAME,
+                "monsterquest-${monster.id.take(8)}-s${monster.stage}-${size}px.png")
+            put(MediaStore.MediaColumns.MIME_TYPE,"image/png")
+            put(MediaStore.MediaColumns.RELATIVE_PATH,
+                Environment.DIRECTORY_PICTURES + "/MonsterQuest")
+            put(MediaStore.MediaColumns.IS_PENDING,1)
+        }
+        try {
+            val target = resolver.insert(MediaStore.Images.Media.EXTERNAL_CONTENT_URI,values)
+                ?: error("画像の保存先を作成できません")
+            try {
+                resolver.openOutputStream(target)?.use { stream ->
+                    check(bitmap.compress(Bitmap.CompressFormat.PNG,100,stream))
+                } ?: error("画像を書き込めません")
+                resolver.update(target,ContentValues().apply {
+                    put(MediaStore.MediaColumns.IS_PENDING,0)
+                },null,null)
+                target
+            } catch (e:Exception) {
+                resolver.delete(target,null,null)
+                throw e
+            }
+        } finally {
+            bitmap.recycle()
+        }
     }
 
     private fun saveNative(id: String,sprite:PixelSprite,stage:Int) {

@@ -30,7 +30,7 @@ object EvolutionRules {
         ).let { it.copy(pixels=GlyphProjector.project(MonsterDesign.sprite(it))) }
         return state.copy(
             captures=state.captures.map { if(it.id==id) next else it },
-            message="${old.species}が進化して段階$stageになった！"
+            message="${old.species}が進化して段階${stage}になった！"
         )
     }
 }

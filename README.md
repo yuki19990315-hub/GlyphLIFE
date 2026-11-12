@@ -1,4 +1,4 @@
-# GlyphLIFE v0.13 / Monster Quest v0.5
+# GlyphLIFE v0.14 / Monster Quest v2.0
 
 Two **independently installable Android apps** in one repository:
 
@@ -107,3 +107,11 @@ Monster Quest now keeps **two different visual assets**: a tiny 13×13 monochrom
 **Explicit opt-in paid service:** The battle screen has a separate button for high-resolution Gemini 3.1 Flash Image generation; this model has no free API tier (Google's 1K image output rate is about $0.067, plus input costs as of Nov 2026). An existing image can also be imported from the Android photo picker with **no additional Monster Quest image-generation API charge**. Images are stored in the app's private directory by monster ID and displayed in battles / the fusion collection; prior 13×13 art remains as the fallback. Real image API calls and output quality remain untested.
 
 See [Monster design pipeline](docs/MONSTER_ARTWORK_JA.md).
+
+## v2 native pixel-art monster pipeline
+
+**Monster Quest is now designed around actual 64×64 RGBA color pixels as its master artwork**, rather than generating a 13×13 monochrome monster directly. Offline templates cover 10 anatomy types × 7 elements; imported/optional AI images are reduced to a maximum of 16 colors and stored as per-creature/per-stage PNG. The bestiary and battle UI show crisp nearest-neighbour 256×256 displays. PNG export is supported at 64 and 256 pixels.
+
+The circular 137-LED Glyph 13×13 image is **derived only when requested**, can be previewed in Monster Quest, and can be sent to GlyphLIFE. The receiving app asks before replacing an existing drawing. Three-stage evolution preserves body identity; fusion inherits main anatomy plus a second-parent ornament. Older saved JPG art is preserved and converted for presentation. No scraped franchise training data or copyrighted sprites were used. This is an experimental procedural/AI-assisted pixel pipeline, not a professional artist-reviewed asset library.
+
+See [Monster Design v2 specification](docs/MONSTER_DESIGN_V2_JA.md). Real device visual quality and the optional paid Gemini image request remain untested.
