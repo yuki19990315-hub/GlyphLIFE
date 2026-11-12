@@ -847,6 +847,7 @@ private fun QuestScreen(
             onGeneratePart = onGeneratePart,
             onImportPart = onImportPart,
             onRemovePart = onRemovePart,
+            onPositionPart = onPositionPart,
             onSendGlyph = onSendGlyph,
             onExportPng = onExportPng,
             onExportSpriteSheet = onExportSpriteSheet,
