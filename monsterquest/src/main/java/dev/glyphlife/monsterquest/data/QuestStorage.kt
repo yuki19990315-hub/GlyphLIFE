@@ -81,6 +81,11 @@ class QuestStorage(context: Context) {
         .put("designSeed", w.designSeed)
         .put("armorParts", JSONObject(w.armorParts))
         .put("customArmorParts", JSONObject(w.customArmorParts))
+        .put("customArmorOffsets", JSONObject().apply {
+            w.customArmorOffsets.forEach { (slot, offset) ->
+                put(slot, JSONObject().put("dx", offset.dx).put("dy", offset.dy))
+            }
+        })
 
     private fun wildFromJson(o: JSONObject): WildMonster = WildMonster(
         id = o.getString("id"), species = o.getString("species"),
@@ -96,7 +101,8 @@ class QuestStorage(context: Context) {
         motifSecondary = o.optString("motifSecondary", "").take(60),
         designSeed = o.optString("designSeed", "").take(64),
         armorParts = readArmorParts(o.optJSONObject("armorParts")),
-        customArmorParts = readCustomLayers(o.optJSONObject("customArmorParts"))
+        customArmorParts = readCustomLayers(o.optJSONObject("customArmorParts")),
+        customArmorOffsets = readCustomOffsets(o.optJSONObject("customArmorOffsets"))
     )
 
     private fun readArmorParts(value: JSONObject?): Map<String, String> {
@@ -121,4 +127,18 @@ class QuestStorage(context: Context) {
             dev.glyphlife.monsterquest.pixel.CustomArmorLayers.validated(result)
         }.getOrDefault(emptyMap())
     }
+    private fun readCustomOffsets(
+        value: JSONObject?
+    ): Map<String, dev.glyphlife.monsterquest.pixel.ArmorOffset> {
+        if (value == null) return emptyMap()
+        return dev.glyphlife.monsterquest.pixel.ArmorSlot.entries.mapNotNull { slot ->
+            val pos = value.optJSONObject(slot.name) ?: return@mapNotNull null
+            val offset = runCatching {
+                dev.glyphlife.monsterquest.pixel.ArmorOffset(
+                    pos.getInt("dx"), pos.getInt("dy"))
+            }.getOrNull() ?: return@mapNotNull null
+            slot.name to offset
+        }.toMap()
+    }
+
 }

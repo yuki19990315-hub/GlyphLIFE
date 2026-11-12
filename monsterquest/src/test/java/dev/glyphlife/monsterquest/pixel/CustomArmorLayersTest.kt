@@ -102,4 +102,48 @@ class CustomArmorLayersTest {
         val after=CustomArmorLayers.compose(MonsterDesign.sprite(result),result) { part }
         assertArrayEquals(before.pixels(),after.pixels())
     }
+    @Test fun pixelOffsetsChangeOnlyCompositeNotImmutableSource() {
+        val layer=sampleLayer()
+        val root=monster(stage=3).copy(customArmorParts=mapOf("HEAD" to idA))
+        val normal=CustomArmorLayers.compose(MonsterDesign.sprite(root),root) { layer }
+        val withOffset=root.copy(customArmorOffsets=mapOf(
+            "HEAD" to ArmorOffset(10,-6)))
+        val shifted=CustomArmorLayers.compose(MonsterDesign.sprite(withOffset),
+            withOffset) { layer }
+        assertFalse(normal.pixels().contentEquals(shifted.pixels()))
+        assertEquals(64,shifted.width)
+        assertTrue(shifted.colors().size<=16)
+        assertEquals(0,layer.pixel(0,0))
+        assertEquals(10,withOffset.customArmorOffsets.getValue("HEAD").dx)
+        assertTrue(GlyphProjector.project(shifted).all { it=='0'||it=='1' })
+    }
+
+    @Test fun offsetBoundsAreStrictAndMergePreservesTheCorrectParentSide() {
+        try { ArmorOffset(13,0);fail("offset should be bounded") }
+        catch (_:IllegalArgumentException) {}
+        val first=monster(stage=3).copy(
+            id="00000000-0000-4000-8000-000000000211",
+            customArmorParts=mapOf("HEAD" to idA, "WING" to idA),
+            customArmorOffsets=mapOf("HEAD" to ArmorOffset(-4,6),
+                "WING" to ArmorOffset(8,0)))
+        val second=monster(stage=3).copy(
+            id="00000000-0000-4000-8000-000000000212",
+            customArmorParts=mapOf("HEAD" to idB,"WING" to idB),
+            customArmorOffsets=mapOf("HEAD" to ArmorOffset(5,0),
+                "WING" to ArmorOffset(-8,4)))
+        val fused=FusionRules.preview(first,second)
+        assertEquals(ArmorOffset(-4,6),fused.customArmorOffsets["HEAD"])
+        assertEquals(ArmorOffset(-8,4),fused.customArmorOffsets["WING"])
+        assertEquals(ArmorOffset(-12,4),ArmorOffset(-11,2).moved(-2,2))
+        val actual=FusionRules.fuse(
+            QuestState(captures=listOf(first,second)),first.id,second.id
+        ).captures.single()
+        assertEquals(fused.customArmorOffsets,actual.customArmorOffsets)
+        val art=sampleLayer()
+        assertArrayEquals(
+            CustomArmorLayers.compose(MonsterDesign.sprite(fused),fused) { art }.pixels(),
+            CustomArmorLayers.compose(MonsterDesign.sprite(actual),actual) { art }.pixels()
+        )
+    }
+
 }

@@ -1,4 +1,4 @@
-# GlyphLIFE v0.14 / Monster Quest v2.7
+# GlyphLIFE v0.14 / Monster Quest v2.8
 
 Two **independently installable Android apps** in one repository:
 
@@ -154,3 +154,11 @@ The captured-monster workshop can now select a **specific equipment slot** (head
 Custom PNG layers are **independent of the procedural armor styles**, unlock according to stage, follow the creature through evolution, and are inherited by fusion according to parental slot rules (head/core/shoulder A; tail/back/wing B). All rendered sprites and Glyph animations use the same compositing pipeline. The 13×13 Glyph image is always a derivative of the final 64×64 artwork, with hardware LED mask. Legacy JSON remains supported; metadata contains UUID references but no embedded images.
 
 The generated AI image's artistic quality, chroma-key cleanliness and actual device behavior remain **unverified**; visual review and an explicit confirm dialog prevent automatic application. The Google image API may incur charges and needs a user-provided key. No training on protected game IP is performed.
+
+## Monster Quest v2.8: adjust custom AI/imported armor image positions
+
+- Every captured creature can nudge each equipped image component left, right, up or down in 2px steps (maximum 12px). Offsets use the native 64×64 coordinate system and are saved with the creature, not into the immutable PNG asset.
+- Evolution retains attachment offsets. Fusion inherits the same parent-side slot offsets as its source layers.
+- The fusion preview now uses the actual artwork store, including inherited custom images, instead of a procedural-only thumbnail.
+- When previewing a part locked behind a future evolution stage, the confirmation dialog shows the actual unlocked-stage artwork without evolving the creature.
+- CI includes an additional real-art visual review sheet with left/center/right armor positions. **AI image generation requests and hardware Glyph display remain untested on the owner's actual phone.**

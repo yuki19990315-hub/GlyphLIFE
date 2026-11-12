@@ -55,7 +55,9 @@ object FusionRules {
             armorParts = dev.glyphlife.monsterquest.pixel.MonsterArmor.inherit(
                 a.armorParts, b.armorParts),
             customArmorParts = dev.glyphlife.monsterquest.pixel.CustomArmorLayers.inherit(
-                a.customArmorParts, b.customArmorParts)
+                a.customArmorParts, b.customArmorParts),
+            customArmorOffsets = dev.glyphlife.monsterquest.pixel.CustomArmorLayers.inheritOffsets(
+                a.customArmorOffsets, b.customArmorOffsets)
         )
         return fusion.copy(pixels = GlyphProjector.project(MonsterDesign.sprite(fusion)))
     }
