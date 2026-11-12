@@ -44,6 +44,37 @@ class FeaturedPixelArtTest {
         }
     }
 
+    @Test fun redesignedStagesHaveIndependentFullBodySilhouettes() {
+        val silhouetteKeys = mutableSetOf<String>()
+        val opaqueCounts = mutableListOf<Int>()
+        for (stage in 1..3) {
+            val sprite = MonsterDesign.sprite(wild(stage))
+            val pixels = sprite.pixels()
+            val coords = pixels.indices.filter { index -> (pixels[index] ushr 24) != 0 }
+            val xs = coords.map { index -> index % 64 }
+            val ys = coords.map { index -> index / 64 }
+            // Real full-body artwork fills the available width while maintaining a margin.
+            assertTrue("Stage $stage is too narrow", xs.max() - xs.min() >= 48)
+            assertTrue("Stage $stage is too flat", ys.max() - ys.min() >= 33)
+            assertTrue("Stage $stage cropped at edge", xs.min() >= 1 && xs.max() <= 62)
+            assertTrue("Stage $stage cropped at edge", ys.min() >= 1 && ys.max() <= 62)
+            opaqueCounts.add(coords.size)
+            val signature = sprite.pixels().joinToString("") { if (it ushr 24 == 0) "0" else "1" }
+            silhouetteKeys.add(signature)
+        }
+        assertEquals(3, silhouetteKeys.size)
+        assertTrue("Stages should vary in body mass", opaqueCounts.distinct().size >= 2)
+    }
+
+    @Test fun redesignedArtRemainsStableForLegacyNameAndExplicitIdentity() {
+        for (stage in 1..3) {
+            val legacy = wild(stage)
+            val explicit = legacy.copy(artFamily = dev.glyphlife.monsterquest.model.MonsterArtFamilies.RAIZEL)
+            assertTrue(MonsterDesign.sprite(legacy).pixels()
+                .contentEquals(MonsterDesign.sprite(explicit).pixels()))
+        }
+    }
+
     @Test fun authoredSpriteIsNotUsedForOtherMonstersOrElements() {
         assertNull(FeaturedPixelArt.find(wild(1).copy(species = "別の獣")))
         assertNull(FeaturedPixelArt.find(wild(1).copy(element = "火")))
