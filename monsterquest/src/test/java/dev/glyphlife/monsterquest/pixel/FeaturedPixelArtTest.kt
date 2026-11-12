@@ -49,11 +49,10 @@ class FeaturedPixelArtTest {
         val opaqueCounts = mutableListOf<Int>()
         for (stage in 1..3) {
             val sprite = MonsterDesign.sprite(wild(stage))
-            val coords = sprite.pixels().mapIndexedNotNull { i, c ->
-                if (c ushr 24 != 0) (i % 64) to (i / 64) else null
-            }
-            val xs = coords.map { it.first }
-            val ys = coords.map { it.second }
+            val pixels = sprite.pixels()
+            val coords = pixels.indices.filter { index -> (pixels[index] ushr 24) != 0 }
+            val xs = coords.map { index -> index % 64 }
+            val ys = coords.map { index -> index / 64 }
             // Real full-body artwork fills the available width while maintaining a margin.
             assertTrue("Stage $stage is too narrow", xs.max() - xs.min() >= 48)
             assertTrue("Stage $stage is too flat", ys.max() - ys.min() >= 33)
