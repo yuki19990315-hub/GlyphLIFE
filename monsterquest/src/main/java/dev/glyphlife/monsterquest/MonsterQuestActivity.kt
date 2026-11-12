@@ -378,7 +378,7 @@ class MonsterQuestActivity : ComponentActivity() {
             ) {
                 Scaffold(topBar = {
                     Surface(tonalElevation = 2.dp) {
-                        Text("MONSTER QUEST  /  v3.0",
+                        Text("MONSTER QUEST  /  v3.1",
                             modifier = Modifier.padding(18.dp),
                             style = MaterialTheme.typography.titleMedium)
                     }
