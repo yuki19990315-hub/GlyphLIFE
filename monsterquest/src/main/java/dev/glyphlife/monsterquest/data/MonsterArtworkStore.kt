@@ -189,9 +189,15 @@ class MonsterArtworkStore(private val context: Context) {
     fun load(id: String, stage:Int=1): Bitmap? =
         loadNative(id,stage)?.let(PixelAssetPipeline::display256)
 
-    /** Portable 13×13 derivative, produced on demand; never the master. */
+    /** 13x13 Glyph variant. A custom imported body image always uses its actual
+     * pixels instead of the built-in family's authored face insignia.
+     */
     fun glyphFor(monster: WildMonster): String =
-        GlyphProjector.project(spriteFor(monster))
+        glyphFrameFor(monster, spriteFor(monster), 0)
+
+    fun glyphFrameFor(monster: WildMonster, frame: PixelSprite, pose: Int): String =
+        if (hasArt(monster.id, monster.stage)) GlyphProjector.project(frame)
+        else GlyphProjector.projectFor(monster, frame, pose)
 
     suspend fun importFromUri(id: String, uri: Uri, stage:Int=1) = withContext(Dispatchers.IO) {
         val bytes=context.contentResolver.openInputStream(uri)?.use { it.readNBytes(12_000_001) }

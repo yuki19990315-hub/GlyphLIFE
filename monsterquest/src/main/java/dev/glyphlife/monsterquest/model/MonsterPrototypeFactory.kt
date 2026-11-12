@@ -42,7 +42,7 @@ object MonsterPrototypeFactory {
                 type == MonsterBodyType.BEAST) MonsterArtFamilies.RAIZEL else "",
             armorParts=checkedArmor
         )
-        return idea.copy(pixels=GlyphProjector.project(MonsterDesign.sprite(idea)))
+        return idea.copy(pixels=GlyphProjector.projectFor(idea, MonsterDesign.sprite(idea)))
     }
 
     fun summon(design:WildMonster,room:Int):WildMonster {
@@ -55,6 +55,6 @@ object MonsterPrototypeFactory {
             attack=4+room,
             pixels=""
         )
-        return first.copy(pixels=GlyphProjector.project(MonsterDesign.sprite(first)))
+        return first.copy(pixels=GlyphProjector.projectFor(first, MonsterDesign.sprite(first)))
     }
 }
