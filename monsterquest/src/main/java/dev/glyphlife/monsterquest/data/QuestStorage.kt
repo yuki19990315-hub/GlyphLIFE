@@ -75,6 +75,9 @@ class QuestStorage(context: Context) {
         .put("maxHp", w.maxHp).put("attack", w.attack)
         .put("description", w.description).put("pixels", w.pixels)
         .put("isBoss", w.isBoss)
+        .put("bodyType", w.bodyType).put("stage", w.stage)
+        .put("lineage", w.lineage)
+        .put("motifPrimary", w.motifPrimary).put("motifSecondary", w.motifSecondary)
 
     private fun wildFromJson(o: JSONObject): WildMonster = WildMonster(
         id = o.getString("id"), species = o.getString("species"),
@@ -82,6 +85,11 @@ class QuestStorage(context: Context) {
         attack = o.getInt("attack"),
         description = o.optString("description", "").take(160),
         pixels = o.optString("pixels", "").take(169),
-        isBoss = o.optBoolean("isBoss", false)
+        isBoss = o.optBoolean("isBoss", false),
+        bodyType = o.optString("bodyType", "").take(32),
+        stage = o.optInt("stage", 1).coerceIn(1, 3),
+        lineage = o.optString("lineage", "").take(130),
+        motifPrimary = o.optString("motifPrimary", "").take(60),
+        motifSecondary = o.optString("motifSecondary", "").take(60)
     )
 }

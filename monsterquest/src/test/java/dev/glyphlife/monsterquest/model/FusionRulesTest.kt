@@ -20,8 +20,10 @@ class FusionRulesTest {
         assertTrue(fusion.maxHp > maxOf(a.maxHp, b.maxHp))
         assertTrue(fusion.attack > maxOf(a.attack, b.attack))
         assertEquals(169, fusion.pixels.length)
-        assertTrue(fusion.pixels.take(6).all { it == '1' })
-        assertTrue(fusion.pixels.drop(7).take(6).all { it == '0' })
+        assertTrue(fusion.pixels.count { it == '1' } in 10..137)
+        assertEquals("融合・フレア×アクア", fusion.species)
+        assertTrue(fusion.bodyType.isNotBlank())
+        assertEquals("フレア × アクア", fusion.lineage)
         assertEquals(3, original.captures.size)
     }
 

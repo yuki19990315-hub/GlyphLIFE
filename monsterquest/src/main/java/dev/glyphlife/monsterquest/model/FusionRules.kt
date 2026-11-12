@@ -1,6 +1,8 @@
 package dev.glyphlife.monsterquest.model
 
 import java.util.UUID
+import dev.glyphlife.monsterquest.pixel.MonsterDesign
+import dev.glyphlife.monsterquest.pixel.GlyphProjector
 
 /**
  * Offline monster synthesis. Two captured monster instances are consumed and
@@ -62,12 +64,19 @@ object FusionRules {
             maxHp = (maxOf(a.maxHp, b.maxHp) + 12).coerceIn(1, 180),
             attack = (maxOf(a.attack, b.attack) + 3).coerceIn(1, 40),
             description = "${a.species}と${b.species}が合体して生まれた新種。",
-            pixels = mergeSprites(a, b),
-            isBoss = false
+            // Generate the new Glyph derivative from its new 64x64 native design.
+            // A stored 13x13 image is never the master artwork.
+            isBoss = false,
+            bodyType = MonsterDesign.bodyType(a).name,
+            stage = maxOf(a.stage, b.stage).coerceIn(1, 3),
+            lineage = listOf(a.species, b.species).joinToString(" × "),
+            motifPrimary = a.motifPrimary.ifBlank { a.species },
+            motifSecondary = b.motifPrimary.ifBlank { b.species }
         )
+        val derived = fused.copy(pixels = GlyphProjector.project(MonsterDesign.sprite(fused)))
         val remaining = state.captures.filterNot { it.id == firstId || it.id == secondId }
         return state.copy(
-            captures = remaining + fused,
+            captures = remaining + derived,
             message = "${a.species}と${b.species}を合成！ ${fused.species}が誕生した"
         )
     }

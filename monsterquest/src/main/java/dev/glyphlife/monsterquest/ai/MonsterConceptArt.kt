@@ -29,10 +29,13 @@ object MonsterConceptArt {
     private const val MAX_RESPONSE = 18_000_000
 
     fun prompt(wild: WildMonster, style: ConceptStyle): String = """
-        Produce ONE finished, original high-quality illustration for a serious
-        monster-collecting dark fantasy action RPG. The creature must be visually
-        striking, sophisticated and memorable, NOT cute, chibi, childish, plush or
-        a simple blob. It must look like professionally art-directed game key art.
+        Produce ONE finished, original full-body MONSTER PIXEL SPRITE for a serious
+        monster-collecting fantasy RPG. The creature must be imposing and
+        memorable, NOT a cute chibi, smooth painting, plush toy or simple blob.
+        Render as genuine retro hand-placed pixel art: BIG, CONSISTENT
+        pixel clusters, hard 1-pixel edges, NO antialiasing, NO gradients,
+        NO soft shading, NO smooth vector lines. The native sprite will be
+        sampled to EXACTLY 64x64 pixels and quantized to MAXIMUM 16 COLORS.
 
         Character identity: ${wild.species.take(60)}
         Element: ${wild.element.take(20)}
@@ -48,10 +51,14 @@ object MonsterConceptArt {
           selected to reflect its element. Rich multi-tone shading, rim lighting,
           sophisticated material details, mystical energy effects and cinematic depth.
         - A sense of threat, intelligence, personality and iconic visual identity.
-        - Sharp detailed painted fantasy concept art suitable for a game bestiary,
-          polished professional quality and rich textures.
-        - Center entire character including horns, claws, wings and tail within frame.
-          Portrait 3:4 composition; simple low-detail atmospheric backdrop.
+        - Crisp, deliberate pixel clusters with a restrained indexed palette,
+          classic handcrafted 2D game sprite craftsmanship.
+        - Use EXACTLY a solid flat #FF00FF magenta background, no texture,
+          gradient, cast shadow, glow, lettering or decorative border.
+          Magenta is a background key for local transparent PNG conversion.
+        - Center entire character including horns, claws, wings and tail within
+          a SQUARE 1:1 frame, with safety margins so NOTHING is cropped.
+          Front/3-quarter game sprite pose, clear outline, strong silhouette.
         - NO text, NO typography, NO letters, NO logos, NO watermarks, NO UI panels,
           NO repeated bodies, NO collage, NO human character.
         - Original character design, do not copy existing franchises or copyrighted characters.
@@ -95,7 +102,7 @@ object MonsterConceptArt {
                     .put("responseModalities", JSONArray().put("IMAGE"))
                     .put("responseFormat", JSONObject()
                         .put("image", JSONObject()
-                            .put("aspectRatio", "3:4")
+                            .put("aspectRatio", "1:1")
                             .put("imageSize", "1K"))))
             val connection = (URL(ENDPOINT).openConnection() as HttpURLConnection).apply {
                 requestMethod = "POST"

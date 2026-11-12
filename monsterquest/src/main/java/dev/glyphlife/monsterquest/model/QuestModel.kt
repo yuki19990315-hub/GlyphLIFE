@@ -22,7 +22,13 @@ data class WildMonster(
     val attack: Int,
     val description: String = "",
     val pixels: String = "",
-    val isBoss: Boolean = false
+    val isBoss: Boolean = false,
+    /** Native game art metadata; legacy saves get default values. */
+    val bodyType: String = "",
+    val stage: Int = 1,
+    val lineage: String = "",
+    val motifPrimary: String = "",
+    val motifSecondary: String = ""
 )
 
 data class QuestState(

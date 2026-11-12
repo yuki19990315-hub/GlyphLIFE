@@ -6,6 +6,9 @@ import android.graphics.BitmapFactory
 import android.net.Uri
 import android.util.Base64
 import dev.glyphlife.monsterquest.model.WildMonster
+import dev.glyphlife.monsterquest.pixel.MonsterBodyType
+import dev.glyphlife.monsterquest.pixel.MonsterDesign
+import dev.glyphlife.monsterquest.pixel.GlyphProjector
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import org.json.JSONArray
@@ -19,7 +22,10 @@ data class MonsterIdea(
     val name: String,
     val element: String,
     val description: String,
-    val pixels: String
+    val pixels: String = "",
+    val bodyType: String = "",
+    val motifPrimary: String = "",
+    val motifSecondary: String = ""
 ) {
     fun asWildMonster(room: Int): WildMonster = WildMonster(
         id = UUID.randomUUID().toString(),
@@ -28,8 +34,13 @@ data class MonsterIdea(
         maxHp = 18 + room * 7,
         attack = 4 + room,
         description = description,
-        pixels = pixels
-    )
+        pixels = pixels,
+        bodyType = bodyType,
+        motifPrimary = motifPrimary,
+        motifSecondary = motifSecondary
+    ).let { monster ->
+        monster.copy(pixels = GlyphProjector.project(MonsterDesign.sprite(monster)))
+    }
 }
 
 /**
@@ -49,12 +60,20 @@ object MonsterAi {
         val name = j.getString("name").trim()
         val element = j.getString("element").trim()
         val description = j.getString("description").trim()
-        val pixels = j.getString("pixels")
+        // Legacy versions supplied 13x13; v2 only asks for design metadata.
+        val pixels = j.optString("pixels", "")
+        val bodyType = j.optString("bodyType", "").trim()
+        val motifPrimary = j.optString("motifPrimary", "").trim()
+        val motifSecondary = j.optString("motifSecondary", "").trim()
         require(name.length in 1..16 && !name.any { java.lang.Character.isISOControl(it) })
         require(element in elements) { "未対応の属性です" }
         require(description.length in 1..160)
-        require(pixels.length == 169 && pixels.all { it == '0' || it == '1' })
-        return MonsterIdea(name, element, description, pixels)
+        require(pixels.isEmpty() ||
+            (pixels.length == 169 && pixels.all { it == '0' || it == '1' }))
+        require(bodyType.isEmpty() || MonsterBodyType.entries.any { it.name == bodyType })
+        require(motifPrimary.length <= 50 && motifSecondary.length <= 50)
+        return MonsterIdea(name, element, description, pixels,
+            bodyType, motifPrimary, motifSecondary)
     }
 
     fun prompt(userPrompt: String): String = """
@@ -65,15 +84,22 @@ object MonsterAi {
         elemental power source, distinct head geometry, asymmetrical details
         and a strong original visual identity.
         Inspiration: ${userPrompt.take(240)}
-        Return ONLY valid JSON in the form:
-        {"name":"...","element":"水","description":"...",
-        "pixels":"169 binary digits"}
+        Return ONLY valid JSON with this schema:
+        {"name":"...", "element":"水", "description":"...",
+         "bodyType":"DRAGON", "motifPrimary":"dragon skull",
+         "motifSecondary":"crystal wings"}
         - name: original Japanese name, max 16 chars.
         - element: EXACTLY one of 火, 水, 草, 雷, 光, 闇, 無.
         - description: a serious cinematic Japanese bestiary description, max 160 chars.
-        - pixels: ONE string of 169 characters, each 0 or 1, representing
-          13 rows × 13 columns in row-major order. 1 is a lit white LED.
-          Draw a readable 13x13 pixel art portrait with a distinctive silhouette.
+        - bodyType: exactly one of BEAST, DRAGON, BIPED, GOLEM, SERPENT,
+          AVIAN, INSECTOID, AQUATIC, MECHA, SPIRIT.
+        - motifPrimary and motifSecondary: short original anatomy/motif tags.
+        - Design MUST read at 64x64 pixel art size, with a coherent silhouette,
+          contrasting outline and a restrained 12-16 color palette.
+        - Do not generate the 13x13 Glyph picture. That will be derived later
+          from the native 64x64 art by the game engine.
+        - Learn universal principles of strong silhouettes, evolutions, and
+          expressive pixel clusters, not protected designs or franchise names.
         - No status numbers such as HP, rarity or attack.
         - No markdown, no code fences, no extra fields.
     """.trimIndent()

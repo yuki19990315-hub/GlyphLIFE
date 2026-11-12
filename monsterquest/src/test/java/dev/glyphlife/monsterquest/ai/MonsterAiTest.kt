@@ -15,6 +15,7 @@ class MonsterAiTest {
         assertEquals(32, wild.maxHp)
         assertEquals(6, wild.attack)
         assertEquals(169, wild.pixels.length)
+        assertTrue(wild.pixels.any { it == '1' })
     }
 
     @Test fun malformedPixelsAreRejected() {
@@ -33,3 +34,4 @@ class MonsterAiTest {
         } catch (_: IllegalArgumentException) {}
     }
 }
+

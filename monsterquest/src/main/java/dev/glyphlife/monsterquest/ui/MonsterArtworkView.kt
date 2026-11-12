@@ -7,15 +7,18 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.layout.ContentScale
-import androidx.compose.ui.unit.dp
 import androidx.compose.ui.graphics.asImageBitmap
+import androidx.compose.ui.graphics.FilterQuality
+import androidx.compose.ui.layout.ContentScale
 import dev.glyphlife.monsterquest.data.MonsterArtworkStore
 import dev.glyphlife.monsterquest.model.WildMonster
+import dev.glyphlife.monsterquest.pixel.MonsterDesign
+import dev.glyphlife.monsterquest.pixel.PixelAssetPipeline
 
 /**
- * Separates full-resolution game concept art from the tiny 13×13 Glyph portrait.
- * Falls back to Glyph pixels for creatures without a stored illustration.
+ * Always draws high-resolution-looking COLOR pixel art in game screens.
+ * Native master = 64x64; nearest-neighbour presentation = 256x256.
+ * 13x13 binary Glyph data is never used as the game display fallback.
  */
 @Composable
 fun MonsterArtworkView(
@@ -24,19 +27,15 @@ fun MonsterArtworkView(
     revision: Int,
     modifier: Modifier = Modifier
 ) {
-    val bitmap = remember(monster.id, store, revision) { store.load(monster.id) }
-    if (bitmap != null) {
-        Image(
-            bitmap = bitmap.asImageBitmap(),
-            contentDescription = "${monster.species}の全身立ち絵",
-            modifier = modifier.clip(RoundedCornerShape(12.dp)),
-            contentScale = ContentScale.Fit
-        )
-    } else {
-        MonsterPortrait(
-            pixels = MonsterArt.forWild(monster),
-            element = monster.element,
-            modifier = modifier
-        )
+    val bitmap = remember(monster, store, revision) {
+        store.load(monster.id)
+            ?: PixelAssetPipeline.display256(MonsterDesign.sprite(monster))
     }
+    Image(
+        bitmap = bitmap.asImageBitmap(),
+        contentDescription = "${monster.species}：64×64ドット絵の256×256拡大表示",
+        modifier = modifier.clip(RoundedCornerShape(12.dp)),
+        contentScale = ContentScale.Fit,
+        filterQuality = FilterQuality.None
+    )
 }
