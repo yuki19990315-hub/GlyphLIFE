@@ -31,6 +31,8 @@ data class WildMonster(
     val motifSecondary: String = "",
     /** Stable rendering identity, independent of random encounter UUID. Legacy default preserves art. */
     val designSeed: String = "",
+    /** Immutable authored-art identity; empty means the legacy procedural generator. */
+    val artFamily: String = "",
     /** Optional safe named overlays. Empty for legacy saves, preserving appearance. */
     val armorParts: Map<String, String> = emptyMap(),
     /** Slot -> immutable UUID for imported/generated transparent PNG armor layer. */
@@ -39,6 +41,20 @@ data class WildMonster(
     val customArmorOffsets:
         Map<String, dev.glyphlife.monsterquest.pixel.ArmorOffset> = emptyMap()
 )
+
+/** Only explicit, opt-in featured art families use authored sprites. Blank keeps legacy procedural art. */
+object MonsterArtFamilies {
+    const val RAIZEL = "raizel"
+    const val LUNA = "luna"
+}
+
+/** The built-in demo companion gets a matching authored art style.
+ * Linked GlyphLIFE companions retain their previous rendering behavior.
+ */
+fun Companion.gameArtFamily(): String =
+    if (!importedFromGlyphLife && name == "ルナ" && species == "精霊" && element == "光")
+        MonsterArtFamilies.LUNA
+    else ""
 
 data class QuestState(
     val companion: Companion = Companion(),
