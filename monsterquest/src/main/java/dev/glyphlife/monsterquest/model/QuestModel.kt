@@ -34,7 +34,9 @@ data class WildMonster(
     /** Optional safe named overlays. Empty for legacy saves, preserving appearance. */
     val armorParts: Map<String, String> = emptyMap(),
     /** Slot -> immutable UUID for imported/generated transparent PNG armor layer. */
-    val customArmorParts: Map<String, String> = emptyMap()
+    val customArmorParts: Map<String, String> = emptyMap(),
+    /** Local offset/scale of each custom part; legacy monsters default to anchors. */
+    val partPlacements: Map<String, dev.glyphlife.monsterquest.pixel.ArmorPlacement> = emptyMap()
 )
 
 data class QuestState(

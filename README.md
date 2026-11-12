@@ -1,4 +1,4 @@
-# GlyphLIFE v0.14 / Monster Quest v2.7
+# GlyphLIFE v0.14 / Monster Quest v2.8
 
 Two **independently installable Android apps** in one repository:
 
@@ -154,3 +154,4 @@ The captured-monster workshop can now select a **specific equipment slot** (head
 Custom PNG layers are **independent of the procedural armor styles**, unlock according to stage, follow the creature through evolution, and are inherited by fusion according to parental slot rules (head/core/shoulder A; tail/back/wing B). All rendered sprites and Glyph animations use the same compositing pipeline. The 13×13 Glyph image is always a derivative of the final 64×64 artwork, with hardware LED mask. Legacy JSON remains supported; metadata contains UUID references but no embedded images.
 
 The generated AI image's artistic quality, chroma-key cleanliness and actual device behavior remain **unverified**; visual review and an explicit confirm dialog prevent automatic application. The Google image API may incur charges and needs a user-provided key. No training on protected game IP is performed.
+\n## Armor placement editor (v2.8)\n\nCaptured monsters with a custom PNG part can move its mounting point by 1-pixel steps horizontally and vertically (up to ±12px) and resize it in 10% steps (50–150%). The original 64×64 source PNG is never modified. Placement offsets and scale are stored separately in backwards-compatible save metadata; older creatures use the unchanged anatomical anchors. Fusion inherits both the part reference and its matching alignment, and the shared rendered result is used by animations, PNG export and Glyph projection. The fusion preview now resolves custom imported images, not only procedural overlays. AI image parts on locked equipment slots are previewed at the stage that unlocks them. See [design implementation](docs/ARMOR_PLACEMENT_V28_JA.md).\n

@@ -81,6 +81,14 @@ class QuestStorage(context: Context) {
         .put("designSeed", w.designSeed)
         .put("armorParts", JSONObject(w.armorParts))
         .put("customArmorParts", JSONObject(w.customArmorParts))
+        .put("partPlacements", JSONObject().apply {
+            w.partPlacements.forEach { (slot, value) ->
+                put(slot, JSONObject()
+                    .put("x", value.offsetX)
+                    .put("y", value.offsetY)
+                    .put("size", value.sizePercent))
+            }
+        })
 
     private fun wildFromJson(o: JSONObject): WildMonster = WildMonster(
         id = o.getString("id"), species = o.getString("species"),
@@ -96,8 +104,25 @@ class QuestStorage(context: Context) {
         motifSecondary = o.optString("motifSecondary", "").take(60),
         designSeed = o.optString("designSeed", "").take(64),
         armorParts = readArmorParts(o.optJSONObject("armorParts")),
-        customArmorParts = readCustomLayers(o.optJSONObject("customArmorParts"))
+        customArmorParts = readCustomLayers(o.optJSONObject("customArmorParts")),
+        partPlacements = readPlacements(o.optJSONObject("partPlacements"))
     )
+
+    private fun readPlacements(value: JSONObject?):
+        Map<String, dev.glyphlife.monsterquest.pixel.ArmorPlacement> {
+        if (value == null) return emptyMap()
+        return runCatching {
+            val items = value.keys().asSequence().toList().associateWith { slot ->
+                val obj = value.getJSONObject(slot)
+                dev.glyphlife.monsterquest.pixel.ArmorPlacement(
+                    offsetX = obj.getInt("x"),
+                    offsetY = obj.getInt("y"),
+                    sizePercent = obj.getInt("size")
+                )
+            }
+            dev.glyphlife.monsterquest.pixel.CustomArmorLayers.validatedPlacements(items)
+        }.getOrDefault(emptyMap())
+    }
 
     private fun readArmorParts(value: JSONObject?): Map<String, String> {
         if(value == null) return emptyMap()

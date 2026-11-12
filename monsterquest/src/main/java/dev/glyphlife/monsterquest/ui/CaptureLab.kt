@@ -14,6 +14,7 @@ import dev.glyphlife.monsterquest.model.WildMonster
 import dev.glyphlife.monsterquest.pixel.ArmorSlot
 import dev.glyphlife.monsterquest.pixel.ArmorStyle
 import dev.glyphlife.monsterquest.pixel.MonsterArmor
+import dev.glyphlife.monsterquest.pixel.ArmorPlacement
 
 /**
  * Two-material fusion screen. A confirmation is required because selected
@@ -33,6 +34,7 @@ fun CaptureLab(
     onGeneratePart: (WildMonster, ArmorSlot) -> Unit,
     onImportPart: (WildMonster, ArmorSlot) -> Unit,
     onRemovePart: (WildMonster, ArmorSlot) -> Unit,
+    onPositionPart: (WildMonster, ArmorSlot, ArmorPlacement) -> Unit,
     onSendGlyph: (WildMonster) -> Unit,
     onExportPng: (WildMonster, Int) -> Unit,
     onExportSpriteSheet: (WildMonster) -> Unit,
@@ -145,6 +147,57 @@ fun CaptureLab(
                                 Text("画像パーツ解除")
                             }
                         }
+                        if (imported) {
+                            val placement = monster.partPlacements[slot.name]
+                                ?: ArmorPlacement()
+                            Text("画像位置 X:${placement.offsetX} Y:${placement.offsetY} " +
+                                "大きさ:${placement.sizePercent}%",
+                                style=MaterialTheme.typography.bodySmall)
+                            Row(
+                                modifier=Modifier.horizontalScroll(rememberScrollState()),
+                                horizontalArrangement=Arrangement.spacedBy(5.dp)
+                            ) {
+                                OutlinedButton(
+                                    enabled=!inBattle && placement.offsetX > -12,
+                                    onClick={onPositionPart(monster,slot,placement.copy(
+                                        offsetX=placement.offsetX-1))}
+                                ) { Text("←") }
+                                OutlinedButton(
+                                    enabled=!inBattle && placement.offsetX < 12,
+                                    onClick={onPositionPart(monster,slot,placement.copy(
+                                        offsetX=placement.offsetX+1))}
+                                ) { Text("→") }
+                                OutlinedButton(
+                                    enabled=!inBattle && placement.offsetY > -12,
+                                    onClick={onPositionPart(monster,slot,placement.copy(
+                                        offsetY=placement.offsetY-1))}
+                                ) { Text("↑") }
+                                OutlinedButton(
+                                    enabled=!inBattle && placement.offsetY < 12,
+                                    onClick={onPositionPart(monster,slot,placement.copy(
+                                        offsetY=placement.offsetY+1))}
+                                ) { Text("↓") }
+                            }
+                            Row(
+                                modifier=Modifier.horizontalScroll(rememberScrollState()),
+                                horizontalArrangement=Arrangement.spacedBy(5.dp)
+                            ) {
+                                OutlinedButton(
+                                    enabled=!inBattle && placement.sizePercent > 50,
+                                    onClick={onPositionPart(monster,slot,placement.copy(
+                                        sizePercent=placement.sizePercent-10))}
+                                ) { Text("小さく") }
+                                OutlinedButton(
+                                    enabled=!inBattle && placement.sizePercent < 150,
+                                    onClick={onPositionPart(monster,slot,placement.copy(
+                                        sizePercent=placement.sizePercent+10))}
+                                ) { Text("大きく") }
+                                TextButton(
+                                    enabled=!inBattle,
+                                    onClick={onPositionPart(monster,slot,ArmorPlacement())}
+                                ) { Text("位置を戻す") }
+                            }
+                        }
                         Row(modifier=Modifier.horizontalScroll(rememberScrollState()),
                             horizontalArrangement=Arrangement.spacedBy(5.dp)) {
                             FilterChip(selected=monster.armorParts[slot.name]==null,
@@ -217,7 +270,10 @@ fun CaptureLab(
                 Row(horizontalArrangement = Arrangement.spacedBy(16.dp)) {
                     Column {
                         Text("ゲーム：64×64")
-                        MonsterStaticSprite(target, Modifier.size(160.dp))
+                        MonsterStaticSprite(
+                            target, Modifier.size(160.dp),
+                            store = artworkStore, revision = artworkRevision
+                        )
                     }
                     Column {
                         Text("Glyph：13×13")
@@ -228,8 +284,8 @@ fun CaptureLab(
                         )
                     }
                 }
-                Text("確定後もこの形を維持します。融合の外見はゲーム内の自動生成で、" +
-                    "親の外部AI画像を直接合成するわけではありません。",
+                Text("融合では親Aの頭・胸・肩、親Bの尾・背中・翼の" +
+                    "画像パーツと配置設定を引き継ぎます。確定前に表示を確認してください。",
                     style = MaterialTheme.typography.bodySmall)
             }
             Button(

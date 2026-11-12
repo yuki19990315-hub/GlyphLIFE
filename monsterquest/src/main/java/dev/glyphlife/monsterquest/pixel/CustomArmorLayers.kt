@@ -6,11 +6,54 @@ import kotlin.math.max
 import kotlin.math.min
 
 /**
+ * Relative adjustment from the anatomical anchor. Settings are stored in the
+ * monster JSON, separate from the immutable PNG bytes, so one asset can be
+ * reused by evolution and fusion without modifying source images.
+ */
+data class ArmorPlacement(
+    val offsetX: Int = 0,
+    val offsetY: Int = 0,
+    val sizePercent: Int = 100
+) {
+    init {
+        require(offsetX in -12..12 && offsetY in -12..12) {
+            "装備位置は±12画素以内です"
+        }
+        require(sizePercent in 50..150) { "拡大率は50〜150%です" }
+    }
+}
+
+/**
  * Separately authored PNG components mounted on stable anatomy anchors.
  * The saved asset is a transparent 64x64 *part*, never a complete monster.
  * Stored UUIDs are safe identifiers and contain no absolute file paths.
  */
 object CustomArmorLayers {
+    fun validatedPlacements(parts: Map<String, ArmorPlacement>):
+        Map<String, ArmorPlacement> {
+        require(parts.size <= ArmorSlot.entries.size)
+        return parts.entries.associate { (key, placement) ->
+            require(ArmorSlot.entries.any { it.name == key }) { "無効な装着位置です" }
+            // ArmorPlacement's init validates even when reconstructed by JSON.
+            key to ArmorPlacement(
+                placement.offsetX, placement.offsetY, placement.sizePercent
+            )
+        }
+    }
+
+    fun inheritPlacements(
+        first: Map<String, ArmorPlacement>, second: Map<String, ArmorPlacement>,
+        inheritedSlots: Set<String>
+    ): Map<String, ArmorPlacement> {
+        val a = validatedPlacements(first)
+        val b = validatedPlacements(second)
+        return ArmorSlot.entries.mapNotNull { slot ->
+            if (slot.name !in inheritedSlots) return@mapNotNull null
+            val primary = slot in setOf(ArmorSlot.HEAD, ArmorSlot.CORE, ArmorSlot.SHOULDER)
+            (if (primary) a else b)[slot.name]?.let { slot.name to it }
+        }.toMap()
+    }
+
     fun validated(parts: Map<String, String>): Map<String, String> {
         require(parts.size <= ArmorSlot.entries.size) { "装着パーツが多すぎます" }
         return parts.entries.associate { (slot, id) ->
@@ -109,14 +152,18 @@ object CustomArmorLayers {
         ArmorSlot.WING -> Mount(47, 25, 30, 35)
     }
 
-    private fun place(sprite: PixelSprite, slot: ArmorSlot, body: MonsterBodyType): PixelSprite {
+    private fun place(
+        sprite: PixelSprite, slot: ArmorSlot, body: MonsterBodyType,
+        placement: ArmorPlacement
+    ): PixelSprite {
         val bounds = opaqueBounds(sprite) ?: return PixelSprite.fromArgb(64, 64, IntArray(4096))
         val target = mount(slot, body)
-        val ratio = min(target.w.toFloat() / bounds.width, target.h.toFloat() / bounds.height)
+        val fit = min(target.w.toFloat() / bounds.width, target.h.toFloat() / bounds.height)
+        val ratio = fit * placement.sizePercent / 100f
         val w = max(1, (bounds.width * ratio).toInt())
         val h = max(1, (bounds.height * ratio).toInt())
-        val left = target.centerX - w / 2
-        val top = target.centerY - h / 2
+        val left = target.centerX + placement.offsetX - w / 2
+        val top = target.centerY + placement.offsetY - h / 2
         val output = IntArray(4096)
         for (y in 0 until h) for (x in 0 until w) {
             val dx = left + x; val dy = top + y
@@ -140,6 +187,7 @@ object CustomArmorLayers {
         require(base.width == 64 && base.height == 64)
         val identifiers = validated(wild.customArmorParts)
         if (identifiers.isEmpty()) return base
+        val placements = validatedPlacements(wild.partPlacements)
         val colors = base.colors().toList()
         if (colors.isEmpty()) return base
         fun colorDistance(a: Int, b: Int): Int {
@@ -154,7 +202,7 @@ object CustomArmorLayers {
             val id = identifiers[slot.name] ?: return@mapNotNull null
             val image = findAsset(id) ?: return@mapNotNull null
             if (image.width != 64 || image.height != 64) return@mapNotNull null
-            slot to place(image, slot, body)
+            slot to place(image, slot, body, placements[slot.name] ?: ArmorPlacement())
         }
         if (placed.isEmpty()) return base
         val result = base.pixels()

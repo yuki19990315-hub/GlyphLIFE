@@ -321,7 +321,7 @@ class MonsterQuestActivity : ComponentActivity() {
             ) {
                 Scaffold(topBar = {
                     Surface(tonalElevation = 2.dp) {
-                        Text("MONSTER QUEST  /  v2.7",
+                        Text("MONSTER QUEST  /  v2.8",
                             modifier = Modifier.padding(18.dp),
                             style = MaterialTheme.typography.titleMedium)
                     }
@@ -496,15 +496,19 @@ class MonsterQuestActivity : ComponentActivity() {
                             text = {
                                 Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                                     Text("${current.species}：${pending.slot.label}の画像パーツ")
+                                    val previewStage = maxOf(candidate.stage,
+                                        pending.slot.minStage)
                                     MonsterStaticSprite(
-                                        candidate, Modifier.size(192.dp),
+                                        candidate.copy(stage=previewStage), Modifier.size(192.dp),
                                         store = artworkStore,
                                         revision = artworkRevision
                                     )
-                                    Text("元の64×64素体に、画像を自動配置した完成予想です。")
+                                    Text("素体と画像パーツの完成予想（進化$previewStage）。")
                                     if (pending.slot.minStage > current.stage) {
-                                        Text("この部位は進化${pending.slot.minStage}から表示されます。")
+                                        Text("現在は表示されず、進化${pending.slot.minStage}から有効です。")
                                     }
+                                    Text("装着後は研究所で上下左右1pxずつ、" +
+                                        "大きさ50〜150%を調整できます。")
                                     Text("透明PNGかマゼンタ背景の画像のみ。AI生成結果は" +
                                         "実際の装着位置を確認してください。",
                                         style = MaterialTheme.typography.bodySmall)
