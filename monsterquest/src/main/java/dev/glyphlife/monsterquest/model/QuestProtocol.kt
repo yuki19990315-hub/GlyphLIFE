@@ -25,6 +25,22 @@ object QuestProtocol {
         return Companion(id, name, species, element, level, pixels, true)
     }
 
+    /** Glyph artwork protocol intentionally has no high-res pixels. */
+    fun exportGlyphAnimation(wild: WildMonster, pixels13: String): String {
+        require(pixels13.length == 169 && pixels13.all { it == '0' || it == '1' })
+        val frames = org.json.JSONArray().put(
+            JSONObject().put("pixels", pixels13).put("durationMs", 350)
+        )
+        return JSONObject()
+            .put("schemaVersion", 1)
+            .put("type", "glyph-life-animation")
+            .put("source", "monster-quest")
+            .put("monsterName", wild.species.take(50))
+            .put("width", 13).put("height", 13).put("selected", 0)
+            .put("frames", frames)
+            .toString(2)
+    }
+
     fun rewardJson(state: QuestState): String {
         require(state.companion.importedFromGlyphLife)
         val eventId = state.rewardEventId ?: error("先に冒険を終了してください")

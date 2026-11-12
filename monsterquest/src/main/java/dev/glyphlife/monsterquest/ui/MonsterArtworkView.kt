@@ -10,6 +10,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.graphics.FilterQuality
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.unit.dp
 import dev.glyphlife.monsterquest.data.MonsterArtworkStore
 import dev.glyphlife.monsterquest.model.WildMonster
 import dev.glyphlife.monsterquest.pixel.MonsterDesign
@@ -28,7 +29,7 @@ fun MonsterArtworkView(
     modifier: Modifier = Modifier
 ) {
     val bitmap = remember(monster, store, revision) {
-        store.load(monster.id)
+        store.load(monster.id,monster.stage)
             ?: PixelAssetPipeline.display256(MonsterDesign.sprite(monster))
     }
     Image(

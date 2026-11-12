@@ -28,27 +28,6 @@ object FusionRules {
         }
     }
 
-    private fun validSprite(raw: String): Boolean =
-        raw.length == 169 && raw.all { it == '0' || it == '1' }
-
-    private fun mergeSprites(a: WildMonster, b: WildMonster): String {
-        val left = a.pixels
-        val right = b.pixels
-        return when {
-            validSprite(left) && validSprite(right) ->
-                buildString(169) {
-                    for (i in 0 until 169) {
-                        val x = i % 13
-                        append(if (x < 6) left[i] else if (x > 6) right[i]
-                            else if (left[i] == '1' || right[i] == '1') '1' else '0')
-                    }
-                }
-            validSprite(left) -> left
-            validSprite(right) -> right
-            else -> "" // Portrait renderer generates an original procedural fallback.
-        }
-    }
-
     fun fuse(state: QuestState, firstId: String, secondId: String): QuestState {
         require(!state.inBattle) { "戦闘中には合成できません" }
         require(firstId != secondId) { "異なる2匹を選んでください" }

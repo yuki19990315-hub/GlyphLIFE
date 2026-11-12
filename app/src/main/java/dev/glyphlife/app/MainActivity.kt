@@ -30,6 +30,7 @@ import dev.glyphlife.app.ui.*
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.delay
 import java.time.LocalDateTime
+import org.json.JSONObject
 
 class MainActivity : ComponentActivity() {
     private var incomingQuestPayload by mutableStateOf<String?>(null)
@@ -141,6 +142,8 @@ class MainActivity : ComponentActivity() {
             var fluidPreview by remember { mutableStateOf(GlyphFluid.initial()) }
             var glyphStatus by remember { mutableStateOf("未接続") }
             var questStatus by remember { mutableStateOf("取り込み待ち") }
+            var pendingGlyphAnimation by remember { mutableStateOf<GlyphAnimation?>(null) }
+            var pendingGlyphName by remember { mutableStateOf("Monster Quest") }
             var aiKey by remember { mutableStateOf("") }
             var aiBusy by remember { mutableStateOf(false) }
             val scope = rememberCoroutineScope()
@@ -165,15 +168,24 @@ class MainActivity : ComponentActivity() {
                 val raw = incomingQuestPayload ?: return@LaunchedEffect
                 incomingQuestPayload = null
                 runCatching {
-                    val event = QuestResult.parse(raw)
-                    val target = repo.loadPets().firstOrNull { it.id == event.petId }
-                        ?: throw IllegalArgumentException("対象ペットが見つかりません")
-                    val updated = repo.applyQuestResult(raw, target)
-                    roster = repo.loadPets()
-                    if (pet.id == updated.id) pet = updated
-                    questStatus = "${updated.name}の冒険結果を反映しました"
+                    val json = JSONObject(raw)
+                    if (json.optString("type") == "glyph-life-animation") {
+                        // Imported art is PREVIEWED and only applied after confirmation.
+                        pendingGlyphAnimation = repo.parseAnimation(raw)
+                        pendingGlyphName = json.optString("monsterName","Monster Quest").take(50)
+                        questStatus = "13×13データを受信。読み込み確認待ち"
+                        tab = 1
+                    } else {
+                        val event = QuestResult.parse(raw)
+                        val target = repo.loadPets().firstOrNull { it.id == event.petId }
+                            ?: throw IllegalArgumentException("対象ペットが見つかりません")
+                        val updated = repo.applyQuestResult(raw, target)
+                        roster = repo.loadPets()
+                        if (pet.id == updated.id) pet = updated
+                        questStatus = "${updated.name}の冒険結果を反映しました"
+                        tab = 4
+                    }
                 }.onFailure { e -> questStatus = "受信失敗：${e.message}" }
-                tab = 4
             }
             val questPicker = rememberLauncherForActivityResult(ActivityResultContracts.GetContent()) { uri ->
                 if (uri != null) runCatching {
@@ -218,10 +230,35 @@ class MainActivity : ComponentActivity() {
                 background = Color(0xFF111414),
                 surface = Color(0xFF1B2020)
             )) {
+                pendingGlyphAnimation?.let { imported ->
+                    AlertDialog(
+                        onDismissRequest = { pendingGlyphAnimation = null },
+                        title = { Text("Monster QuestのGlyph画像を読み込む？") },
+                        text = {
+                            Text("「$pendingGlyphName」の13×13ドットをCreatorに読み込みます。" +
+                                " 現在のペットの編集中アニメは置き換わります。" +
+                                " 必要ならキャンセルして作品ギャラリーへ保存してください。")
+                        },
+                        confirmButton = {
+                            TextButton(onClick = {
+                                animation = imported
+                                repo.saveAnimation(imported, pet.id)
+                                pendingGlyphAnimation = null
+                                tab = 1
+                                questStatus = "Monster QuestからGlyph画像を読み込みました"
+                            }) { Text("Creatorへ読み込む") }
+                        },
+                        dismissButton = {
+                            TextButton(onClick = {
+                                pendingGlyphAnimation = null
+                            }) { Text("キャンセル") }
+                        }
+                    )
+                }
                 Scaffold(
                     topBar = {
                         Surface(tonalElevation = 2.dp) {
-                            Text("GLYPH LIFE  /  v0.13",
+                            Text("GLYPH LIFE  /  v0.14",
                                 modifier = Modifier.padding(20.dp),
                                 style = MaterialTheme.typography.titleMedium)
                         }

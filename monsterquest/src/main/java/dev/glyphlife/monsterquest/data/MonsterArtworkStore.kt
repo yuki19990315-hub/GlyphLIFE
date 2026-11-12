@@ -24,26 +24,34 @@ import java.util.UUID
 class MonsterArtworkStore(private val context: Context) {
     private val folder = File(context.filesDir, "monster_art_v1")
 
-    private fun pathFor(id: String, extension: String): File {
+    private fun pathFor(id: String, extension: String, stage:Int=1): File {
         UUID.fromString(id)
-        return File(folder, "$id.$extension")
+        require(stage in 1..3)
+        return File(folder, if(extension=="png") "$id-s$stage.png" else "$id.$extension")
+    }
+    private fun originalV2Path(id:String):File {
+        UUID.fromString(id)
+        return File(folder,"$id.png")
     }
 
-    fun hasArt(id: String): Boolean = runCatching {
-        pathFor(id,"png").isFile || pathFor(id,"jpg").isFile
+    fun hasArt(id: String,stage:Int=1): Boolean = runCatching {
+        pathFor(id,"png",stage).isFile ||
+            (stage==1 && (originalV2Path(id).isFile || pathFor(id,"jpg").isFile))
     }.getOrDefault(false)
 
-    fun loadNative(id: String): PixelSprite? = runCatching {
-        val png=pathFor(id,"png")
+    fun loadNative(id: String, stage:Int=1): PixelSprite? = runCatching {
+        val png=pathFor(id,"png",stage)
+        val previous=originalV2Path(id)
         val legacy=pathFor(id,"jpg")
         val file=when {
             png.isFile -> png
-            legacy.isFile -> legacy
+            stage==1 && previous.isFile -> previous
+            stage==1 && legacy.isFile -> legacy
             else -> return@runCatching null
         }
         val bitmap=BitmapFactory.decodeFile(file.absolutePath) ?: return@runCatching null
         try {
-            if(bitmap.width==64 && bitmap.height==64 && png.isFile) {
+            if(bitmap.width==64 && bitmap.height==64 && file.extension=="png") {
                 val colors=IntArray(4096)
                 bitmap.getPixels(colors,0,64,0,0,64,64)
                 PixelSprite.fromArgb(64,64,colors)
@@ -52,19 +60,20 @@ class MonsterArtworkStore(private val context: Context) {
     }.getOrNull()
 
     /** Render the 64-pixel master at 256 pixels without any interpolation. */
-    fun load(id: String): Bitmap? = loadNative(id)?.let(PixelAssetPipeline::display256)
+    fun load(id: String, stage:Int=1): Bitmap? =
+        loadNative(id,stage)?.let(PixelAssetPipeline::display256)
 
     /** Portable 13×13 derivative, produced on demand; never the master. */
     fun glyphFor(monster: WildMonster): String =
-        GlyphProjector.project(loadNative(monster.id) ?: MonsterDesign.sprite(monster))
+        GlyphProjector.project(loadNative(monster.id,monster.stage) ?: MonsterDesign.sprite(monster))
 
-    suspend fun importFromUri(id: String, uri: Uri) = withContext(Dispatchers.IO) {
+    suspend fun importFromUri(id: String, uri: Uri, stage:Int=1) = withContext(Dispatchers.IO) {
         val bytes=context.contentResolver.openInputStream(uri)?.use { it.readNBytes(12_000_001) }
             ?: error("画像を読み込めません")
-        store(id, bytes)
+        store(id, bytes,stage)
     }
 
-    suspend fun store(id: String, encoded: ByteArray) = withContext(Dispatchers.IO) {
+    suspend fun store(id: String, encoded: ByteArray,stage:Int=1) = withContext(Dispatchers.IO) {
         UUID.fromString(id)
         require(encoded.size in 64..12_000_000) { "画像の容量が上限を超えています" }
         val bounds=BitmapFactory.Options().apply { inJustDecodeBounds=true }
@@ -79,14 +88,14 @@ class MonsterArtworkStore(private val context: Context) {
             ?: error("画像形式を読み込めません")
         try {
             val sprite=PixelAssetPipeline.fromBitmap(original)
-            saveNative(id,sprite)
+            saveNative(id,sprite,stage)
         } finally { original.recycle() }
     }
 
-    private fun saveNative(id: String,sprite:PixelSprite) {
+    private fun saveNative(id: String,sprite:PixelSprite,stage:Int) {
         require(sprite.width==64 && sprite.height==64)
         check(folder.isDirectory || folder.mkdirs()) { "画像保存先を作成できません" }
-        val file=pathFor(id,"png")
+        val file=pathFor(id,"png",stage)
         val temp=File(folder,"$id.pending")
         val bitmap=PixelAssetPipeline.toBitmap(sprite)
         try {

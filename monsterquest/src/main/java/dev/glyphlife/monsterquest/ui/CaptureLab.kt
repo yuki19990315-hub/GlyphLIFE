@@ -9,6 +9,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import dev.glyphlife.monsterquest.data.MonsterArtworkStore
 import dev.glyphlife.monsterquest.model.FusionRules
+import dev.glyphlife.monsterquest.model.EvolutionRules
 import dev.glyphlife.monsterquest.model.WildMonster
 
 /**
@@ -19,8 +20,11 @@ import dev.glyphlife.monsterquest.model.WildMonster
 fun CaptureLab(
     captured: List<WildMonster>,
     inBattle: Boolean,
+    defeated: Int,
     artworkStore: MonsterArtworkStore,
     artworkRevision: Int,
+    onEvolve: (String) -> Unit,
+    onSendGlyph: (WildMonster) -> Unit,
     onFuse: (String, String) -> Unit
 ) {
     var expanded by remember { mutableStateOf(false) }
@@ -79,15 +83,35 @@ fun CaptureLab(
                 first?.let {
                     Column {
                         MonsterArtworkView(it, artworkStore, artworkRevision, Modifier.size(116.dp))
-                        Text("A：${it.species} ${it.element}")
+                        Text("A：${it.species} / ${it.element} / 進化${it.stage}")
                     }
                 }
                 second?.let {
                     Column {
                         MonsterArtworkView(it, artworkStore, artworkRevision, Modifier.size(116.dp))
-                        Text("B：${it.species} ${it.element}")
+                        Text("B：${it.species} / ${it.element} / 進化${it.stage}")
                     }
                 }
+            }
+            first?.let { monster ->
+                Text(
+                    if (monster.stage >= 3) "最終進化に到達済み"
+                    else "次の進化条件：この冒険で${EvolutionRules.requiredVictories(monster.stage)}体撃破（現在$defeated体）",
+                    style = MaterialTheme.typography.bodySmall
+                )
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    OutlinedButton(
+                        enabled = !inBattle && monster.stage < 3 &&
+                            defeated >= EvolutionRules.requiredVictories(monster.stage),
+                        onClick = { onEvolve(monster.id) }
+                    ) { Text("選択モンスターを進化") }
+                    OutlinedButton(onClick = { onSendGlyph(monster) }) {
+                        Text("Glyph用13×13へ変換")
+                    }
+                }
+                Text("進化後も個体IDと体型・属性は継承。" +
+                    " 元の進化段階用に保存した画像は保持されます。",
+                    style = MaterialTheme.typography.bodySmall)
             }
             if (first != null && second != null && first.id != second.id) {
                 Text("合成予想：${FusionRules.resultName(first, second)}　" +

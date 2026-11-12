@@ -31,6 +31,8 @@ import dev.glyphlife.monsterquest.ui.MonsterArt
 import dev.glyphlife.monsterquest.ui.MonsterPortrait
 import dev.glyphlife.monsterquest.ui.MonsterArtworkView
 import dev.glyphlife.monsterquest.ui.CaptureLab
+import dev.glyphlife.monsterquest.pixel.GlyphProjector
+import dev.glyphlife.monsterquest.pixel.MonsterDesign
 import kotlinx.coroutines.launch
 
 class MonsterQuestActivity : ComponentActivity() {
@@ -49,6 +51,7 @@ class MonsterQuestActivity : ComponentActivity() {
             var aiBusy by remember { mutableStateOf(false) }
             var artworkRevision by remember { mutableIntStateOf(0) }
             var artImportId by remember { mutableStateOf<String?>(null) }
+            var artImportStage by remember { mutableIntStateOf(1) }
             val scope = rememberCoroutineScope()
 
             fun update(next: QuestState) {
@@ -106,11 +109,12 @@ class MonsterQuestActivity : ComponentActivity() {
                 ActivityResultContracts.GetContent()
             ) { uri ->
                 val id = artImportId
+                val stage = artImportStage
                 artImportId = null
                 if (uri != null && id != null) {
                     scope.launch {
                         runCatching {
-                            artworkStore.importFromUri(id, uri)
+                            artworkStore.importFromUri(id, uri,stage)
                             artworkRevision += 1
                             notify("高精細イラストを端末に保存しました")
                         }.onFailure { notify("イラスト読み込み失敗：${it.message}") }
@@ -124,7 +128,7 @@ class MonsterQuestActivity : ComponentActivity() {
                 scope.launch {
                     try {
                         val image = MonsterConceptArt.generate(key, wild, style)
-                        artworkStore.store(wild.id, image)
+                        artworkStore.store(wild.id, image,wild.stage)
                         artworkRevision += 1
                         notify("${wild.species}の高精細イラストを保存しました")
                     } catch (e: Exception) {
@@ -133,6 +137,24 @@ class MonsterQuestActivity : ComponentActivity() {
                         aiBusy = false
                     }
                 }
+            }
+            fun sendGlyphToLife(wild: WildMonster) {
+                runCatching {
+                    val encoded=QuestProtocol.exportGlyphAnimation(
+                        wild, artworkStore.glyphFor(wild)
+                    )
+                    val share=Intent(Intent.ACTION_SEND).apply {
+                        type="application/json"
+                        putExtra(Intent.EXTRA_TEXT,encoded)
+                    }
+                    val direct=Intent(share).apply {
+                        setClassName("dev.glyphlife.app","dev.glyphlife.app.MainActivity")
+                    }
+                    try { startActivity(direct) }
+                    catch (_:ActivityNotFoundException) {
+                        startActivity(Intent.createChooser(share,"13×13 Glyphデータを共有"))
+                    }
+                }.onFailure { notify("Glyphデータを送れません：${it.message}") }
             }
             LaunchedEffect(incoming) {
                 val raw = incoming ?: return@LaunchedEffect
@@ -151,7 +173,7 @@ class MonsterQuestActivity : ComponentActivity() {
             ) {
                 Scaffold(topBar = {
                     Surface(tonalElevation = 2.dp) {
-                        Text("MONSTER QUEST  /  MVP 0.5",
+                        Text("MONSTER QUEST  /  v2.0",
                             modifier = Modifier.padding(18.dp),
                             style = MaterialTheme.typography.titleMedium)
                     }
@@ -159,9 +181,18 @@ class MonsterQuestActivity : ComponentActivity() {
                     QuestScreen(
                         state = state, status = status,
                         artworkStore = artworkStore, artworkRevision = artworkRevision,
+                        onSendGlyph = ::sendGlyphToLife,
+                        onEvolve = { id ->
+                            runCatching {
+                                update(EvolutionRules.evolve(state,id))
+                                artworkRevision += 1
+                                notify("モンスターが進化しました。64×64の外見が変化します")
+                            }.onFailure { notify("進化できません：${it.message}") }
+                        },
                         onGenerateArt = ::generatePortrait,
                         onImportArt = { wild ->
                             artImportId = wild.id
+                            artImportStage = wild.stage
                             artworkPicker.launch("image/*")
                         },
                         aiKey = aiKey, aiDescription = aiDescription,
@@ -239,6 +270,8 @@ private fun QuestScreen(
     status: String,
     artworkStore: MonsterArtworkStore,
     artworkRevision: Int,
+    onSendGlyph: (WildMonster) -> Unit,
+    onEvolve: (String) -> Unit,
     onGenerateArt: (WildMonster, ConceptStyle) -> Unit,
     onImportArt: (WildMonster) -> Unit,
     aiKey: String,
@@ -262,6 +295,7 @@ private fun QuestScreen(
     onSendResult: () -> Unit
 ) {
     var artStyle by remember { mutableStateOf(ConceptStyle.DARK_FANTASY) }
+    var glyphPreviewId by remember { mutableStateOf<String?>(null) }
     Column(
         modifier = modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(16.dp),
         verticalArrangement = Arrangement.spacedBy(10.dp)
@@ -272,13 +306,23 @@ private fun QuestScreen(
             "（${state.companion.species}・${state.companion.element}）")
         Text(if (state.companion.importedFromGlyphLife) "Glyph Life連携中"
              else "体験用の相棒です。Glyph Lifeの「連携」タブから送ると変更できます。")
-        val companionArt = state.companion.glyph.takeIf {
-            it.length == 169 && it.any { char -> char == '1' }
-        } ?: MonsterArt.generate(state.companion.species, state.companion.element)
-        MonsterPortrait(
-            pixels = companionArt,
-            element = state.companion.element,
-            modifier = Modifier.size(126.dp)
+        val companionWild = remember(state.companion) {
+            WildMonster(
+                id = state.companion.id, species = state.companion.species,
+                element = state.companion.element, maxHp = 100,
+                attack = 10 + state.companion.level,
+                stage = when {
+                    state.companion.level >= 12 -> 3
+                    state.companion.level >= 5 -> 2
+                    else -> 1
+                }
+            )
+        }
+        MonsterArtworkView(
+            monster = companionWild,
+            store = artworkStore,
+            revision = artworkRevision,
+            modifier = Modifier.size(152.dp)
         )
         LinearProgressIndicator(
             progress = { state.playerHp / 100f }, modifier = Modifier.fillMaxWidth())
@@ -344,9 +388,29 @@ private fun QuestScreen(
                     revision = artworkRevision,
                     modifier = Modifier.fillMaxWidth().height(320.dp)
                 )
-                Text("ゲーム用立ち絵：${if (artworkStore.hasArt(enemy.id)) "高精細イラスト" else "簡易13×13ドット"}",
+                Text("本編：64×64カラードット絵（図鑑・戦闘では256×256に等倍系拡大）。" +
+                    if (artworkStore.hasArt(enemy.id,enemy.stage))
+                        " カスタム画像から変換した素材を使用中。"
+                    else " オフラインの専用デザインを使用中。",
                     style = MaterialTheme.typography.bodySmall)
-                Text("高精細デザイン（有料API・任意）",
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    OutlinedButton(onClick = {
+                        glyphPreviewId = if (glyphPreviewId == enemy.id) null else enemy.id
+                    }) { Text("Glyph用13×13を確認") }
+                    OutlinedButton(onClick = { onSendGlyph(enemy) }) {
+                        Text("GlyphLIFEへ送る")
+                    }
+                }
+                if (glyphPreviewId == enemy.id) {
+                    MonsterPortrait(
+                        pixels = artworkStore.glyphFor(enemy),
+                        element = enemy.element, modifier = Modifier.size(164.dp)
+                    )
+                    Text("64×64の正本を13×13に変換し、実LED137点のマスクを適用。" +
+                        " GlyphLIFEで受信した後、読み込み確認が必要です。",
+                        style = MaterialTheme.typography.bodySmall)
+                }
+                Text("モンスタードット絵生成（任意の有料API）",
                     style = MaterialTheme.typography.titleMedium)
                 Text("画像生成は通常のモンスターAIと別のAPI呼び出しです。Gemini 3.1 Flash Imageは" +
                     "無料枠なし。1K画像1枚の出力料金は約$0.067＋入力料金。課金設定のあるAPIキーが必要です。" +
@@ -368,14 +432,14 @@ private fun QuestScreen(
                     Button(
                         enabled = !aiBusy && aiKey.isNotBlank(),
                         onClick = { onGenerateArt(enemy, artStyle) }
-                    ) { Text(if (aiBusy) "処理中…" else "立ち絵をAI生成") }
+                    ) { Text(if (aiBusy) "処理中…" else "64×64カラー素材をAI生成") }
                     OutlinedButton(
                         enabled = !aiBusy,
                         onClick = { onImportArt(enemy) }
                     ) { Text("持っている絵を使う") }
                 }
-                Text("外部で作ったイラストも画像選択から読み込めます。読み込みだけなら追加AI料金なし。" +
-                    "バトル用画像は端末内保存、背面Glyphの13×13とは別管理です。",
+                Text("外部画像も64×64・最大16色のPNGへ変換。生成と読込は現在の進化段階に保存され、" +
+                    "高解像度図鑑表示は256×256へ輪郭を保って拡大します。",
                     style = MaterialTheme.typography.bodySmall)
                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                     Button(onClick = { onAttack(false) }) { Text("攻撃") }
@@ -451,14 +515,17 @@ private fun QuestScreen(
         CaptureLab(
             captured = state.captures,
             inBattle = state.inBattle,
+            defeated = state.defeated,
             artworkStore = artworkStore,
             artworkRevision = artworkRevision,
+            onEvolve = onEvolve,
+            onSendGlyph = onSendGlyph,
             onFuse = onFuse
         )
         Text("状態：$status", style = MaterialTheme.typography.bodySmall)
         Text(
-            "この版はオフライン戦闘のMVPです。AIモンスターの13×13ドット絵生成は任意のGemini接続で提供しますが、" +
-                "高解像度画像の生成とオンライン対戦は未実装です。連携データに改ざん防止署名はありません。",
+            "ゲーム本編は64×64カラーPNGが正本で、13×13はGlyph送信時の派生表示です。" +
+                "AI画像生成APIの実機通信は未検証。オンライン対戦と署名付き報酬は未実装です。",
             style = MaterialTheme.typography.bodySmall
         )
     }

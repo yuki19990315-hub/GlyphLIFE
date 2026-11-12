@@ -85,7 +85,7 @@ object MonsterDesign {
         val w=64; val h=64
         val data=IntArray(w*h)
         val p=palette(wild.element)
-        val seed=(wild.species + ":" + wild.element + ":" + wild.lineage).hashCode()
+        val seed=(wild.species + ":" + wild.element + ":" + wild.lineage + ":" + wild.id).hashCode()
         val stage=stage(wild)
         val scale=if (wild.isBoss) 1.13 else if (stage==3) 1.10 else if (stage==1) 0.88 else 1.0
 
@@ -235,6 +235,28 @@ object MonsterDesign {
                 ellipse(32,37,4,2,p[4])
             }
         }
+        // Fusion visually inherits the secondary parent's silhouette accent.
+        // The primary body architecture remains fixed, so offspring are readable.
+        if(wild.lineage.isNotBlank()) {
+            when(classify(wild.motifSecondary)) {
+                MonsterBodyType.DRAGON, MonsterBodyType.AVIAN -> {
+                    line(18,30,6,10,p[0],5);line(45,30,58,10,p[0],5)
+                    line(18,30,9,13,p[4],2);line(45,30,55,13,p[4],2)
+                }
+                MonsterBodyType.MECHA, MonsterBodyType.GOLEM -> {
+                    rect(13,30,21,37,p[0]);rect(15,32,19,35,p[4])
+                    rect(44,30,51,37,p[0]);rect(46,32,49,35,p[4])
+                }
+                MonsterBodyType.AQUATIC, MonsterBodyType.SERPENT -> {
+                    line(43,39,58,46,p[0],6);line(44,39,57,45,p[4],2)
+                }
+                else -> {
+                    line(24,12,18,5,p[0],4);line(40,12,46,5,p[0],4)
+                    line(24,12,19,7,p[4],2);line(40,12,45,7,p[4],2)
+                }
+            }
+        }
+
         // Body motifs grow incrementally; facial identity and core silhouette remain.
         if(stage>=2 || wild.isBoss) {
             line(30,19,31,10,p[0],4);line(33,19,34,10,p[0],4)
