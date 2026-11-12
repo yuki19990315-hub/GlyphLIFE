@@ -210,7 +210,7 @@ fun CreatorScreen(
         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             Button(enabled = isGlyphSupported, onClick = onConnect) { Text("接続") }
             Button(enabled = isGlyphSupported && glyphStatus == "接続済み",
-                onClick = { onShowFrame(drawing) }) { Text("現在のコマを表示") }
+                onClick = { onShowFrame(animation.frames[visibleFrame.coerceIn(animation.frames.indices)]) }) { Text("現在のコマを表示") }
         }
         Row(verticalAlignment = androidx.compose.ui.Alignment.CenterVertically) {
             Text("編集・再生を背面へライブ表示")
