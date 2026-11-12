@@ -379,7 +379,7 @@ class MonsterQuestActivity : ComponentActivity() {
             ) {
                 Scaffold(topBar = {
                     Surface(tonalElevation = 2.dp) {
-                        Text("MONSTER QUEST  /  v3.1",
+                        Text("MONSTER QUEST  /  v3.2",
                             modifier = Modifier.padding(18.dp),
                             style = MaterialTheme.typography.titleMedium)
                     }
@@ -783,7 +783,7 @@ private fun QuestScreen(
                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                     OutlinedButton(onClick = {
                         glyphPreviewId = if (glyphPreviewId == enemy.id) null else enemy.id
-                    }) { Text("Glyph用13×13を確認") }
+                    }) { Text("背面Glyph用アイコンを確認") }
                     OutlinedButton(onClick = { onSendGlyph(enemy) }) {
                         Text("GlyphLIFEへ送る")
                     }
