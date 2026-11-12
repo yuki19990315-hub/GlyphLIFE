@@ -10,6 +10,7 @@ import android.net.Uri
 import dev.glyphlife.monsterquest.model.WildMonster
 import dev.glyphlife.monsterquest.pixel.GlyphProjector
 import dev.glyphlife.monsterquest.pixel.MonsterDesign
+import dev.glyphlife.monsterquest.pixel.MonsterAnimation
 import dev.glyphlife.monsterquest.pixel.PixelAssetPipeline
 import dev.glyphlife.monsterquest.pixel.PixelSprite
 import kotlinx.coroutines.Dispatchers
@@ -93,6 +94,39 @@ class MonsterArtworkStore(private val context: Context) {
             val sprite=PixelAssetPipeline.fromBitmap(original)
             saveNative(id,sprite,stage)
         } finally { original.recycle() }
+    }
+
+    /** Save four native 64x64 pose frames in a 256x64 PNG sprite sheet. */
+    suspend fun exportSpriteSheet(monster: WildMonster): Uri = withContext(Dispatchers.IO) {
+        val sprite=loadNative(monster.id,monster.stage) ?: MonsterDesign.sprite(monster)
+        val frames=MonsterAnimation.idle(sprite,monster)
+        val sheet=MonsterAnimation.sheet(frames)
+        val bitmap=PixelAssetPipeline.toBitmap(sheet)
+        val resolver=context.contentResolver
+        val values=ContentValues().apply {
+            put(MediaStore.MediaColumns.DISPLAY_NAME,
+                "monsterquest-${monster.id.take(8)}-stage${monster.stage}-idle-4frames.png")
+            put(MediaStore.MediaColumns.MIME_TYPE,"image/png")
+            put(MediaStore.MediaColumns.RELATIVE_PATH,
+                Environment.DIRECTORY_PICTURES + "/MonsterQuest")
+            put(MediaStore.MediaColumns.IS_PENDING,1)
+        }
+        try {
+            val target=resolver.insert(MediaStore.Images.Media.EXTERNAL_CONTENT_URI,values)
+                ?: error("スプライトシートの保存先を作れません")
+            try {
+                resolver.openOutputStream(target)?.use { stream ->
+                    check(bitmap.compress(Bitmap.CompressFormat.PNG,100,stream))
+                } ?: error("スプライトシートを書き込めません")
+                resolver.update(target,ContentValues().apply {
+                    put(MediaStore.MediaColumns.IS_PENDING,0)
+                },null,null)
+                target
+            } catch(e:Exception) {
+                resolver.delete(target,null,null)
+                throw e
+            }
+        } finally {bitmap.recycle()}
     }
 
     /** Export a REAL PNG containing native 64x64 or nearest-neighbour 256x256 pixels. */

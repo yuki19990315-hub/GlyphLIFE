@@ -1,4 +1,4 @@
-# GlyphLIFE v0.14 / Monster Quest v2.0
+# GlyphLIFE v0.14 / Monster Quest v2.2
 
 Two **independently installable Android apps** in one repository:
 
@@ -115,3 +115,7 @@ See [Monster design pipeline](docs/MONSTER_ARTWORK_JA.md).
 The circular 137-LED Glyph 13×13 image is **derived only when requested**, can be previewed in Monster Quest, and can be sent to GlyphLIFE. The receiving app asks before replacing an existing drawing. Three-stage evolution preserves body identity; fusion inherits main anatomy plus a second-parent ornament. Older saved JPG art is preserved and converted for presentation. No scraped franchise training data or copyrighted sprites were used. This is an experimental procedural/AI-assisted pixel pipeline, not a professional artist-reviewed asset library.
 
 See [Monster Design v2 specification](docs/MONSTER_DESIGN_V2_JA.md). Real device visual quality and the optional paid Gemini image request remain untested.
+
+## Native 64px animations (v2.2)
+
+Every monster's native color sprite generates a 4-frame idle animation and a 3-frame attack pose. The battle and collection views render the idle frames at 256x256 with nearest-neighbour interpolation. Captured or encountered monsters can export the 4-frame 256x64 PNG animation strip to `Pictures/MonsterQuest`. The visual QA GitHub Actions artifact includes a motion preview strip generated from the runtime art code, not unrelated mock-ups. This is a procedural placeholder animation; character-specific hand-animated effects remain future work.

@@ -26,6 +26,7 @@ fun CaptureLab(
     onEvolve: (String) -> Unit,
     onSendGlyph: (WildMonster) -> Unit,
     onExportPng: (WildMonster, Int) -> Unit,
+    onExportSpriteSheet: (WildMonster) -> Unit,
     onFuse: (String, String) -> Unit
 ) {
     var expanded by remember { mutableStateOf(false) }
@@ -117,6 +118,9 @@ fun CaptureLab(
                     OutlinedButton(onClick = { onExportPng(monster, 256) }) {
                         Text("256px PNG")
                     }
+                }
+                OutlinedButton(onClick = { onExportSpriteSheet(monster) }) {
+                    Text("64px・4コマのアニメ画像")
                 }
                 Text("進化後も個体IDと体型・属性は継承。" +
                     " 元の進化段階用に保存した画像は保持されます。",

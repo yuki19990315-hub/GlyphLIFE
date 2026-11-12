@@ -139,6 +139,14 @@ class MonsterQuestActivity : ComponentActivity() {
                     }
                 }
             }
+            fun exportSpriteSheet(wild: WildMonster) {
+                scope.launch {
+                    runCatching {
+                        artworkStore.exportSpriteSheet(wild)
+                        notify("${wild.species}の4コマPNGスプライトシートを写真フォルダに保存しました")
+                    }.onFailure { notify("アニメ出力失敗：${it.message}") }
+                }
+            }
             fun exportPixelPng(wild: WildMonster, size: Int) {
                 scope.launch {
                     runCatching {
@@ -182,7 +190,7 @@ class MonsterQuestActivity : ComponentActivity() {
             ) {
                 Scaffold(topBar = {
                     Surface(tonalElevation = 2.dp) {
-                        Text("MONSTER QUEST  /  v2.1",
+                        Text("MONSTER QUEST  /  v2.2",
                             modifier = Modifier.padding(18.dp),
                             style = MaterialTheme.typography.titleMedium)
                     }
@@ -203,6 +211,7 @@ class MonsterQuestActivity : ComponentActivity() {
                             }.onFailure { notify("試作召喚失敗：${it.message}") }
                         },
                         onExportPng = ::exportPixelPng,
+                        onExportSpriteSheet = ::exportSpriteSheet,
                         onEvolve = { id ->
                             runCatching {
                                 update(EvolutionRules.evolve(state,id))
@@ -294,6 +303,7 @@ private fun QuestScreen(
     onSendGlyph: (WildMonster) -> Unit,
     onOfflineSummon: (WildMonster) -> Unit,
     onExportPng: (WildMonster, Int) -> Unit,
+    onExportSpriteSheet: (WildMonster) -> Unit,
     onEvolve: (String) -> Unit,
     onGenerateArt: (WildMonster, ConceptStyle) -> Unit,
     onImportArt: (WildMonster) -> Unit,
@@ -428,6 +438,9 @@ private fun QuestScreen(
                     OutlinedButton(onClick = { onExportPng(enemy,64) }) { Text("64px PNG保存") }
                     OutlinedButton(onClick = { onExportPng(enemy,256) }) { Text("256px PNG保存") }
                 }
+                OutlinedButton(onClick = { onExportSpriteSheet(enemy) }) {
+                    Text("64px×4コマのアニメPNG保存")
+                }
                 if (glyphPreviewId == enemy.id) {
                     MonsterPortrait(
                         pixels = artworkStore.glyphFor(enemy),
@@ -555,6 +568,7 @@ private fun QuestScreen(
             onEvolve = onEvolve,
             onSendGlyph = onSendGlyph,
             onExportPng = onExportPng,
+            onExportSpriteSheet = onExportSpriteSheet,
             onFuse = onFuse
         )
         Text("状態：$status", style = MaterialTheme.typography.bodySmall)

@@ -112,6 +112,17 @@ class MonsterPixelPreviewTest {
         save(w,h,data,"02-7-elements.png")
     }
 
+    @Test fun originalIdleAndAttackFramesVisualReview() {
+        val wild=monster(MonsterBodyType.DRAGON,"火",2)
+        val master=MonsterDesign.sprite(wild)
+        val frames=MonsterAnimation.idle(master,wild)+MonsterAnimation.attack(master,wild)
+        val w=frames.size*256;val h=256;val data=IntArray(w*h)
+        frames.forEachIndexed { index,frame ->
+            drawCell(data,w,frame.sprite,index,0)
+        }
+        save(w,h,data,"04-idle-and-attack-animation.png")
+    }
+
     @Test fun threeEvolutionStagesVisualReview() {
         val w=3*256;val h=256;val data=IntArray(w*h)
         for(stage in 1..3)
