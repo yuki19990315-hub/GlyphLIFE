@@ -27,7 +27,7 @@ object EvolutionRules {
             // Fixed growth rules, never selected by AI input.
             maxHp=(old.maxHp+12*stage).coerceIn(1,180),
             attack=(old.attack+3*stage).coerceIn(1,40)
-        ).let { it.copy(pixels=GlyphProjector.project(MonsterDesign.sprite(it))) }
+        ).let { it.copy(pixels=GlyphProjector.projectFor(it, MonsterDesign.sprite(it))) }
         return state.copy(
             captures=state.captures.map { if(it.id==id) next else it },
             message="${old.species}が進化して段階${stage}になった！"
