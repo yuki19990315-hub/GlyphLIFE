@@ -30,6 +30,10 @@ fun CaptureLab(
     onEquip: (String, Map<String,String>) -> Unit,
     onAiEquip: (WildMonster) -> Unit,
     allowAiEquip: Boolean,
+    onImportLayer: (WildMonster, ArmorSlot) -> Unit,
+    onGenerateLayer: (WildMonster, ArmorSlot) -> Unit,
+    onRemoveLayer: (String, ArmorSlot) -> Unit,
+    imageBusy: Boolean,
     onSendGlyph: (WildMonster) -> Unit,
     onExportPng: (WildMonster, Int) -> Unit,
     onExportSpriteSheet: (WildMonster) -> Unit,
@@ -41,6 +45,7 @@ fun CaptureLab(
     var secondId by remember { mutableStateOf<String?>(null) }
     var confirm by remember { mutableStateOf(false) }
     var armorEditing by remember { mutableStateOf(false) }
+    var imageSlot by remember { mutableStateOf(ArmorSlot.HEAD) }
     val first = captured.firstOrNull { it.id == firstId }
     val second = captured.firstOrNull { it.id == secondId }
     val fusionPreview = remember(first, second) {
@@ -154,6 +159,47 @@ fun CaptureLab(
                     Text("AI機能は画面下方のGemini APIキーを使い、ボタンを押した場合のみ通信します。",
                         style=MaterialTheme.typography.bodySmall)
                 }
+                HorizontalDivider()
+                Text("画像パーツ工房（64×64の透過PNGレイヤー）",
+                    style = MaterialTheme.typography.titleMedium)
+                Text("AIでパーツ画像を作成するか、手持ちの画像を取り込めます。" +
+                    " 元の素体は変更しません。AI画像生成は有料APIを使用する場合があります。",
+                    style = MaterialTheme.typography.bodySmall)
+                Row(modifier=Modifier.horizontalScroll(rememberScrollState()),
+                    horizontalArrangement=Arrangement.spacedBy(6.dp)) {
+                    ArmorSlot.entries.forEach { slot ->
+                        FilterChip(
+                            selected=imageSlot==slot,
+                            onClick={imageSlot=slot},
+                            label={Text(slot.label)}
+                        )
+                    }
+                }
+                val currentLayer = monster.armorLayers[imageSlot.name]
+                Text(
+                    "${imageSlot.label}：進化${imageSlot.minStage}から表示 / " +
+                        if (currentLayer == null) "画像未登録" else "画像パーツ登録済み",
+                    style=MaterialTheme.typography.bodySmall
+                )
+                Row(horizontalArrangement=Arrangement.spacedBy(8.dp)) {
+                    OutlinedButton(
+                        enabled=!inBattle && !imageBusy,
+                        onClick={onImportLayer(monster,imageSlot)}
+                    ) { Text("画像を取り込む") }
+                    OutlinedButton(
+                        enabled=!inBattle && !imageBusy && allowAiEquip,
+                        onClick={onGenerateLayer(monster,imageSlot)}
+                    ) { Text("AIで画像生成") }
+                }
+                if(currentLayer != null) {
+                    OutlinedButton(enabled=!inBattle && !imageBusy,
+                        onClick={onRemoveLayer(monster.id,imageSlot)}) {
+                        Text("この画像パーツを外す")
+                    }
+                }
+                Text("生成・取込み後は合成結果をプレビューしてから保存します。" +
+                    " 登録した画像パーツは進化後や融合した仲間にも継承できます。",
+                    style=MaterialTheme.typography.bodySmall)
                 Text(
                     if (monster.stage >= 3) "最終進化に到達済み"
                     else "次の進化条件：この冒険で${EvolutionRules.requiredVictories(monster.stage)}体撃破（現在${defeated}体）",
@@ -191,12 +237,13 @@ fun CaptureLab(
                 Row(horizontalArrangement = Arrangement.spacedBy(16.dp)) {
                     Column {
                         Text("ゲーム：64×64")
-                        MonsterStaticSprite(target, Modifier.size(160.dp))
+                        MonsterStaticSprite(target, Modifier.size(160.dp),
+                            artworkStore, artworkRevision)
                     }
                     Column {
                         Text("Glyph：13×13")
                         MonsterPortrait(
-                            pixels = target.pixels,
+                            pixels = artworkStore.glyphFor(target),
                             element = target.element,
                             modifier = Modifier.size(120.dp)
                         )

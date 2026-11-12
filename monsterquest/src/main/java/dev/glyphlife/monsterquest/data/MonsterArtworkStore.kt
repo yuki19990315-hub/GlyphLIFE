@@ -14,6 +14,9 @@ import dev.glyphlife.monsterquest.pixel.MonsterAnimation
 import dev.glyphlife.monsterquest.pixel.PixelAssetPipeline
 import dev.glyphlife.monsterquest.pixel.PixelSprite
 import dev.glyphlife.monsterquest.pixel.MonsterArmor
+import dev.glyphlife.monsterquest.pixel.ArmorSlot
+import dev.glyphlife.monsterquest.pixel.CustomArmorLayers
+import dev.glyphlife.monsterquest.pixel.ArmorLayerImagePipeline
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import java.io.File
@@ -28,6 +31,85 @@ import java.util.UUID
  */
 class MonsterArtworkStore(private val context: Context) {
     private val folder = File(context.filesDir, "monster_art_v1")
+    private val layerFolder = File(context.filesDir, "monster_armor_layers_v1")
+
+    private fun armorLayerPath(ref: String): File {
+        val id = UUID.fromString(ref).toString()
+        return File(layerFolder, "$id.png")
+    }
+
+    /** Stable immutable source asset: remains available after a parent is fused. */
+    fun loadArmorLayer(ref: String): PixelSprite? = runCatching {
+        val file = armorLayerPath(ref)
+        if (!file.isFile || file.length() !in 100..250_000) return@runCatching null
+        val bitmap = BitmapFactory.decodeFile(file.absolutePath)
+            ?: return@runCatching null
+        try {
+            if (bitmap.width != 64 || bitmap.height != 64) return@runCatching null
+            val colors = IntArray(4096)
+            bitmap.getPixels(colors, 0, 64, 0, 0, 64, 64)
+            PixelSprite.fromArgb(64, 64, colors)
+        } finally { bitmap.recycle() }
+    }.getOrNull()
+
+    /** A newly approved armor sheet is saved under its own immutable UUID. */
+    suspend fun saveArmorLayer(sprite: PixelSprite): String = withContext(Dispatchers.IO) {
+        require(sprite.width == 64 && sprite.height == 64)
+        require(sprite.colors().size <= 16)
+        require(sprite.opaqueCount() in 8..2600)
+        check(layerFolder.isDirectory || layerFolder.mkdirs())
+        val id = UUID.randomUUID().toString()
+        val target = armorLayerPath(id)
+        val tmp = File(layerFolder, "$id.pending")
+        val bitmap = PixelAssetPipeline.toBitmap(sprite)
+        try {
+            tmp.outputStream().use { stream ->
+                check(bitmap.compress(Bitmap.CompressFormat.PNG, 100, stream))
+            }
+            require(tmp.length() in 100..250_000)
+            check(tmp.renameTo(target)) { "装甲画像の保存に失敗しました" }
+            id
+        } finally {
+            tmp.delete()
+            bitmap.recycle()
+        }
+    }
+
+    /** Converts a JPEG/PNG/WebP image to a strictly transparent 64px overlay. */
+    suspend fun prepareArmorLayer(encoded: ByteArray): PixelSprite =
+        withContext(Dispatchers.IO) {
+            require(encoded.size in 64..12_000_000) { "画像サイズが大きすぎます" }
+            val bounds = BitmapFactory.Options().apply { inJustDecodeBounds = true }
+            BitmapFactory.decodeByteArray(encoded, 0, encoded.size, bounds)
+            require(bounds.outWidth in 64..8192 && bounds.outHeight in 64..8192) {
+                "装甲画像の解像度が不正です"
+            }
+            var sample = 1
+            while (maxOf(bounds.outWidth / sample, bounds.outHeight / sample) > 1024)
+                sample *= 2
+            val opts = BitmapFactory.Options().apply { inSampleSize = sample }
+            val bitmap = BitmapFactory.decodeByteArray(encoded, 0, encoded.size, opts)
+                ?: error("装甲画像を読み込めません")
+            try { ArmorLayerImagePipeline.fromBitmap(bitmap) }
+            finally { bitmap.recycle() }
+        }
+
+    suspend fun importArmorLayer(uri: Uri): PixelSprite {
+        val bytes = withContext(Dispatchers.IO) {
+            context.contentResolver.openInputStream(uri)?.use { it.readNBytes(12_000_001) }
+                ?: error("画像を読み込めません")
+        }
+        return prepareArmorLayer(bytes)
+    }
+
+    /** Preview without saving or replacing the player's current armor. */
+    fun previewArmorLayer(monster: WildMonster, slot: ArmorSlot, layer: PixelSprite): PixelSprite {
+        val preview = if (monster.stage < slot.minStage)
+            monster.copy(stage = slot.minStage) else monster
+        val withoutSelectedLayer = preview.copy(
+            armorLayers = preview.armorLayers - slot.name)
+        return CustomArmorLayers.apply(spriteFor(withoutSelectedLayer), layer)
+    }
 
     private fun pathFor(id: String, extension: String, stage:Int=1): File {
         UUID.fromString(id)
@@ -67,8 +149,9 @@ class MonsterArtworkStore(private val context: Context) {
     /** Resolve the same layered art for UI, export, animation and Glyph. */
     fun spriteFor(monster: WildMonster): PixelSprite {
         val saved = loadNative(monster.id, monster.stage)
-        return if (saved != null) MonsterArmor.compose(saved, monster)
+        val base = if (saved != null) MonsterArmor.compose(saved, monster)
             else MonsterDesign.sprite(monster)
+        return CustomArmorLayers.compose(base, monster, ::loadArmorLayer)
     }
 
     /** Render the 64-pixel master at 256 pixels without any interpolation. */

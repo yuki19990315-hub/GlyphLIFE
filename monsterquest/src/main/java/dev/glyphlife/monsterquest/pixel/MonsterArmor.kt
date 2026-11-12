@@ -62,6 +62,32 @@ object MonsterArmor {
         )
     }
 
+    /** Validated references to immutable transparent 64px attachment files. */
+    fun validatedLayerRefs(refs: Map<String, String>): Map<String, String> {
+        require(refs.size <= MAX_PARTS) { "装備画像が多すぎます" }
+        return refs.map { (key, value) ->
+            require(ArmorSlot.entries.any { it.name == key }) { "未知の装備画像スロットです" }
+            require(runCatching { java.util.UUID.fromString(value) }.isSuccess) {
+                "装備画像の参照IDが不正です"
+            }
+            key to value
+        }.toMap()
+    }
+
+    /** Custom image layers follow the same parental slot inheritance as styles. */
+    fun inheritLayerRefs(
+        first: Map<String, String>, second: Map<String, String>
+    ): Map<String, String> {
+        val a = validatedLayerRefs(first)
+        val b = validatedLayerRefs(second)
+        return ArmorSlot.entries.mapNotNull { slot ->
+            val owner = if (slot in setOf(
+                ArmorSlot.HEAD, ArmorSlot.CORE, ArmorSlot.SHOULDER
+            )) a else b
+            owner[slot.name]?.let { slot.name to it }
+        }.toMap()
+    }
+
     /** Head/core/shoulder from first parent, tail/back/wings from second. */
     fun inherit(first: Map<String, String>, second: Map<String, String>): Map<String, String> {
         val a = validated(first)

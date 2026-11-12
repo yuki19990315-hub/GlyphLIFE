@@ -12,6 +12,7 @@ import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.unit.dp
 import dev.glyphlife.monsterquest.model.WildMonster
+import dev.glyphlife.monsterquest.data.MonsterArtworkStore
 import dev.glyphlife.monsterquest.pixel.MonsterDesign
 import dev.glyphlife.monsterquest.pixel.PixelAssetPipeline
 
@@ -20,9 +21,16 @@ import dev.glyphlife.monsterquest.pixel.PixelAssetPipeline
  * 256x256 image buffers are allocated for each candidate.
  */
 @Composable
-fun MonsterStaticSprite(monster: WildMonster, modifier: Modifier = Modifier) {
-    val sprite = remember(monster) {
-        PixelAssetPipeline.toBitmap(MonsterDesign.sprite(monster)).asImageBitmap()
+fun MonsterStaticSprite(
+    monster: WildMonster,
+    modifier: Modifier = Modifier,
+    store: MonsterArtworkStore? = null,
+    revision: Int = 0
+) {
+    val sprite = remember(monster, store, revision) {
+        PixelAssetPipeline.toBitmap(
+            store?.spriteFor(monster) ?: MonsterDesign.sprite(monster)
+        ).asImageBitmap()
     }
     Image(
         bitmap = sprite,

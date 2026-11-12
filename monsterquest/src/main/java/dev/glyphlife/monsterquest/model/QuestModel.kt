@@ -32,7 +32,9 @@ data class WildMonster(
     /** Stable rendering identity, independent of random encounter UUID. Legacy default preserves art. */
     val designSeed: String = "",
     /** Optional safe named overlays. Empty for legacy saves, preserving appearance. */
-    val armorParts: Map<String, String> = emptyMap()
+    val armorParts: Map<String, String> = emptyMap(),
+    /** Immutable 64px transparent PNG references, keyed by named attachment slot. */
+    val armorLayers: Map<String, String> = emptyMap()
 )
 
 data class QuestState(

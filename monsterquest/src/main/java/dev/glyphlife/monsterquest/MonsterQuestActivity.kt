@@ -8,6 +8,7 @@ import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.*
@@ -18,6 +19,9 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.FilterQuality
+import androidx.compose.ui.graphics.asImageBitmap
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.ui.unit.dp
 import dev.glyphlife.monsterquest.data.QuestStorage
@@ -37,8 +41,19 @@ import dev.glyphlife.monsterquest.pixel.GlyphProjector
 import dev.glyphlife.monsterquest.pixel.MonsterAnimation
 import dev.glyphlife.monsterquest.pixel.MonsterDesign
 import dev.glyphlife.monsterquest.pixel.MonsterArmor
+import dev.glyphlife.monsterquest.pixel.ArmorSlot
+import dev.glyphlife.monsterquest.pixel.PixelSprite
+import dev.glyphlife.monsterquest.pixel.PixelAssetPipeline
+import dev.glyphlife.monsterquest.ai.ArmorLayerAi
 import dev.glyphlife.monsterquest.ai.ArmorAi
 import kotlinx.coroutines.launch
+
+private data class ArmorLayerDraft(
+    val sourceMonster: WildMonster,
+    val slot: ArmorSlot,
+    val sprite: PixelSprite,
+    val source: String
+)
 
 class MonsterQuestActivity : ComponentActivity() {
     private var incoming by mutableStateOf<String?>(null)
@@ -54,6 +69,13 @@ class MonsterQuestActivity : ComponentActivity() {
             var aiKey by remember { mutableStateOf("") }
             var aiDescription by remember { mutableStateOf("") }
             var aiBusy by remember { mutableStateOf(false) }
+            var pendingTextArmor by remember {
+                mutableStateOf<Pair<WildMonster, Map<String, String>>?>(null)
+            }
+            var pendingImageArmor by remember { mutableStateOf<ArmorLayerDraft?>(null) }
+            var imageImportTarget by remember {
+                mutableStateOf<Pair<String, ArmorSlot>?>(null)
+            }
             var artworkRevision by remember { mutableIntStateOf(0) }
             var artImportId by remember { mutableStateOf<String?>(null) }
             var artImportStage by remember { mutableIntStateOf(1) }
@@ -126,6 +148,32 @@ class MonsterQuestActivity : ComponentActivity() {
                     }
                 }
             }
+            val armorImagePicker = rememberLauncherForActivityResult(
+                ActivityResultContracts.GetContent()
+            ) { uri ->
+                val target = imageImportTarget
+                imageImportTarget = null
+                if (uri != null && target != null && !aiBusy) {
+                    val original = state.captures.firstOrNull { it.id == target.first }
+                    if (original == null || state.inBattle) {
+                        notify("対象の仲間が変更されたため取込みを中止しました")
+                    } else {
+                        aiBusy = true
+                        scope.launch {
+                            try {
+                                val layer = artworkStore.importArmorLayer(uri)
+                                if (state.captures.firstOrNull { it.id == original.id } == original &&
+                                    !state.inBattle) {
+                                    pendingImageArmor = ArmorLayerDraft(
+                                        original, target.second, layer, "画像取込み")
+                                } else notify("取込み中に仲間が変更されました")
+                            } catch (e: Exception) {
+                                notify("装備画像を読み込めません：" + (e.message ?: "形式エラー"))
+                            } finally { aiBusy = false }
+                        }
+                    }
+                }
+            }
             fun generatePortrait(wild: WildMonster, style: ConceptStyle) {
                 if (aiBusy || aiKey.isBlank()) return
                 aiBusy = true
@@ -168,12 +216,47 @@ class MonsterQuestActivity : ComponentActivity() {
                 scope.launch {
                     try {
                         val parts = ArmorAi.suggest(key, wild)
-                        equipCaptured(wild.id, parts)
-                        notify("${wild.species}にAIの装備案を適用しました")
+                        if (state.captures.firstOrNull { it.id == wild.id } == wild &&
+                            !state.inBattle) {
+                            pendingTextArmor = wild to parts
+                            notify("装備案ができました。適用前に確認してください")
+                        } else notify("提案中に仲間が変更されたため破棄しました")
                     } catch(e: Exception) {
                         notify("AI装備提案に失敗：" + (e.message ?: "通信エラー"))
                     } finally { aiBusy = false }
                 }
+            }
+            fun generateImageArmor(wild: WildMonster, slot: ArmorSlot) {
+                if (aiBusy || aiKey.isBlank() || state.inBattle) return
+                aiBusy = true
+                val key = aiKey
+                scope.launch {
+                    try {
+                        val raw = ArmorLayerAi.generate(
+                            key, wild, slot, artworkStore.spriteFor(wild))
+                        val image = artworkStore.prepareArmorLayer(raw)
+                        if (state.captures.firstOrNull { it.id == wild.id } == wild &&
+                            !state.inBattle) {
+                            pendingImageArmor = ArmorLayerDraft(
+                                wild, slot, image, "AI生成")
+                            notify("AI画像を作りました。プレビューを確認してください")
+                        } else notify("生成中に仲間が変更されました")
+                    } catch(e: Exception) {
+                        notify("AIパーツ画像を生成できません：" + (e.message ?: "通信エラー"))
+                    } finally { aiBusy = false }
+                }
+            }
+            fun removeImageArmor(id: String, slot: ArmorSlot) {
+                if (state.inBattle || aiBusy) return
+                val monster = state.captures.firstOrNull { it.id == id } ?: return
+                val revised = monster.copy(
+                    armorLayers = monster.armorLayers - slot.name)
+                val withGlyph = revised.copy(pixels = artworkStore.glyphFor(revised))
+                update(state.copy(captures = state.captures.map {
+                    if(it.id == id) withGlyph else it
+                }))
+                artworkRevision++
+                notify("${slot.label}の画像レイヤーを外しました")
             }
             fun exportSpriteSheet(wild: WildMonster) {
                 scope.launch {
@@ -193,8 +276,7 @@ class MonsterQuestActivity : ComponentActivity() {
             }
             fun sendGlyphToLife(wild: WildMonster) {
                 runCatching {
-                    val master = artworkStore.loadNative(wild.id,wild.stage)
-                        ?: MonsterDesign.sprite(wild)
+                    val master = artworkStore.spriteFor(wild)
                     val glyphFrames = MonsterAnimation.idle(master,wild).map { frame ->
                         GlyphProjector.project(frame.sprite) to frame.durationMs
                     }
@@ -229,7 +311,7 @@ class MonsterQuestActivity : ComponentActivity() {
             ) {
                 Scaffold(topBar = {
                     Surface(tonalElevation = 2.dp) {
-                        Text("MONSTER QUEST  /  v2.5",
+                        Text("MONSTER QUEST  /  v2.7",
                             modifier = Modifier.padding(18.dp),
                             style = MaterialTheme.typography.titleMedium)
                     }
@@ -253,9 +335,22 @@ class MonsterQuestActivity : ComponentActivity() {
                         onExportSpriteSheet = ::exportSpriteSheet,
                         onEquip = ::equipCaptured,
                         onAiEquip = ::suggestCapturedArmor,
+                        onImportLayer = { wild, slot ->
+                            if(!state.inBattle && !aiBusy) {
+                                imageImportTarget = wild.id to slot
+                                armorImagePicker.launch("image/*")
+                            }
+                        },
+                        onGenerateLayer = ::generateImageArmor,
+                        onRemoveLayer = ::removeImageArmor,
                         onEvolve = { id ->
                             runCatching {
-                                update(EvolutionRules.evolve(state,id))
+                                val next = EvolutionRules.evolve(state,id)
+                                val repaired = next.copy(captures=next.captures.map {
+                                    if(it.id != id) it
+                                    else it.copy(pixels=artworkStore.glyphFor(it))
+                                })
+                                update(repaired)
                                 artworkRevision += 1
                                 notify("モンスターが進化しました。64×64の外見が変化します")
                             }.onFailure { notify("進化できません：${it.message}") }
@@ -288,7 +383,13 @@ class MonsterQuestActivity : ComponentActivity() {
                             if (!aiBusy) update(QuestRules.supportAttack(state))
                         },
                         onFuse = { a, b ->
-                            runCatching { update(FusionRules.fuse(state, a, b)) }
+                            runCatching {
+                                val next=FusionRules.fuse(state,a,b)
+                                val hybrid=next.captures.last()
+                                val repaired=hybrid.copy(pixels=artworkStore.glyphFor(hybrid))
+                                update(next.copy(captures=next.captures.dropLast(1)+repaired))
+                                artworkRevision++
+                            }
                                 .onFailure { notify("合成に失敗：${it.message}") }
                         },
                         onDefend = { if (!aiBusy) update(QuestRules.defend(state)) },
@@ -348,6 +449,9 @@ private fun QuestScreen(
     onEvolve: (String) -> Unit,
     onEquip: (String, Map<String,String>) -> Unit,
     onAiEquip: (WildMonster) -> Unit,
+    onImportLayer: (WildMonster, ArmorSlot) -> Unit,
+    onGenerateLayer: (WildMonster, ArmorSlot) -> Unit,
+    onRemoveLayer: (String, ArmorSlot) -> Unit,
     onGenerateArt: (WildMonster, ConceptStyle) -> Unit,
     onImportArt: (WildMonster) -> Unit,
     aiKey: String,
@@ -613,6 +717,10 @@ private fun QuestScreen(
             onEquip = onEquip,
             onAiEquip = onAiEquip,
             allowAiEquip = aiKey.isNotBlank() && !aiBusy,
+            onImportLayer = onImportLayer,
+            onGenerateLayer = onGenerateLayer,
+            onRemoveLayer = onRemoveLayer,
+            imageBusy = aiBusy,
             onSendGlyph = onSendGlyph,
             onExportPng = onExportPng,
             onExportSpriteSheet = onExportSpriteSheet,

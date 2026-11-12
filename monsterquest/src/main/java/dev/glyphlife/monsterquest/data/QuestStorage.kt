@@ -2,6 +2,9 @@ package dev.glyphlife.monsterquest.data
 
 import android.content.Context
 import dev.glyphlife.monsterquest.model.*
+import dev.glyphlife.monsterquest.pixel.ArmorSlot
+import dev.glyphlife.monsterquest.pixel.MonsterArmor
+import java.util.UUID
 import org.json.JSONArray
 import org.json.JSONObject
 
@@ -79,6 +82,12 @@ class QuestStorage(context: Context) {
         .put("lineage", w.lineage)
         .put("motifPrimary", w.motifPrimary).put("motifSecondary", w.motifSecondary)
         .put("designSeed", w.designSeed)
+        .put("armorParts", JSONObject().apply {
+            w.armorParts.forEach { (slot, style) -> put(slot, style) }
+        })
+        .put("armorLayers", JSONObject().apply {
+            w.armorLayers.forEach { (slot, ref) -> put(slot, ref) }
+        })
 
     private fun wildFromJson(o: JSONObject): WildMonster = WildMonster(
         id = o.getString("id"), species = o.getString("species"),
@@ -92,6 +101,22 @@ class QuestStorage(context: Context) {
         lineage = o.optString("lineage", "").take(130),
         motifPrimary = o.optString("motifPrimary", "").take(60),
         motifSecondary = o.optString("motifSecondary", "").take(60),
-        designSeed = o.optString("designSeed", "").take(64)
+        designSeed = o.optString("designSeed", "").take(64),
+        armorParts = run {
+            val saved = o.optJSONObject("armorParts") ?: JSONObject()
+            ArmorSlot.entries.mapNotNull { slot ->
+                val style = saved.optString(slot.name, "")
+                if (MonsterArmor.isValid(mapOf(slot.name to style)))
+                    slot.name to style else null
+            }.toMap()
+        },
+        armorLayers = run {
+            val saved = o.optJSONObject("armorLayers") ?: JSONObject()
+            ArmorSlot.entries.mapNotNull { slot ->
+                val ref = saved.optString(slot.name, "")
+                if (runCatching { UUID.fromString(ref) }.isSuccess)
+                    slot.name to ref else null
+            }.toMap()
+        }
     )
 }
