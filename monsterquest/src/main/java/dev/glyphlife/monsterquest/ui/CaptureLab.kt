@@ -30,6 +30,9 @@ fun CaptureLab(
     onEquip: (String, Map<String,String>) -> Unit,
     onAiEquip: (WildMonster) -> Unit,
     allowAiEquip: Boolean,
+    onGeneratePart: (WildMonster, ArmorSlot) -> Unit,
+    onImportPart: (WildMonster, ArmorSlot) -> Unit,
+    onRemovePart: (WildMonster, ArmorSlot) -> Unit,
     onSendGlyph: (WildMonster) -> Unit,
     onExportPng: (WildMonster, Int) -> Unit,
     onExportSpriteSheet: (WildMonster) -> Unit,
@@ -119,6 +122,29 @@ fun CaptureLab(
                         style=MaterialTheme.typography.bodySmall)
                     ArmorSlot.entries.forEach { slot ->
                         Text(slot.label + "（進化" + slot.minStage + "から）")
+                        val imported = monster.customArmorParts.containsKey(slot.name)
+                        Text(
+                            if (imported) "PNGパーツ装着済み"
+                            else "画像パーツ未装着",
+                            style = MaterialTheme.typography.bodySmall
+                        )
+                        Row(
+                            modifier = Modifier.horizontalScroll(rememberScrollState()),
+                            horizontalArrangement = Arrangement.spacedBy(6.dp)
+                        ) {
+                            OutlinedButton(enabled = !inBattle,
+                                onClick = { onImportPart(monster, slot) }) {
+                                Text("画像パーツを選ぶ")
+                            }
+                            OutlinedButton(enabled = allowAiEquip && !inBattle,
+                                onClick = { onGeneratePart(monster, slot) }) {
+                                Text("AIでパーツ画像生成")
+                            }
+                            if (imported) TextButton(enabled = !inBattle,
+                                onClick = { onRemovePart(monster, slot) }) {
+                                Text("画像パーツ解除")
+                            }
+                        }
                         Row(modifier=Modifier.horizontalScroll(rememberScrollState()),
                             horizontalArrangement=Arrangement.spacedBy(5.dp)) {
                             FilterChip(selected=monster.armorParts[slot.name]==null,
