@@ -183,4 +183,16 @@ class MonsterPixelPreviewTest {
         save(width,cell,data,"07-glyph-13x13-10-body-types.png")
     }
 
+    @Test fun featuredRaizelThreeStageVisualReview() {
+        val w=3*256;val h=256;val pixels=IntArray(w*h)
+        (1..3).forEach { stage ->
+            val monster=WildMonster(
+                id="00000000-0000-4000-8000-000000000111",
+                species="ライゼル",element="雷",maxHp=40,attack=8,stage=stage
+            )
+            drawCell(pixels,w,MonsterDesign.sprite(monster),stage-1,0)
+        }
+        save(w,h,pixels,"08-featured-raizel-3-stages.png")
+    }
+
 }

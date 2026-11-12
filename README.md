@@ -1,4 +1,4 @@
-# GlyphLIFE v0.14 / Monster Quest v2.4
+# GlyphLIFE v0.14 / Monster Quest v2.5
 
 Two **independently installable Android apps** in one repository:
 
@@ -132,3 +132,7 @@ The Monster Quest → GlyphLIFE transfer now carries **all four idle animation f
 - This is procedural pixel art, not a pretrained or newly trained Pokémon/Digimon imitation model. Character-specific illustration quality and phone display still require visual review.
 
 [Implementation and test scope](docs/MONSTER_DESIGN_V24_JA.md).
+
+## Featured original 64px creature family (v2.5 pilot)
+
+The new original electric quadruped **ライゼル** is a catchable ordinary encounter with **three visually distinct native 64×64 pixel-art evolution sprites**. The art was generated as an original concept, reviewed and converted into a small, 15-color indexed pixel pack; runtime loading is entirely offline. The 256×256 bestiary displays and 13×13 Glyph transfer derive from those 64px masters, as with other monsters. This is **one pilot family**, not an art-quality overhaul of every existing creature. [Scope and verification](docs/MONSTER_V25_FEATURED_JA.md).

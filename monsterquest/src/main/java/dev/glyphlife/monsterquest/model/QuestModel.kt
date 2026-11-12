@@ -66,7 +66,7 @@ object QuestRules {
         val walls = (0..15).filter { it !in safe && random.nextInt(100) < 28 }.toSet()
         val kinds = listOf(
             "モコ" to "草", "フレア" to "火", "アクア" to "水",
-            "ギア" to "雷", "ルーン" to "闇"
+            "ギア" to "雷", "ルーン" to "闇", "ライゼル" to "雷"
         )
         val bossRoom = state.room == ROOM_COUNT
         val bosses = listOf(

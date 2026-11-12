@@ -76,6 +76,7 @@ object MonsterDesign {
     fun classify(species: String): MonsterBodyType {
         val s = species.lowercase()
         return when {
+            s == "ライゼル" -> MonsterBodyType.BEAST
             s.contains("竜") || s.contains("ドラゴン") -> MonsterBodyType.DRAGON
             s.contains("ギア") || s.contains("機甲") || s.contains("歯車") || s.contains("ロボ") -> MonsterBodyType.MECHA
             s.contains("モコ") || s.contains("獣") || s.contains("狼") -> MonsterBodyType.BEAST
@@ -99,6 +100,7 @@ object MonsterDesign {
      * resolution with a deliberately limited (<=8) palette.
      */
     fun sprite(wild: WildMonster): PixelSprite {
+        FeaturedPixelArt.find(wild)?.let { return it }
         val w=64; val h=64
         val data=IntArray(w*h)
         val p=palette(wild.element)
