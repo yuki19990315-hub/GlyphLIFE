@@ -29,6 +29,7 @@ import dev.glyphlife.monsterquest.ai.MonsterConceptArt
 import dev.glyphlife.monsterquest.ai.ConceptStyle
 import dev.glyphlife.monsterquest.ui.MonsterArt
 import dev.glyphlife.monsterquest.ui.MonsterPortrait
+import dev.glyphlife.monsterquest.ui.MonsterBrightnessPreview
 import dev.glyphlife.monsterquest.ui.MonsterArtworkView
 import dev.glyphlife.monsterquest.ui.CaptureLab
 import dev.glyphlife.monsterquest.ui.MonsterDesignerPanel
@@ -344,11 +345,17 @@ class MonsterQuestActivity : ComponentActivity() {
             fun sendGlyphToLife(wild: WildMonster) {
                 runCatching {
                     val master = artworkStore.spriteFor(wild)
-                    val glyphFrames = MonsterAnimation.idle(master,wild)
-                        .mapIndexed { pose, frame ->
-                            artworkStore.glyphFrameFor(wild, frame.sprite, pose) to frame.durationMs
-                        }
-                    val encoded=QuestProtocol.exportGlyphAnimationFrames(wild,glyphFrames)
+                    val idleFrames = MonsterAnimation.idle(master, wild)
+                    val levels = idleFrames.mapIndexed { pose, frame ->
+                        artworkStore.glyphBrightnessFrameFor(wild, frame.sprite, pose)
+                    }
+                    val glyphFrames = idleFrames.mapIndexed { pose, frame ->
+                        dev.glyphlife.monsterquest.pixel.FullBodyGlyphProjector
+                            .asBinary(levels[pose]) to frame.durationMs
+                    }
+                    val encoded = QuestProtocol.exportGlyphAnimationFrames(
+                        wild, glyphFrames, brightnessFrames = levels
+                    )
                     val share=Intent(Intent.ACTION_SEND).apply {
                         type="application/json"
                         putExtra(Intent.EXTRA_TEXT,encoded)
@@ -379,7 +386,7 @@ class MonsterQuestActivity : ComponentActivity() {
             ) {
                 Scaffold(topBar = {
                     Surface(tonalElevation = 2.dp) {
-                        Text("MONSTER QUEST  /  v3.3",
+                        Text("MONSTER QUEST  /  v3.4",
                             modifier = Modifier.padding(18.dp),
                             style = MaterialTheme.typography.titleMedium)
                     }
@@ -796,13 +803,14 @@ private fun QuestScreen(
                     Text("64px×4コマのアニメPNG保存")
                 }
                 if (glyphPreviewId == enemy.id) {
-                    MonsterPortrait(
-                        pixels = artworkStore.glyphFor(enemy),
-                        element = enemy.element, modifier = Modifier.size(164.dp)
+                    MonsterBrightnessPreview(
+                        levels = artworkStore.glyphBrightnessFor(enemy).toList(),
+                        modifier = Modifier.size(180.dp)
                     )
-                    Text("Glyphは137点の限られた表示領域です。" +
-                        " ライゼル／ルナは全身の単純縮小でなく顔の専用アイコンを使います。" +
-                        " その他は64×64から変換。GlyphLIFEでは上書き確認が必要です。",
+                    Text("背面Glyphは64×64の全身素材から13×13へ縮小し、" +
+                        "白色LEDの光度0〜255でモノクロ階調を表現します。" +
+                        "角・脚・尾が途切れないよう表示領域内へ収めます。" +
+                        " GlyphLIFE側で読み込む際は上書き確認が必要です。",
                         style = MaterialTheme.typography.bodySmall)
                 }
                 Text("モンスタードット絵生成（任意の有料API）",
