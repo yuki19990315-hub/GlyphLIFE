@@ -480,6 +480,13 @@ object GlyphProjector {
         val y=index/13;val x=index%13
         return x in left[y]..(12-left[y])
     }
+    /** Prefer a distinct readable glyph insignia when an authored family supplies one.
+     * Other monsters keep the normal silhouette projection. This cannot be used
+     * in place of the full-resolution in-game picture.
+     */
+    fun projectFor(monster: WildMonster, sprite: PixelSprite, pose: Int = 0): String =
+        FeaturedGlyphIcon.find(monster, pose) ?: project(sprite)
+
     fun project(sprite: PixelSprite): String {
         require(sprite.width>=13 && sprite.height>=13)
         val result=CharArray(169) { '0' }
