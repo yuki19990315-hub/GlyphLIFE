@@ -422,6 +422,30 @@ object MonsterDesign {
                 rect(10,29,13,31,p[4]);rect(51,29,54,31,p[4])
             }
         }
+        // Atelier styles have one stable secondary silhouette hook outside
+        // the main body. The previous random morphology sometimes became fully
+        // hidden behind a dragon/avian wing, producing identical silhouettes.
+        // An 8-way tip position × 4-way height gives selectable outlines,
+        // while the underlying 10 species architectures stay unchanged.
+        val atelierIndex = wild.designSeed.takeIf { it.startsWith("atelier-") }
+            ?.removePrefix("atelier-")?.toIntOrNull()?.takeIf { it in 0..63 }
+        if (atelierIndex != null) {
+            val topX = 2 + atelierIndex % 8
+            val topY = 1 + (atelierIndex / 8) % 4
+            val (rootX, rootY) = when (type) {
+                MonsterBodyType.AQUATIC, MonsterBodyType.SERPENT -> 23 to 29
+                MonsterBodyType.AVIAN, MonsterBodyType.DRAGON -> 21 to 32
+                MonsterBodyType.MECHA, MonsterBodyType.GOLEM -> 22 to 26
+                else -> 20 to 28
+            }
+            // A single connected, tapered horn/antenna/fin rather than random
+            // disconnected sparkles; keep all tip differences in empty sky.
+            line(rootX, rootY, topX + 4, topY + 8, p[0], 3)
+            triangle(topX, topY, topX + 4, topY + 8,
+                topX + 6, topY + 9, p[0])
+            line(topX + 3, topY + 7, topX + 1, topY + 2, p[4], 1)
+        }
+
         // Palette clustering: varied midtones and light patches in 3px tiles,
         // rather than smooth gradients or noisy per-pixel speckles.
         for(y in 0..63)for(x in 0..63) {
