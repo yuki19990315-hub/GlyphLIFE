@@ -36,6 +36,11 @@ fun CaptureLab(
     var confirm by remember { mutableStateOf(false) }
     val first = captured.firstOrNull { it.id == firstId }
     val second = captured.firstOrNull { it.id == secondId }
+    val fusionPreview = remember(first, second) {
+        if (first != null && second != null && first.id != second.id)
+            FusionRules.preview(first, second)
+        else null
+    }
     val candidates = if (showAll) captured else captured.takeLast(12)
 
     HorizontalDivider()
@@ -126,9 +131,27 @@ fun CaptureLab(
                     " 元の進化段階用に保存した画像は保持されます。",
                     style = MaterialTheme.typography.bodySmall)
             }
-            if (first != null && second != null && first.id != second.id) {
-                Text("合成予想：${FusionRules.resultName(first, second)}　" +
-                    "属性：${FusionRules.resultElement(first, second)}")
+            fusionPreview?.let { target ->
+                Text("合成後の姿を確認", style = MaterialTheme.typography.titleMedium)
+                Text("${target.species}　属性${target.element} / 進化${target.stage}" +
+                    "　HP${target.maxHp}・攻撃${target.attack}")
+                Row(horizontalArrangement = Arrangement.spacedBy(16.dp)) {
+                    Column {
+                        Text("ゲーム：64×64")
+                        MonsterStaticSprite(target, Modifier.size(160.dp))
+                    }
+                    Column {
+                        Text("Glyph：13×13")
+                        MonsterPortrait(
+                            pixels = target.pixels,
+                            element = target.element,
+                            modifier = Modifier.size(120.dp)
+                        )
+                    }
+                }
+                Text("確定後もこの形を維持します。融合の外見はゲーム内の自動生成で、" +
+                    "親の外部AI画像を直接合成するわけではありません。",
+                    style = MaterialTheme.typography.bodySmall)
             }
             Button(
                 enabled = !inBattle && first != null && second != null &&

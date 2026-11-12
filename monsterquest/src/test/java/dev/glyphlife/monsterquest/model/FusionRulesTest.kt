@@ -1,6 +1,7 @@
 package dev.glyphlife.monsterquest.model
 
 import org.junit.Assert.*
+import dev.glyphlife.monsterquest.pixel.MonsterDesign
 import org.junit.Test
 
 class FusionRulesTest {
@@ -57,4 +58,27 @@ class FusionRulesTest {
         assertEquals(FusionRules.resultElement(a,b), FusionRules.resultElement(b,a))
         assertEquals("草", FusionRules.resultElement(c,c))
     }
+    @Test fun fusionPreviewExactlyMatchesCommittedAppearance() {
+        val preview=FusionRules.preview(a,b)
+        val completed=FusionRules.fuse(QuestState(captures=listOf(a,b)),a.id,b.id)
+        val result=completed.captures.single()
+        assertNotEquals(preview.id,result.id)
+        assertEquals(preview.designSeed,result.designSeed)
+        assertEquals(preview.pixels,result.pixels)
+        assertEquals(preview.species,result.species)
+        assertEquals(preview.element,result.element)
+        assertEquals(preview.maxHp,result.maxHp)
+        assertEquals(preview.attack,result.attack)
+        assertTrue(MonsterDesign.sprite(preview).pixels()
+            .contentEquals(MonsterDesign.sprite(result).pixels()))
+    }
+
+    @Test fun previewDoesNotConsumeParentsAndIsDeterministic() {
+        val first=FusionRules.preview(a,b)
+        assertEquals(first,FusionRules.preview(a,b))
+        assertEquals(169,first.pixels.length)
+        assertTrue(first.pixels.any { it=='1' })
+        assertNotEquals(first.designSeed,FusionRules.preview(b,a).designSeed)
+    }
+
 }

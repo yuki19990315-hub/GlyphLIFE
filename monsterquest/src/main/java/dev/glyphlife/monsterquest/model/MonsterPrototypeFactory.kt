@@ -14,10 +14,12 @@ object MonsterPrototypeFactory {
     const val PREVIEW_ID = "00000000-0000-4000-8000-000000000001"
 
     fun preview(
-        name:String, type:MonsterBodyType, element:String,stage:Int=1
+        name:String, type:MonsterBodyType, element:String,stage:Int=1,
+        variant:Int=0
     ):WildMonster {
         require(element in elements)
         require(stage in 1..3)
+        require(variant in 0..63)
         val defaultNames=mapOf(
             MonsterBodyType.BEAST to "獣", MonsterBodyType.DRAGON to "竜",
             MonsterBodyType.BIPED to "戦士", MonsterBodyType.GOLEM to "巨像",
@@ -32,7 +34,8 @@ object MonsterPrototypeFactory {
             id=PREVIEW_ID, species=clean, element=element,
             maxHp=30, attack=7, stage=stage, bodyType=type.name,
             motifPrimary=type.name.lowercase(),
-            motifSecondary="original"
+            motifSecondary="original",
+            designSeed="atelier-$variant"
         )
         return idea.copy(pixels=GlyphProjector.project(MonsterDesign.sprite(idea)))
     }

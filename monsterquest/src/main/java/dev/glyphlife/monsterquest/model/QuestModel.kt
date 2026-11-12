@@ -28,7 +28,9 @@ data class WildMonster(
     val stage: Int = 1,
     val lineage: String = "",
     val motifPrimary: String = "",
-    val motifSecondary: String = ""
+    val motifSecondary: String = "",
+    /** Stable rendering identity, independent of random encounter UUID. Legacy default preserves art. */
+    val designSeed: String = ""
 )
 
 data class QuestState(

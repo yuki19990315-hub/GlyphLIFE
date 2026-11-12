@@ -1,4 +1,4 @@
-# GlyphLIFE v0.14 / Monster Quest v2.2
+# GlyphLIFE v0.14 / Monster Quest v2.4
 
 Two **independently installable Android apps** in one repository:
 
@@ -122,3 +122,13 @@ Every monster's native color sprite generates a 4-frame idle animation and a 3-f
 
 ### Animated Glyph export
 The Monster Quest → GlyphLIFE transfer now carries **all four idle animation frames**, each independently downsampled from its 64×64 original to the 137-LED (logical 13×13) Glyph shape. The receiving GlyphLIFE application previews the action and asks permission before overwriting Creator's current animation. This is a source-preserving projection, not the master asset.
+
+## Monster Design Studio v2.4 — Choose your actual creature design
+
+- 32 procedural identity variants per anatomy/element/name, browsable in **four side-by-side native 64×64 thumbnails** per page. The selected design is shown as an animated 256×256 integer-scaled sprite and a **separate 13×13 Glyph conversion**.
+- Design identity (`designSeed`) is independent of an encounter's random UUID. **The stage-1 design you preview is now exactly the one summoned into combat and preserved across saves.** Existing saves without `designSeed` retain their legacy rendering identity.
+- The fusion laboratory now shows a **pixel-art preview of the future hybrid** and the Glyph derivation *before* consuming either parent. Confirmation and result use a stable visual seed based on the two parent IDs, so the actual result matches the preview.
+- CI generates extra real sprite contact sheets: 10 anatomy types × 4 variants, parent-A/parent-B/result fusion, and projected 13×13 glyph portraits. These are uploaded in **MonsterQuest-PixelArt-Preview** after successful tests.
+- This is procedural pixel art, not a pretrained or newly trained Pokémon/Digimon imitation model. Character-specific illustration quality and phone display still require visual review.
+
+[Implementation and test scope](docs/MONSTER_DESIGN_V24_JA.md).

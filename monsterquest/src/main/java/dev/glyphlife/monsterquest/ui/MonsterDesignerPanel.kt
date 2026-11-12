@@ -25,6 +25,8 @@ fun MonsterDesignerPanel(
     var element by remember { mutableStateOf("雷") }
     var stage by remember { mutableIntStateOf(1) }
     var name by remember { mutableStateOf("") }
+    var variantPage by remember { mutableIntStateOf(0) }
+    var selectedVariant by remember { mutableIntStateOf(0) }
 
     val labels=mapOf(
         MonsterBodyType.BEAST to "四足獣",
@@ -78,20 +80,71 @@ fun MonsterDesignerPanel(
                     label={Text("進化$candidate")})
             }
         }
-        val model=remember(name,type,element,stage) {
-            MonsterPrototypeFactory.preview(name,type,element,stage)
+        HorizontalDivider()
+        Text("外見比較（全32案・4案ずつ）",style=MaterialTheme.typography.titleMedium)
+        Text("同じ体型・属性でも角、装甲、尾、頭部の輪郭が変わります。" +
+            " 選んだ外見は実際の召喚後にも維持されます。",
+            style=MaterialTheme.typography.bodySmall)
+        Row(horizontalArrangement=Arrangement.spacedBy(8.dp)) {
+            OutlinedButton(enabled=variantPage>0,onClick={
+                variantPage--
+                selectedVariant=variantPage*4
+            }) { Text("前の4案") }
+            Text("${variantPage+1}/8",modifier=Modifier.padding(top=12.dp))
+            OutlinedButton(enabled=variantPage<7,onClick={
+                variantPage++
+                selectedVariant=variantPage*4
+            }) { Text("次の4案") }
         }
+        val candidates=remember(name,type,element,stage,variantPage) {
+            (variantPage*4 until variantPage*4+4).map { number ->
+                number to MonsterPrototypeFactory.preview(name,type,element,stage,number)
+            }
+        }
+        Row(
+            modifier=Modifier.horizontalScroll(rememberScrollState()),
+            horizontalArrangement=Arrangement.spacedBy(12.dp)
+        ) {
+            candidates.forEach { (number,candidate) ->
+                Column(verticalArrangement=Arrangement.spacedBy(3.dp)) {
+                    MonsterStaticSprite(candidate,Modifier.size(88.dp))
+                    FilterChip(
+                        selected=selectedVariant==number,
+                        onClick={selectedVariant=number},
+                        label={Text("案${number+1}")}
+                    )
+                }
+            }
+        }
+        val model=remember(name,type,element,stage,selectedVariant) {
+            MonsterPrototypeFactory.preview(name,type,element,stage,selectedVariant)
+        }
+        Text("選択中：案${selectedVariant+1} / 進化$stage / ${model.species}",
+            style=MaterialTheme.typography.titleMedium)
         MonsterArtworkView(
             monster=model,
             store=store,
             revision=revision,
             modifier=Modifier.size(256.dp)
         )
-        Text("64×64の原画をニアレスト4倍で256×256表示。画像から13×13を" +
-            "先に作って拡大する方式ではありません。",
+        Text("ゲーム画面：ネイティブ64×64を256×256に整数拡大。" +
+            " 13×13の拡大画像ではありません。",
             style=MaterialTheme.typography.bodySmall)
+        Text("Glyphに変換した結果",style=MaterialTheme.typography.titleSmall)
+        MonsterPortrait(
+            pixels=model.pixels, element=model.element,
+            modifier=Modifier.size(138.dp)
+        )
+        if(stage>1) {
+            Text("召喚は進化1から開始。実際に出現する姿は次のとおりです。",
+                style=MaterialTheme.typography.bodySmall)
+            val initial=remember(name,type,element,selectedVariant) {
+                MonsterPrototypeFactory.preview(name,type,element,1,selectedVariant)
+            }
+            MonsterStaticSprite(initial,Modifier.size(116.dp))
+        }
         Button(enabled=enabled,onClick={onSummon(model)}) {
-            Text("この体型で敵を召喚（進化1段階から）")
+            Text("案${selectedVariant+1}を召喚（進化1から）")
         }
         Text(if(enabled)"戦闘後に捕獲すると進化・融合・Glyph変換を試せます。"
              else "召喚するには通常階の探索中に戻ってください。",

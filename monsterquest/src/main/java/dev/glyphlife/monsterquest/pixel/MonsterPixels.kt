@@ -102,7 +102,8 @@ object MonsterDesign {
         val w=64; val h=64
         val data=IntArray(w*h)
         val p=palette(wild.element)
-        val seed=(wild.species + ":" + wild.element + ":" + wild.lineage + ":" + wild.id).hashCode()
+        val seed=(wild.species + ":" + wild.element + ":" + wild.lineage + ":" +
+            wild.designSeed.ifBlank { wild.id }).hashCode()
         val stage=stage(wild)
         val scale=if (wild.isBoss) 1.13 else if (stage==3) 1.10 else if (stage==1) 0.88 else 1.0
 

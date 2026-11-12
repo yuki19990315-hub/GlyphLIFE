@@ -28,6 +28,34 @@ object FusionRules {
         }
     }
 
+    /**
+     * Pure preview: same visual identity, stats, stage and Glyph output as
+     * the actual fusion. It does not consume either parent or randomize art.
+     */
+    fun preview(a: WildMonster, b: WildMonster): WildMonster {
+        require(a.id != b.id) { "異なる2匹を選んでください" }
+        require(!a.isBoss && !b.isBoss) { "ボスは合成素材にできません" }
+        val visualId = UUID.nameUUIDFromBytes(
+            ("monsterquest-fusion-v2|" + a.id + "|" + b.id).toByteArray(Charsets.UTF_8)
+        ).toString()
+        val fusion = WildMonster(
+            id = visualId,
+            species = resultName(a, b),
+            element = resultElement(a, b),
+            maxHp = (maxOf(a.maxHp, b.maxHp) + 12).coerceIn(1, 180),
+            attack = (maxOf(a.attack, b.attack) + 3).coerceIn(1, 40),
+            description = "${a.species}と${b.species}が合体して生まれた新種。",
+            isBoss = false,
+            bodyType = MonsterDesign.bodyType(a).name,
+            stage = maxOf(a.stage, b.stage).coerceIn(1, 3),
+            lineage = listOf(a.species, b.species).joinToString(" × "),
+            motifPrimary = a.motifPrimary.ifBlank { a.species },
+            motifSecondary = b.motifPrimary.ifBlank { b.species },
+            designSeed = "fusion-" + visualId
+        )
+        return fusion.copy(pixels = GlyphProjector.project(MonsterDesign.sprite(fusion)))
+    }
+
     fun fuse(state: QuestState, firstId: String, secondId: String): QuestState {
         require(!state.inBattle) { "戦闘中には合成できません" }
         require(firstId != secondId) { "異なる2匹を選んでください" }
@@ -35,27 +63,11 @@ object FusionRules {
             ?: throw IllegalArgumentException("素材Aが見つかりません")
         val b = state.captures.firstOrNull { it.id == secondId }
             ?: throw IllegalArgumentException("素材Bが見つかりません")
-        require(!a.isBoss && !b.isBoss)
-        val fused = WildMonster(
-            id = UUID.randomUUID().toString(),
-            species = resultName(a, b),
-            element = resultElement(a, b),
-            maxHp = (maxOf(a.maxHp, b.maxHp) + 12).coerceIn(1, 180),
-            attack = (maxOf(a.attack, b.attack) + 3).coerceIn(1, 40),
-            description = "${a.species}と${b.species}が合体して生まれた新種。",
-            // Generate the new Glyph derivative from its new 64x64 native design.
-            // A stored 13x13 image is never the master artwork.
-            isBoss = false,
-            bodyType = MonsterDesign.bodyType(a).name,
-            stage = maxOf(a.stage, b.stage).coerceIn(1, 3),
-            lineage = listOf(a.species, b.species).joinToString(" × "),
-            motifPrimary = a.motifPrimary.ifBlank { a.species },
-            motifSecondary = b.motifPrimary.ifBlank { b.species }
-        )
-        val derived = fused.copy(pixels = GlyphProjector.project(MonsterDesign.sprite(fused)))
+        val preview = preview(a, b)
+        val fused = preview.copy(id = UUID.randomUUID().toString())
         val remaining = state.captures.filterNot { it.id == firstId || it.id == secondId }
         return state.copy(
-            captures = remaining + derived,
+            captures = remaining + fused,
             message = "${a.species}と${b.species}を合成！ ${fused.species}が誕生した"
         )
     }

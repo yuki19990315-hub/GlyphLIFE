@@ -40,4 +40,55 @@ class MonsterPrototypeFactoryTest {
         assertEquals(6,actual.attack)
         assertEquals(GlyphProjector.project(MonsterDesign.sprite(actual)),actual.pixels)
     }
+    @Test fun chosenPreviewMatchesSummonedMonsterExactlyAtStageOne() {
+        for(type in MonsterBodyType.entries) {
+            for(variant in 0..31 step 3) {
+                val preview = MonsterPrototypeFactory.preview(
+                    "彗晶ヴァルゼン", type, "雷", 1, variant
+                )
+                val actual = MonsterPrototypeFactory.summon(preview, 3)
+                assertNotEquals(preview.id, actual.id)
+                assertEquals(preview.designSeed, actual.designSeed)
+                assertTrue(
+                    "Shape changed between preview and summon: $type / $variant",
+                    MonsterDesign.sprite(preview).pixels()
+                        .contentEquals(MonsterDesign.sprite(actual).pixels())
+                )
+                assertEquals(preview.pixels, actual.pixels)
+            }
+        }
+    }
+
+    @Test fun variantChoicesHaveDistinctOutlinesAndDeterministicPixels() {
+        for(type in MonsterBodyType.entries) {
+            val silhouettes = (0..31).map { variant ->
+                val monster = MonsterPrototypeFactory.preview("星鎧", type, "光", 1, variant)
+                val pixels = MonsterDesign.sprite(monster).pixels()
+                pixels.joinToString("") { if(it ushr 24 > 0) "1" else "0" }
+            }
+            assertTrue("$type does not vary in silhouette", silhouettes.distinct().size >= 6)
+            val sameA = MonsterPrototypeFactory.preview("星鎧", type, "光", 1, 4)
+            val sameB = MonsterPrototypeFactory.preview("星鎧", type, "光", 1, 4)
+            assertEquals(sameA, sameB)
+        }
+    }
+
+    @Test fun designIdentitySurvivesAnIdChangeButLegacyIdentityStillUsesUuid() {
+        val preview=MonsterPrototypeFactory.preview("ヴァル",MonsterBodyType.BEAST,"火",1,12)
+        val transferred=preview.copy(id="new-instance-id")
+        assertTrue(MonsterDesign.sprite(preview).pixels()
+            .contentEquals(MonsterDesign.sprite(transferred).pixels()))
+        val legacy=preview.copy(designSeed="")
+        val secondLegacy=legacy.copy(id="other-instance")
+        assertFalse(MonsterDesign.sprite(legacy).pixels()
+            .contentEquals(MonsterDesign.sprite(secondLegacy).pixels()))
+    }
+
+    @Test fun invalidVariantIsRejected() {
+        try {
+            MonsterPrototypeFactory.preview("test",MonsterBodyType.BEAST,"火",1,64)
+            fail("variant must be in 0..63")
+        } catch (_: IllegalArgumentException) {}
+    }
+
 }

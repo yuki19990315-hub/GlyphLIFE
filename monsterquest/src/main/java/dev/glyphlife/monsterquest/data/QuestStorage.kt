@@ -78,6 +78,7 @@ class QuestStorage(context: Context) {
         .put("bodyType", w.bodyType).put("stage", w.stage)
         .put("lineage", w.lineage)
         .put("motifPrimary", w.motifPrimary).put("motifSecondary", w.motifSecondary)
+        .put("designSeed", w.designSeed)
 
     private fun wildFromJson(o: JSONObject): WildMonster = WildMonster(
         id = o.getString("id"), species = o.getString("species"),
@@ -90,6 +91,7 @@ class QuestStorage(context: Context) {
         stage = o.optInt("stage", 1).coerceIn(1, 3),
         lineage = o.optString("lineage", "").take(130),
         motifPrimary = o.optString("motifPrimary", "").take(60),
-        motifSecondary = o.optString("motifSecondary", "").take(60)
+        motifSecondary = o.optString("motifSecondary", "").take(60),
+        designSeed = o.optString("designSeed", "").take(64)
     )
 }

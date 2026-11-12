@@ -1,6 +1,8 @@
 package dev.glyphlife.monsterquest.pixel
 
 import dev.glyphlife.monsterquest.model.WildMonster
+import dev.glyphlife.monsterquest.model.MonsterPrototypeFactory
+import dev.glyphlife.monsterquest.model.FusionRules
 import org.junit.Assert.*
 import org.junit.Test
 import java.io.ByteArrayOutputStream
@@ -130,4 +132,55 @@ class MonsterPixelPreviewTest {
                 stage-1,0)
         save(w,h,data,"03-three-evolution-stages.png")
     }
+    /** 10 anatomy types × 4 distinct seeds: actual rendered data, not sketches. */
+    @Test fun thirtyTwoVariationStudioVisualReview() {
+        val variants=listOf(0,7,14,21)
+        val types=MonsterBodyType.entries
+        val w=variants.size*256;val h=types.size*256;val pixels=IntArray(w*h)
+        types.forEachIndexed { row,type ->
+            variants.forEachIndexed { col,variant ->
+                val wild=MonsterPrototypeFactory.preview(
+                    "原生幻獣",type,"雷",1,variant
+                )
+                drawCell(pixels,w,MonsterDesign.sprite(wild),col,row)
+            }
+        }
+        save(w,h,pixels,"05-silhouette-10-types-4-variants.png")
+    }
+
+    /** A predictable fusion result must match the preview before capture is spent. */
+    @Test fun fusionBeforeAfterVisualReview() {
+        val first=MonsterPrototypeFactory.preview(
+            "焔牙獣",MonsterBodyType.BEAST,"火",2,4
+        ).copy(id="00000000-0000-4000-8000-000000000101")
+        val second=MonsterPrototypeFactory.preview(
+            "雷翼竜",MonsterBodyType.DRAGON,"雷",2,11
+        ).copy(id="00000000-0000-4000-8000-000000000102")
+        val result=FusionRules.preview(first,second)
+        val w=3*256;val h=256;val pixels=IntArray(w*h)
+        listOf(first,second,result).forEachIndexed { index,wild ->
+            drawCell(pixels,w,MonsterDesign.sprite(wild),index,0)
+        }
+        save(w,h,pixels,"06-fusion-parent-a-parent-b-result.png")
+    }
+
+    /** The actual 13x13 mask, intentionally kept distinct from 64px masters. */
+    @Test fun glyphConversionVisualReview() {
+        val types=MonsterBodyType.entries
+        val cell=13*14
+        val width=types.size*cell
+        val data=IntArray(width*cell) { 0xff1b2632.toInt() }
+        types.forEachIndexed { col,type ->
+            val wild=MonsterPrototypeFactory.preview("試作",type,"雷",1,8)
+            val glyph=GlyphProjector.project(MonsterDesign.sprite(wild))
+            for(y in 0..12)for(x in 0..12) {
+                if(glyph[y*13+x]=='1') {
+                    for(dy in 2 until 12)for(dx in 2 until 12)
+                        data[(y*14+dy)*width+col*cell+x*14+dx]=0xffe5f5b2.toInt()
+                }
+            }
+        }
+        save(width,cell,data,"07-glyph-13x13-10-body-types.png")
+    }
+
 }
