@@ -51,10 +51,27 @@ object MonsterDesign {
     private val light = intArrayOf(0xFF424056L.toInt(),0xFF746B8EL.toInt(),0xFFB9A8BFL.toInt(),0xFFF5D8A0L.toInt(),0xFFFFFFE6L.toInt())
     private val dark = intArrayOf(0xFF19172FL.toInt(),0xFF33284CL.toInt(),0xFF66517CL.toInt(),0xFFA173B0L.toInt(),0xFFEC9AEBL.toInt())
     private val neutral = intArrayOf(0xFF28303BL.toInt(),0xFF455567L.toInt(),0xFF70838BL.toInt(),0xFFB9C6BDL.toInt(),0xFFF6E9CFL.toInt())
-    fun palette(element: String): IntArray = when(element) {
-        "火" -> fire; "水" -> water; "草" -> grass; "雷" -> lightning
-        "光" -> light; "闇" -> dark; else -> neutral
-    }.copyOf()
+    private fun mix(a:Int,b:Int,aWeight:Int=1,bWeight:Int=1):Int {
+        val total=aWeight+bWeight
+        fun component(shift:Int) =
+            ((((a ushr shift) and 255)*aWeight +
+                ((b ushr shift) and 255)*bWeight)/total)
+        return (0xff shl 24) or (component(16) shl 16) or
+            (component(8) shl 8) or component(0)
+    }
+
+    /** Five hue anchors plus seven derived material/lighting shades = up to 12 colors. */
+    fun palette(element: String): IntArray {
+        val p=when(element) {
+            "火" -> fire; "水" -> water; "草" -> grass; "雷" -> lightning
+            "光" -> light; "闇" -> dark; else -> neutral
+        }
+        return p + intArrayOf(
+            mix(p[0],p[1]),mix(p[1],p[2]),mix(p[2],p[3]),
+            mix(p[3],p[4]),mix(p[1],p[3]),mix(p[0],p[2]),
+            mix(p[2],p[4])
+        )
+    }
 
     fun classify(species: String): MonsterBodyType {
         val s = species.lowercase()
@@ -114,6 +131,20 @@ object MonsterDesign {
                 if(e<dx){error+=dx;y+=sy}
             }
         }
+        fun triangle(ax:Int,ay:Int,bx:Int,by:Int,cx:Int,cy:Int,c:Int) {
+            fun edge(x1:Int,y1:Int,x2:Int,y2:Int,x:Int,y:Int) =
+                (x-x1)*(y2-y1)-(y-y1)*(x2-x1)
+            val xMin=max(0,min(ax,min(bx,cx)))
+            val xMax=min(63,max(ax,max(bx,cx)))
+            val yMin=max(0,min(ay,min(by,cy)))
+            val yMax=min(63,max(ay,max(by,cy)))
+            for(y in yMin..yMax)for(x in xMin..xMax) {
+                val a=edge(ax,ay,bx,by,x,y)
+                val b=edge(bx,by,cx,cy,x,y)
+                val cc=edge(cx,cy,ax,ay,x,y)
+                if((a>=0&&b>=0&&cc>=0)||(a<=0&&b<=0&&cc<=0))set(x,y,c)
+            }
+        }
         fun ovalArmor(cx:Int,cy:Int,rx:Int,ry:Int) {
             ellipse(cx,cy,rx+2,ry+2,p[0])
             ellipse(cx,cy-1,rx,ry,p[1])
@@ -139,14 +170,16 @@ object MonsterDesign {
             }
             MonsterBodyType.DRAGON -> {
                 line(43,40,57,51,p[0],8); line(43,39,55,48,p[3],4)
-                // Two broad wings with strong opposing silhouettes.
-                for (n in 0..5) {
-                    line(30,31,6+n,9+n*4,p[0],3)
-                    line(35,31,57-n,9+n*4,p[0],3)
-                    if(n<4) {
-                        line(30,31,8+n,10+n*4,p[2],1)
-                        line(35,31,55-n,10+n*4,p[3],1)
-                    }
+                // Solid membrane wings (not dotted single-pixel diagonals).
+                triangle(29,33,8,5,12,43,p[0])
+                triangle(29,31,12,13,15,38,p[1])
+                triangle(29,31,17,17,19,35,p[2])
+                triangle(35,33,56,5,52,43,p[0])
+                triangle(35,31,52,13,49,38,p[1])
+                triangle(35,31,47,17,45,35,p[2])
+                for(n in 0..3) {
+                    line(29,32,10+n*3,11+n*7,p[5],1)
+                    line(35,32,54-n*3,11+n*7,p[6],1)
                 }
                 ovalArmor(34,37,torsoRx,torsoRy)
                 ovalArmor(24,23,10,10)
@@ -183,9 +216,15 @@ object MonsterDesign {
                 line(17,19,12,7,p[3],2)
             }
             MonsterBodyType.AVIAN -> {
-                for(n in 0..8) {
-                    line(29,31,6+n/2,7+n*4,p[0],2)
-                    line(34,31,57-n/2,7+n*4,p[0],2)
+                triangle(29,33,5,8,10,48,p[0])
+                triangle(29,32,9,14,14,43,p[1])
+                triangle(29,32,13,19,17,41,p[2])
+                triangle(35,33,59,8,54,48,p[0])
+                triangle(35,32,55,14,50,43,p[1])
+                triangle(35,32,51,19,47,41,p[2])
+                for(n in 0..3){
+                    line(29,32,8+n,14+n*9,p[6],1)
+                    line(35,32,56-n,14+n*9,p[6],1)
                 }
                 ovalArmor(31,34,13,16);ovalArmor(31,19,9,10)
                 line(28,20,20,24,p[4],4);eye(33,20)
@@ -235,6 +274,46 @@ object MonsterDesign {
                 ellipse(32,37,4,2,p[4])
             }
         }
+        // Elemental shape language matters as much as palette.
+        // Draw icons on the periphery so facial anatomy stays recognizable.
+        when(wild.element) {
+            "火" -> {
+                triangle(48,41,58,17,55,41,p[3])
+                triangle(52,31,61,10,59,34,p[4])
+                line(48,41,56,27,p[7],2)
+            }
+            "水" -> {
+                triangle(45,38,58,28,56,45,p[3])
+                ellipse(54,16,3,4,p[8])
+                ellipse(58,7,2,3,p[7])
+            }
+            "草" -> {
+                triangle(15,27,7,13,22,23,p[3])
+                triangle(49,28,57,13,42,23,p[7])
+                line(15,27,9,15,p[4],1)
+            }
+            "雷" -> {
+                line(45,16,53,11,p[3],3)
+                line(53,11,48,23,p[4],3)
+                line(48,23,58,18,p[3],3)
+            }
+            "光" -> {
+                line(25,8,30,5,p[8],2)
+                line(30,5,35,5,p[8],2)
+                line(35,5,40,8,p[8],2)
+                ellipse(54,14,3,3,p[4])
+            }
+            "闇" -> {
+                triangle(13,22,8,7,22,18,p[0])
+                triangle(49,22,56,7,42,18,p[3])
+                ellipse(54,42,3,3,p[4])
+            }
+            else -> {
+                line(13,40,8,31,p[6],3)
+                line(50,40,55,31,p[6],3)
+            }
+        }
+
         // Fusion visually inherits the secondary parent's silhouette accent.
         // The primary body architecture remains fixed, so offspring are readable.
         if(wild.lineage.isNotBlank()) {
@@ -257,16 +336,43 @@ object MonsterDesign {
             }
         }
 
-        // Body motifs grow incrementally; facial identity and core silhouette remain.
+        // Stage 2: distinct crest and a bright protective shoulder crest.
         if(stage>=2 || wild.isBoss) {
-            line(30,19,31,10,p[0],4);line(33,19,34,10,p[0],4)
-            line(31,11,31,8,p[4],1);line(34,11,34,8,p[4],1)
+            line(29,18,23,5,p[0],5);line(36,18,43,5,p[0],5)
+            line(29,17,25,7,p[4],2);line(36,17,41,7,p[4],2)
+            triangle(19,31,7,21,18,40,p[0])
+            triangle(45,31,57,21,46,40,p[0])
+            line(19,31,10,24,p[8],2);line(45,31,54,24,p[8],2)
         }
+        // Stage 3: more substantial shoulders, wings and a luminous crest.
         if(stage>=3 || wild.isBoss) {
-            line(18,33,9,23,p[0],4);line(46,33,55,23,p[0],4)
-            line(18,33,9,24,p[3],2);line(46,33,55,24,p[3],2)
+            triangle(18,36,5,17,16,44,p[0])
+            triangle(46,36,59,17,48,44,p[0])
+            triangle(18,35,9,21,16,41,p[3])
+            triangle(46,35,55,21,48,41,p[3])
+            line(29,12,32,1,p[0],4);line(35,12,32,1,p[0],4)
+            line(32,2,32,9,p[4],2)
+            if(type==MonsterBodyType.MECHA || type==MonsterBodyType.GOLEM) {
+                rect(6,23,17,36,p[0]);rect(8,25,15,33,p[2])
+                rect(47,23,58,36,p[0]);rect(49,25,56,33,p[2])
+                rect(10,29,13,31,p[4]);rect(51,29,54,31,p[4])
+            }
         }
-        // Hand-placed highlights in multiple positions; max 5 base colors.
+        // Palette clustering: varied midtones and light patches in 3px tiles,
+        // rather than smooth gradients or noisy per-pixel speckles.
+        for(y in 0..63)for(x in 0..63) {
+            val i=y*64+x
+            val old=data[i]
+            val band=Math.floorMod(x/3 + y/4 + (seed and 7),13)
+            when {
+                old==p[1] && band==2 -> data[i]=p[5]
+                old==p[1] && band==3 -> data[i]=p[6]
+                old==p[2] && band in 5..6 -> data[i]=p[7]
+                old==p[2] && band==8 -> data[i]=p[10]
+                old==p[3] && band in 1..2 -> data[i]=p[8]
+                old==p[3] && band==10 -> data[i]=p[9]
+            }
+        }
         val markX=18+Math.floorMod(seed,26)
         val markY=35+Math.floorMod(seed ushr 5,10)
         for(n in 0..2) if(data.getOrElse(markY*w+markX+n){0} != 0)

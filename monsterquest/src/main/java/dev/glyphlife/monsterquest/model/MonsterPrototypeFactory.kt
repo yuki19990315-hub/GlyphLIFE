@@ -18,7 +18,16 @@ object MonsterPrototypeFactory {
     ):WildMonster {
         require(element in elements)
         require(stage in 1..3)
-        val clean=name.trim().take(16).ifBlank { "${type.name.lowercase()}試作型" }
+        val defaultNames=mapOf(
+            MonsterBodyType.BEAST to "獣", MonsterBodyType.DRAGON to "竜",
+            MonsterBodyType.BIPED to "戦士", MonsterBodyType.GOLEM to "巨像",
+            MonsterBodyType.SERPENT to "蛇", MonsterBodyType.AVIAN to "翼獣",
+            MonsterBodyType.INSECTOID to "甲虫", MonsterBodyType.AQUATIC to "海獣",
+            MonsterBodyType.MECHA to "機甲", MonsterBodyType.SPIRIT to "精霊"
+        )
+        val clean=name.trim().take(16).ifBlank {
+            (defaultNames[type] ?: "魔獣") + "試作型"
+        }
         val idea=WildMonster(
             id=PREVIEW_ID, species=clean, element=element,
             maxHp=30, attack=7, stage=stage, bodyType=type.name,
