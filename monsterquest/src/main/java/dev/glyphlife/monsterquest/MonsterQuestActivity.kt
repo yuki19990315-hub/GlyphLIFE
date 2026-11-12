@@ -880,9 +880,11 @@ private fun QuestScreen(
         )
         HorizontalDivider()
         Text("AIモンスター召喚（任意）", style = MaterialTheme.typography.titleMedium)
-        Text("Gemini APIキーを入力すると文章からモンスターを生成できます。" +
-            "写真を選ぶと、縮小したJPEG画像をGoogleに送信します。キーは保存しません。" +
-            "料金・無料枠・データの扱いはGoogleの条件に従います。",
+        Text("AIが生成するのは名前・属性・骨格などの設定情報です。" +
+            "見た目は汎用64×64ドット絵で描かれるため、AIの文章と完全には一致しません。" +
+            "固有画像を使う場合は戦闘画面から別途画像生成・取り込みが必要です。" +
+            "写真を選ぶと縮小したJPEG画像をGoogleに送信します。" +
+            "キーは保存しません。料金・無料枠・データの扱いはGoogleの条件に従います。",
             style = MaterialTheme.typography.bodySmall)
         OutlinedTextField(
             value = aiKey, onValueChange = onAiKeyChange,
@@ -902,13 +904,13 @@ private fun QuestScreen(
                     !state.inBattle && !state.completed && !state.roomCleared &&
                     state.room < QuestRules.ROOM_COUNT,
                 onClick = onAiText
-            ) { Text("AIで召喚") }
+            ) { Text("AI設定で召喚") }
             OutlinedButton(
                 enabled = !aiBusy && aiKey.isNotBlank() &&
                     !state.inBattle && !state.completed && !state.roomCleared &&
                     state.room < QuestRules.ROOM_COUNT,
                 onClick = onAiPhoto
-            ) { Text("写真からAI召喚") }
+            ) { Text("写真からAI設定") }
         }
         if (aiBusy) LinearProgressIndicator(modifier = Modifier.fillMaxWidth())
         CaptureLab(
