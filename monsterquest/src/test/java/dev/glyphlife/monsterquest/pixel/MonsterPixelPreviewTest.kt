@@ -99,6 +99,35 @@ class MonsterPixelPreviewTest {
     /** Exact game renderer output: compare the authored lightning and moonlight
      * creature families side-by-side at every evolution stage.
      */
+    /** Side-by-side real 64px full-body art and dedicated 13x13 face badge.
+     * Review the whole creature at left, the physical round-matrix icon at right.
+     */
+    @Test fun featuredFullBodyVersusGlyphBadgeVisualReview() {
+        val width=512; val height=512
+        val data=IntArray(width*height) { 0xff19222f.toInt() }
+        listOf(
+            WildMonster(id="raizel",species="ライゼル",element="雷",
+                stage=1,maxHp=40,attack=8,
+                artFamily=dev.glyphlife.monsterquest.model.MonsterArtFamilies.RAIZEL),
+            WildMonster(id="luna",species="精霊",element="光",
+                stage=1,maxHp=40,attack=8,
+                artFamily=dev.glyphlife.monsterquest.model.MonsterArtFamilies.LUNA)
+        ).forEachIndexed { row,wild ->
+            val sprite=MonsterDesign.sprite(wild)
+            drawCell(data,width,sprite,0,row)
+            val glyph=GlyphProjector.projectFor(wild,sprite)
+            for (y in 0..12)for (x in 0..12) {
+                val lit=glyph[y*13+x]=='1'
+                val color=if(lit)0xfff5da78.toInt() else 0xff293340.toInt()
+                val cellX=280+x*16; val cellY=row*256+24+y*16
+                for(dy in 0..13)for(dx in 0..13) {
+                    data[(cellY+dy)*width+cellX+dx]=color
+                }
+            }
+        }
+        save(width,height,data,"11-full-body-and-glyph-icon.png")
+    }
+
     @Test fun featuredArtFamilyVisualReview() {
         val width=3*256;val height=2*256;val data=IntArray(width*height)
         for(stage in 1..3) {
