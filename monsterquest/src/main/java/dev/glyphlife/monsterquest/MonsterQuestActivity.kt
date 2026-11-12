@@ -43,6 +43,7 @@ import dev.glyphlife.monsterquest.pixel.MonsterDesign
 import dev.glyphlife.monsterquest.pixel.MonsterArmor
 import dev.glyphlife.monsterquest.pixel.ArmorSlot
 import dev.glyphlife.monsterquest.pixel.PixelSprite
+import dev.glyphlife.monsterquest.pixel.CustomArmorLayers
 import dev.glyphlife.monsterquest.pixel.PixelAssetPipeline
 import dev.glyphlife.monsterquest.ai.ArmorLayerAi
 import dev.glyphlife.monsterquest.ai.ArmorAi
@@ -52,7 +53,9 @@ private data class ArmorLayerDraft(
     val sourceMonster: WildMonster,
     val slot: ArmorSlot,
     val sprite: PixelSprite,
-    val source: String
+    val source: String,
+    val dx: Int = 0,
+    val dy: Int = 0
 )
 
 class MonsterQuestActivity : ComponentActivity() {
@@ -418,6 +421,158 @@ class MonsterQuestActivity : ComponentActivity() {
                             }.onFailure { notify("共有できません：${it.message}") }
                         }
                     )
+                }
+                val textProposal = pendingTextArmor
+                if (textProposal != null) {
+                    val (original, plan) = textProposal
+                    val current = state.captures.firstOrNull { it.id == original.id }
+                    if (current == original && !state.inBattle) {
+                        val modified = remember(original, plan) {
+                            original.copy(armorParts = plan)
+                        }
+                        AlertDialog(
+                            onDismissRequest = { pendingTextArmor = null },
+                            title = { Text("AIアーマー案を確認") },
+                            text = {
+                                Column(verticalArrangement=Arrangement.spacedBy(6.dp)) {
+                                    Text("画像と各装備を確認してから決定してください。")
+                                    MonsterStaticSprite(modified, Modifier.size(172.dp),
+                                        artworkStore, artworkRevision)
+                                    dev.glyphlife.monsterquest.pixel.ArmorSlot.entries.forEach { slot ->
+                                        val style=plan[slot.name]
+                                        Text("${slot.label}：" + (
+                                            dev.glyphlife.monsterquest.pixel.ArmorStyle.entries
+                                                .firstOrNull { it.name==style }?.label ?: "なし"))
+                                    }
+                                }
+                            },
+                            confirmButton = {
+                                TextButton(onClick = {
+                                    if (!state.inBattle &&
+                                        state.captures.firstOrNull { it.id==original.id }==original) {
+                                        equipCaptured(original.id,plan)
+                                        notify("AIアーマー案を装着しました")
+                                    } else notify("対象の仲間が変更されたため中止しました")
+                                    pendingTextArmor = null
+                                }) { Text("装着する") }
+                            },
+                            dismissButton = {
+                                TextButton(onClick = { pendingTextArmor = null }) {
+                                    Text("キャンセル")
+                                }
+                            }
+                        )
+                    } else {
+                        LaunchedEffect(textProposal, current, state.inBattle) {
+                            pendingTextArmor = null
+                        }
+                    }
+                }
+                val imageDraft = pendingImageArmor
+                if (imageDraft != null) {
+                    val current=state.captures.firstOrNull {
+                        it.id==imageDraft.sourceMonster.id
+                    }
+                    if (current == imageDraft.sourceMonster && !state.inBattle) {
+                        val adjusted=remember(imageDraft) {
+                            CustomArmorLayers.shifted(imageDraft.sprite,
+                                imageDraft.dx,imageDraft.dy)
+                        }
+                        val merged=remember(imageDraft,artworkRevision) {
+                            artworkStore.previewArmorLayer(current,
+                                imageDraft.slot, adjusted)
+                        }
+                        val mergedBitmap=remember(merged) {
+                            PixelAssetPipeline.toBitmap(merged).asImageBitmap()
+                        }
+                        AlertDialog(
+                            onDismissRequest = { pendingImageArmor = null },
+                            title = { Text("画像パーツを装着しますか？") },
+                            text = {
+                                Column(verticalArrangement=Arrangement.spacedBy(6.dp)) {
+                                    Text("${imageDraft.source}：${current.species} / ${imageDraft.slot.label}")
+                                    Text("素体と画像レイヤーを合成したプレビュー（64×64）")
+                                    Image(
+                                        bitmap=mergedBitmap, contentDescription="合成後の64×64ドット絵",
+                                        modifier=Modifier.size(176.dp),
+                                        contentScale=ContentScale.Fit,
+                                        filterQuality=FilterQuality.None
+                                    )
+                                    if (current.stage<imageDraft.slot.minStage)
+                                        Text("このパーツは進化${imageDraft.slot.minStage}から表示します。" +
+                                            " プレビューは解放後の姿です。")
+                                    Text("パーツ位置を2pxずつ微調整できます。")
+                                    Row(horizontalArrangement=Arrangement.spacedBy(6.dp)) {
+                                        OutlinedButton(
+                                            enabled=imageDraft.dx>-12,
+                                            onClick={pendingImageArmor=imageDraft.copy(
+                                                dx=(imageDraft.dx-2).coerceAtLeast(-12))}
+                                        ) { Text("←") }
+                                        OutlinedButton(
+                                            enabled=imageDraft.dx<12,
+                                            onClick={pendingImageArmor=imageDraft.copy(
+                                                dx=(imageDraft.dx+2).coerceAtMost(12))}
+                                        ) { Text("→") }
+                                        OutlinedButton(
+                                            enabled=imageDraft.dy>-12,
+                                            onClick={pendingImageArmor=imageDraft.copy(
+                                                dy=(imageDraft.dy-2).coerceAtLeast(-12))}
+                                        ) { Text("↑") }
+                                        OutlinedButton(
+                                            enabled=imageDraft.dy<12,
+                                            onClick={pendingImageArmor=imageDraft.copy(
+                                                dy=(imageDraft.dy+2).coerceAtMost(12))}
+                                        ) { Text("↓") }
+                                    }
+                                    Text("承認するまでは現在の画像と保存データは変わりません。",
+                                        style=MaterialTheme.typography.bodySmall)
+                                }
+                            },
+                            confirmButton = {
+                                TextButton(enabled=!aiBusy,onClick={
+                                    pendingImageArmor=null
+                                    if (state.inBattle || state.captures.firstOrNull {
+                                            it.id==current.id }!=current) {
+                                        notify("仲間が変更されたため画像を保存しません")
+                                    } else {
+                                        aiBusy=true
+                                        scope.launch {
+                                            try {
+                                                val ref=artworkStore.saveArmorLayer(adjusted)
+                                                if (state.inBattle || state.captures.firstOrNull {
+                                                        it.id==current.id }!=current) {
+                                                    notify("装備中に仲間が変更されました")
+                                                } else {
+                                                    val updated=current.copy(
+                                                        armorLayers=current.armorLayers+
+                                                            (imageDraft.slot.name to ref))
+                                                    val withGlyph=updated.copy(
+                                                        pixels=artworkStore.glyphFor(updated))
+                                                    update(state.copy(captures=state.captures.map {
+                                                        if (it.id==current.id) withGlyph else it
+                                                    }))
+                                                    artworkRevision++
+                                                    notify("${imageDraft.slot.label}の画像パーツを保存しました")
+                                                }
+                                            } catch(e:Exception) {
+                                                notify("装備画像を保存できません：" +
+                                                    (e.message ?: "保存エラー"))
+                                            } finally { aiBusy=false }
+                                        }
+                                    }
+                                }) { Text("装着して保存") }
+                            },
+                            dismissButton = {
+                                TextButton(onClick={pendingImageArmor=null}) {
+                                    Text("キャンセル")
+                                }
+                            }
+                        )
+                    } else {
+                        LaunchedEffect(imageDraft,current,state.inBattle) {
+                            pendingImageArmor=null
+                        }
+                    }
                 }
             }
         }

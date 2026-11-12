@@ -46,6 +46,20 @@ object ArmorLayerImagePipeline {
 
 /** Overlay immutable 64px parts by slot, respecting evolution unlocks. */
 object CustomArmorLayers {
+    /** Adjust AI-created part alignment without modifying the original body. */
+    fun shifted(source: PixelSprite, dx: Int, dy: Int): PixelSprite {
+        require(source.width == 64 && source.height == 64)
+        require(dx in -16..16 && dy in -16..16)
+        val pixels = IntArray(64 * 64)
+        for (y in 0..63) for (x in 0..63) {
+            val targetX=x+dx
+            val targetY=y+dy
+            if (targetX in 0..63 && targetY in 0..63)
+                pixels[targetY*64+targetX]=source.pixel(x,y)
+        }
+        return PixelSprite.fromArgb(64,64,pixels)
+    }
+
     fun apply(base: PixelSprite, layer: PixelSprite): PixelSprite {
         require(base.width == 64 && base.height == 64)
         require(layer.width == 64 && layer.height == 64)
