@@ -43,6 +43,11 @@ import dev.glyphlife.monsterquest.pixel.ArmorSlot
 import dev.glyphlife.monsterquest.pixel.CustomArmorLayers
 import kotlinx.coroutines.launch
 
+private data class PendingArmorStyles(
+    val monster: WildMonster,
+    val parts: Map<String,String>
+)
+
 private data class PendingPartImage(
     val monster: WildMonster,
     val slot: ArmorSlot,
@@ -68,6 +73,9 @@ class MonsterQuestActivity : ComponentActivity() {
             var artImportStage by remember { mutableIntStateOf(1) }
             var partImportTarget by remember { mutableStateOf<Pair<WildMonster, ArmorSlot>?>(null) }
             var pendingPartImage by remember { mutableStateOf<PendingPartImage?>(null) }
+            var pendingArmorStyles by remember {
+                mutableStateOf<PendingArmorStyles?>(null)
+            }
             val scope = rememberCoroutineScope()
 
             fun update(next: QuestState) {
@@ -249,8 +257,12 @@ class MonsterQuestActivity : ComponentActivity() {
                 scope.launch {
                     try {
                         val parts = ArmorAi.suggest(key, wild)
-                        equipCaptured(wild.id, parts)
-                        notify("${wild.species}にAIの装備案を適用しました")
+                        if(!state.inBattle && state.captures.any { it == wild }) {
+                            pendingArmorStyles = PendingArmorStyles(wild, parts)
+                            notify("AI装備案を作成しました。確認後に適用できます")
+                        } else {
+                            notify("仲間の状態が変わったため装備案を破棄しました")
+                        }
                     } catch(e: Exception) {
                         notify("AI装備提案に失敗：" + (e.message ?: "通信エラー"))
                     } finally { aiBusy = false }
@@ -418,6 +430,49 @@ class MonsterQuestActivity : ComponentActivity() {
                             }.onFailure { notify("共有できません：${it.message}") }
                         }
                     )
+                }
+                val styles = pendingArmorStyles
+                if (styles != null && pendingPartImage == null) {
+                    val current = state.captures.firstOrNull { it.id == styles.monster.id }
+                    if (current == null || current != styles.monster || state.inBattle) {
+                        LaunchedEffect(styles, current, state.inBattle) {
+                            pendingArmorStyles = null
+                        }
+                    } else {
+                        val predicted = remember(styles, current) {
+                            current.copy(armorParts = MonsterArmor.validated(styles.parts))
+                        }
+                        AlertDialog(
+                            onDismissRequest = { pendingArmorStyles = null },
+                            title = { Text("AIアーマー案を確認") },
+                            text = {
+                                Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                                    Text("候補を承認するまで${current.species}の装備は変更しません")
+                                    MonsterStaticSprite(predicted, Modifier.size(192.dp),
+                                        store = artworkStore, revision = artworkRevision)
+                                    dev.glyphlife.monsterquest.pixel.ArmorSlot.entries.forEach { slot ->
+                                        val style = styles.parts[slot.name] ?: "なし"
+                                        Text("${slot.label}（進化${slot.minStage}〜）：$style")
+                                    }
+                                }
+                            },
+                            confirmButton = {
+                                TextButton(onClick = {
+                                    if(!state.inBattle &&
+                                        state.captures.firstOrNull { it.id == current.id } == current) {
+                                        equipCaptured(current.id, styles.parts)
+                                        notify("AIの装備案を適用しました")
+                                    } else notify("状態が変わったため装備を適用できません")
+                                    pendingArmorStyles = null
+                                }) { Text("装備案を適用") }
+                            },
+                            dismissButton = {
+                                TextButton(onClick = { pendingArmorStyles = null }) {
+                                    Text("キャンセル")
+                                }
+                            }
+                        )
+                    }
                 }
                 val pending = pendingPartImage
                 if (pending != null) {
