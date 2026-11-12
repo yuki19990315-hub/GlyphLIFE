@@ -15,11 +15,13 @@ object MonsterPrototypeFactory {
 
     fun preview(
         name:String, type:MonsterBodyType, element:String,stage:Int=1,
-        variant:Int=0
+        variant:Int=0,
+        armorParts: Map<String,String> = emptyMap()
     ):WildMonster {
         require(element in elements)
         require(stage in 1..3)
         require(variant in 0..63)
+        val checkedArmor = dev.glyphlife.monsterquest.pixel.MonsterArmor.validated(armorParts)
         val defaultNames=mapOf(
             MonsterBodyType.BEAST to "獣", MonsterBodyType.DRAGON to "竜",
             MonsterBodyType.BIPED to "戦士", MonsterBodyType.GOLEM to "巨像",
@@ -35,7 +37,8 @@ object MonsterPrototypeFactory {
             maxHp=30, attack=7, stage=stage, bodyType=type.name,
             motifPrimary=type.name.lowercase(),
             motifSecondary="original",
-            designSeed="atelier-$variant"
+            designSeed="atelier-$variant",
+            armorParts=checkedArmor
         )
         return idea.copy(pixels=GlyphProjector.project(MonsterDesign.sprite(idea)))
     }

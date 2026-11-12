@@ -9,6 +9,7 @@ import dev.glyphlife.monsterquest.model.WildMonster
 import dev.glyphlife.monsterquest.pixel.MonsterBodyType
 import dev.glyphlife.monsterquest.pixel.MonsterDesign
 import dev.glyphlife.monsterquest.pixel.GlyphProjector
+import dev.glyphlife.monsterquest.pixel.MonsterArmor
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import org.json.JSONArray
@@ -25,7 +26,8 @@ data class MonsterIdea(
     val pixels: String = "",
     val bodyType: String = "",
     val motifPrimary: String = "",
-    val motifSecondary: String = ""
+    val motifSecondary: String = "",
+    val armorParts: Map<String,String> = emptyMap()
 ) {
     fun asWildMonster(room: Int): WildMonster = WildMonster(
         id = UUID.randomUUID().toString(),
@@ -37,7 +39,8 @@ data class MonsterIdea(
         pixels = pixels,
         bodyType = bodyType,
         motifPrimary = motifPrimary,
-        motifSecondary = motifSecondary
+        motifSecondary = motifSecondary,
+        armorParts = armorParts
     ).let { monster ->
         monster.copy(pixels = GlyphProjector.project(MonsterDesign.sprite(monster)))
     }
@@ -65,6 +68,15 @@ object MonsterAi {
         val bodyType = j.optString("bodyType", "").trim()
         val motifPrimary = j.optString("motifPrimary", "").trim()
         val motifSecondary = j.optString("motifSecondary", "").trim()
+        val armorObject = j.optJSONObject("armorParts")
+        val armor = if (armorObject == null) emptyMap() else {
+            val result = mutableMapOf<String,String>()
+            for (key in armorObject.keys()) {
+                require(key.length <= 20) { "AIスロット名が不正です" }
+                result[key] = armorObject.getString(key)
+            }
+            MonsterArmor.validated(result)
+        }
         require(name.length in 1..16 && !name.any { java.lang.Character.isISOControl(it) })
         require(element in elements) { "未対応の属性です" }
         require(description.length in 1..160)
@@ -73,7 +85,7 @@ object MonsterAi {
         require(bodyType.isEmpty() || MonsterBodyType.entries.any { it.name == bodyType })
         require(motifPrimary.length <= 50 && motifSecondary.length <= 50)
         return MonsterIdea(name, element, description, pixels,
-            bodyType, motifPrimary, motifSecondary)
+            bodyType, motifPrimary, motifSecondary, armor)
     }
 
     fun prompt(userPrompt: String): String = """
@@ -87,13 +99,20 @@ object MonsterAi {
         Return ONLY valid JSON with this schema:
         {"name":"...", "element":"水", "description":"...",
          "bodyType":"DRAGON", "motifPrimary":"dragon skull",
-         "motifSecondary":"crystal wings"}
+         "motifSecondary":"crystal wings",
+         "armorParts":{"HEAD":"SPIKE","CORE":"CRYSTAL","TAIL":"SPIKE",
+                       "SHOULDER":"PLATE","BACK":"RUNE","WING":"CRYSTAL"}}
         - name: original Japanese name, max 16 chars.
         - element: EXACTLY one of 火, 水, 草, 雷, 光, 闇, 無.
         - description: a serious cinematic Japanese bestiary description, max 160 chars.
         - bodyType: exactly one of BEAST, DRAGON, BIPED, GOLEM, SERPENT,
           AVIAN, INSECTOID, AQUATIC, MECHA, SPIRIT.
         - motifPrimary and motifSecondary: short original anatomy/motif tags.
+        - armorParts: optional safe six-slot overlay plan. Include exactly
+          HEAD,CORE,TAIL,SHOULDER,BACK,WING if used. Each value EXACTLY one
+          of PLATE, SPIKE, CRYSTAL, RUNE. Use this to combine the fixed
+          species skeleton with original armor, horns, crystals or sigils.
+          The engine applies stage restrictions and draws all pixels locally.
         - Design MUST read at 64x64 pixel art size, with a coherent silhouette,
           contrasting outline and a restrained 12-16 color palette.
         - Do not generate the 13x13 Glyph picture. That will be derived later

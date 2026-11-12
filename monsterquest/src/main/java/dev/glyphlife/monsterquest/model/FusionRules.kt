@@ -51,7 +51,9 @@ object FusionRules {
             lineage = listOf(a.species, b.species).joinToString(" × "),
             motifPrimary = a.motifPrimary.ifBlank { a.species },
             motifSecondary = b.motifPrimary.ifBlank { b.species },
-            designSeed = "fusion-" + visualId
+            designSeed = "fusion-" + visualId,
+            armorParts = dev.glyphlife.monsterquest.pixel.MonsterArmor.inherit(
+                a.armorParts, b.armorParts)
         )
         return fusion.copy(pixels = GlyphProjector.project(MonsterDesign.sprite(fusion)))
     }

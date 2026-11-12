@@ -100,7 +100,7 @@ object MonsterDesign {
      * resolution with a deliberately limited (<=8) palette.
      */
     fun sprite(wild: WildMonster): PixelSprite {
-        FeaturedPixelArt.find(wild)?.let { return it }
+        FeaturedPixelArt.find(wild)?.let { return MonsterArmor.compose(it, wild) }
         val w=64; val h=64
         val data=IntArray(w*h)
         val p=palette(wild.element)
@@ -467,7 +467,7 @@ object MonsterDesign {
         val markY=35+Math.floorMod(seed ushr 5,10)
         for(n in 0..2) if(data.getOrElse(markY*w+markX+n){0} != 0)
             set(markX+n,markY,p[4])
-        return PixelSprite.fromArgb(w,h,data)
+        return MonsterArmor.compose(PixelSprite.fromArgb(w,h,data), wild)
     }
 }
 

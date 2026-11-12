@@ -13,6 +13,7 @@ import dev.glyphlife.monsterquest.pixel.MonsterDesign
 import dev.glyphlife.monsterquest.pixel.MonsterAnimation
 import dev.glyphlife.monsterquest.pixel.PixelAssetPipeline
 import dev.glyphlife.monsterquest.pixel.PixelSprite
+import dev.glyphlife.monsterquest.pixel.MonsterArmor
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import java.io.File
@@ -63,13 +64,20 @@ class MonsterArtworkStore(private val context: Context) {
         } finally { bitmap.recycle() }
     }.getOrNull()
 
+    /** Resolve the same layered art for UI, export, animation and Glyph. */
+    fun spriteFor(monster: WildMonster): PixelSprite {
+        val saved = loadNative(monster.id, monster.stage)
+        return if (saved != null) MonsterArmor.compose(saved, monster)
+            else MonsterDesign.sprite(monster)
+    }
+
     /** Render the 64-pixel master at 256 pixels without any interpolation. */
     fun load(id: String, stage:Int=1): Bitmap? =
         loadNative(id,stage)?.let(PixelAssetPipeline::display256)
 
     /** Portable 13×13 derivative, produced on demand; never the master. */
     fun glyphFor(monster: WildMonster): String =
-        GlyphProjector.project(loadNative(monster.id,monster.stage) ?: MonsterDesign.sprite(monster))
+        GlyphProjector.project(spriteFor(monster))
 
     suspend fun importFromUri(id: String, uri: Uri, stage:Int=1) = withContext(Dispatchers.IO) {
         val bytes=context.contentResolver.openInputStream(uri)?.use { it.readNBytes(12_000_001) }
@@ -98,7 +106,7 @@ class MonsterArtworkStore(private val context: Context) {
 
     /** Save four native 64x64 pose frames in a 256x64 PNG sprite sheet. */
     suspend fun exportSpriteSheet(monster: WildMonster): Uri = withContext(Dispatchers.IO) {
-        val sprite=loadNative(monster.id,monster.stage) ?: MonsterDesign.sprite(monster)
+        val sprite=spriteFor(monster)
         val frames=MonsterAnimation.idle(sprite,monster)
         val sheet=MonsterAnimation.sheet(frames)
         val bitmap=PixelAssetPipeline.toBitmap(sheet)
@@ -132,7 +140,7 @@ class MonsterArtworkStore(private val context: Context) {
     /** Export a REAL PNG containing native 64x64 or nearest-neighbour 256x256 pixels. */
     suspend fun exportPng(monster: WildMonster, size:Int): Uri = withContext(Dispatchers.IO) {
         require(size==64 || size==256)
-        val sprite = loadNative(monster.id,monster.stage) ?: MonsterDesign.sprite(monster)
+        val sprite = spriteFor(monster)
         val bitmap = if(size==64) PixelAssetPipeline.toBitmap(sprite)
                      else PixelAssetPipeline.display256(sprite)
         val resolver=context.contentResolver

@@ -1,4 +1,4 @@
-# GlyphLIFE v0.14 / Monster Quest v2.5
+# GlyphLIFE v0.14 / Monster Quest v2.6
 
 Two **independently installable Android apps** in one repository:
 
@@ -136,3 +136,12 @@ The Monster Quest → GlyphLIFE transfer now carries **all four idle animation f
 ## Featured original 64px creature family (v2.5 pilot)
 
 The new original electric quadruped **ライゼル** is a catchable ordinary encounter with **three visually distinct native 64×64 pixel-art evolution sprites**. The art was generated as an original concept, reviewed and converted into a small, 15-color indexed pixel pack; runtime loading is entirely offline. The Designer now has a quick entry for the fixed Raizel family and hides irrelevant random-variant choices. The 256×256 bestiary displays and 13×13 Glyph transfer derive from those 64px masters, as with other monsters. This is **one pilot family**, not an art-quality overhaul of every existing creature. [Scope and verification](docs/MONSTER_V25_FEATURED_JA.md).
+
+## Monster Quest v2.6 — Modular armor over native pixel bodies
+
+- Native 64×64 creature bodies now support an optional **6-slot armor overlay**: HEAD, CORE, TAIL (available from stage 1), SHOULDER and BACK (stage 2), and WING (stage 3).
+- Each slot is **off** or one of four original, local pixel styles: PLATE, SPIKE, CRYSTAL, RUNE. Armor is composed only with colors already used by that monster's 64px art; even the featured 15-color native pixel creature remains within its palette. No AI/network is required for manual fitting or an element-based preset.
+- The Monster Design Studio shows individual controls and **optional BYOK Gemini text-only design suggestions** to pick one of the safe styles in each fixed slot. Suggestions never generate executable code, arbitrary image coordinates or battle stats, and require an explicit user tap. Android device/API calls are not verified.
+- Selected pieces are persisted in the monster's save metadata. Evolving unlocks the reserved slots. Fusion inherits first-parent head/core/shoulder and second-parent tail/back/wing. The same layered master is used for animation, 256px view, 64/256 PNG export and downstream 13×13 Glyph projection.
+- Existing saves (with no armor parts) retain their original appearance. Saved user images receive optional overlays at render time without overwriting the original image.
+- Preview artifacts include **09-base-armor-evolution.png** and **10-armor-4-styles.png**, generated from the actual rendering code. See [technical design](docs/MONSTER_ARMOR_V26_JA.md).

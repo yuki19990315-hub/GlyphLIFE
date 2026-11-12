@@ -43,7 +43,7 @@ fun MonsterDesignerPanel(
     )
 
     HorizontalDivider()
-    Text("モンスターデザイン工房（完全無料・オフライン）",
+    Text("モンスターデザイン工房（無料・オフライン対応／AI任意）",
         style=MaterialTheme.typography.titleMedium)
     Text("体型10種類×属性7種類×進化3段階のドット絵を確認できます。" +
         " 背景を持たない64×64カラー素材をその場で生成し、AIへの送信は一切ありません。",

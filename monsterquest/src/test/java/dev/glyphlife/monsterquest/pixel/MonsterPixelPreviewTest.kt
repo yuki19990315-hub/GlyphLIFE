@@ -195,4 +195,34 @@ class MonsterPixelPreviewTest {
         save(w,h,pixels,"08-featured-raizel-3-stages.png")
     }
 
+    @Test fun modularArmorAndStageEvolutionVisualReview() {
+        val base=MonsterPrototypeFactory.preview(
+            "幻装獣",MonsterBodyType.BEAST,"雷",1,9)
+        val parts=MonsterArmor.suggestion("雷",MonsterBodyType.BEAST)
+        val sprites=listOf(
+            base,
+            base.copy(armorParts=parts),
+            base.copy(stage=2,armorParts=parts),
+            base.copy(stage=3,armorParts=parts)
+        )
+        val w=4*256;val h=256;val pixels=IntArray(w*h)
+        sprites.forEachIndexed { index,wild ->
+            drawCell(pixels,w,MonsterDesign.sprite(wild),index,0)
+        }
+        save(w,h,pixels,"09-base-armor-evolution.png")
+    }
+
+    @Test fun armorStylesComparisonVisualReview() {
+        val base=MonsterPrototypeFactory.preview(
+            "結晶獣",MonsterBodyType.DRAGON,"水",3,12)
+        val candidates=listOf(base)+ArmorStyle.entries.map { style ->
+            base.copy(armorParts=ArmorSlot.entries.associate { it.name to style.name })
+        }
+        val w=5*256;val h=256;val pixels=IntArray(w*h)
+        candidates.forEachIndexed { index,wild ->
+            drawCell(pixels,w,MonsterDesign.sprite(wild),index,0)
+        }
+        save(w,h,pixels,"10-armor-4-styles.png")
+    }
+
 }

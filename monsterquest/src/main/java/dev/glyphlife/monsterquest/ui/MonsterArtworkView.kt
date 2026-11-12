@@ -29,7 +29,7 @@ fun MonsterArtworkView(
     modifier: Modifier = Modifier
 ) {
     val frames=remember(monster,store,revision) {
-        val master=store.loadNative(monster.id,monster.stage) ?: MonsterDesign.sprite(monster)
+        val master=store.spriteFor(monster)
         MonsterAnimation.idle(master,monster).map { frame ->
             frame.durationMs to PixelAssetPipeline.display256(frame.sprite).asImageBitmap()
         }
