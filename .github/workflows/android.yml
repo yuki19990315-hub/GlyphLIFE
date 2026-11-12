@@ -48,6 +48,12 @@ jobs:
         with:
           name: MonsterQuest-debug
           path: monsterquest/build/outputs/apk/debug/*.apk
+      - uses: actions/upload-artifact@v4
+        if: success()
+        with:
+          name: MonsterQuest-PixelArt-Preview
+          path: monsterquest/build/pixel-preview/*.png
+          if-no-files-found: error
 
   glyph-sdk-compile:
     name: Compile Nothing Glyph SDK adapter (no artifact)
