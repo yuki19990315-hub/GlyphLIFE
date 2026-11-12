@@ -225,4 +225,34 @@ class MonsterPixelPreviewTest {
         save(w,h,pixels,"10-armor-4-styles.png")
     }
 
+    /** Deterministic synthetic part, not an AI result: verifies real placement pixels. */
+    @Test fun customArmorMountAdjustmentVisualReview() {
+        val base=MonsterPrototypeFactory.preview(
+            "装備位置確認",MonsterBodyType.BEAST,"雷",3,6)
+        val artId="20000000-0000-4000-8000-000000000001"
+        val item=PixelSprite.fromArgb(64,64,IntArray(4096) { index ->
+            val x=index%64
+            val y=index/64
+            if (x in 25..40 && y in 17..39 && (x+y)%5!=0) 0xfffff7bb.toInt() else 0
+        })
+        fun rendered(monster:WildMonster):PixelSprite =
+            CustomArmorLayers.compose(MonsterDesign.sprite(monster),monster) { item }
+        val candidates=listOf(
+            base,
+            base.copy(customArmorParts=mapOf("HEAD" to artId)),
+            base.copy(customArmorParts=mapOf("HEAD" to artId),
+                partPlacements=mapOf("HEAD" to ArmorPlacement(8,0,100))),
+            base.copy(customArmorParts=mapOf("HEAD" to artId),
+                partPlacements=mapOf("HEAD" to ArmorPlacement(0,7,60))),
+            base.copy(customArmorParts=mapOf("HEAD" to artId),
+                partPlacements=mapOf("HEAD" to ArmorPlacement(-5,-4,150)))
+        )
+        val width=candidates.size*256
+        val data=IntArray(width*256)
+        candidates.forEachIndexed { i,wild ->
+            drawCell(data,width,rendered(wild),i,0)
+        }
+        save(width,256,data,"11-custom-armor-placement-5-options.png")
+    }
+
 }
