@@ -84,6 +84,24 @@ class MonsterPrototypeFactoryTest {
             .contentEquals(MonsterDesign.sprite(secondLegacy).pixels()))
     }
 
+    @Test fun selectedRaizelArtFamilySurvivesSummonAndAllThreeStages() {
+        for (stage in 1..3) {
+            val candidate = MonsterPrototypeFactory.preview(
+                "ライゼル", MonsterBodyType.BEAST, "雷", stage
+            )
+            assertEquals(MonsterArtFamilies.RAIZEL, candidate.artFamily)
+            val summoned = MonsterPrototypeFactory.summon(candidate, 2)
+            assertEquals(MonsterArtFamilies.RAIZEL, summoned.artFamily)
+            val previewAtStageOne = candidate.copy(stage = 1)
+            assertTrue(MonsterDesign.sprite(previewAtStageOne).pixels()
+                .contentEquals(MonsterDesign.sprite(summoned).pixels()))
+        }
+        val different = MonsterPrototypeFactory.preview(
+            "ライゼル", MonsterBodyType.DRAGON, "雷"
+        )
+        assertEquals("", different.artFamily)
+    }
+
     @Test fun invalidVariantIsRejected() {
         try {
             MonsterPrototypeFactory.preview("test",MonsterBodyType.BEAST,"火",1,64)
