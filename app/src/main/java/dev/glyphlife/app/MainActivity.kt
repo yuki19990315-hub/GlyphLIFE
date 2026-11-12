@@ -258,7 +258,7 @@ class MainActivity : ComponentActivity() {
                 Scaffold(
                     topBar = {
                         Surface(tonalElevation = 2.dp) {
-                            Text("GLYPH LIFE  /  v0.14",
+                            Text("GLYPH LIFE  /  v0.15",
                                 modifier = Modifier.padding(20.dp),
                                 style = MaterialTheme.typography.titleMedium)
                         }
@@ -359,8 +359,11 @@ class MainActivity : ComponentActivity() {
                             onAnimationChange = ::updateAnimation,
                             onConnect = { glyph.connect { glyphStatus = it } },
                             onShowFrame = { frame ->
-                                runCatching { glyph.showFrame(frame) }
-                                    .onFailure { notify("表示に失敗：${it.message}") }
+                                runCatching {
+                                    val brightness = frame.levels
+                                    if (brightness != null) glyph.showBrightnessFrame(brightness)
+                                    else glyph.showFrame(frame.pixels)
+                                }.onFailure { notify("表示に失敗：${it.message}") }
                             },
                             onImportImage = { uri ->
                                 runCatching {
