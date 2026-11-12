@@ -6,10 +6,18 @@ import kotlin.math.max
 import kotlin.math.min
 
 /** Strict bounded pixel offsets, persisted per slot and independent of asset ID. */
-data class ArmorOffset(val dx: Int = 0, val dy: Int = 0) {
-    init { require(dx in -12..12 && dy in -12..12) }
+data class ArmorOffset(
+    val dx: Int = 0, val dy: Int = 0, val scalePercent: Int = 100
+) {
+    init {
+        require(dx in -12..12 && dy in -12..12)
+        require(scalePercent in 50..150)
+    }
     fun moved(x: Int, y: Int): ArmorOffset =
-        ArmorOffset((dx + x).coerceIn(-12, 12), (dy + y).coerceIn(-12, 12))
+        copy(dx = (dx + x).coerceIn(-12, 12),
+            dy = (dy + y).coerceIn(-12, 12))
+    fun scaled(percentDelta: Int): ArmorOffset =
+        copy(scalePercent = (scalePercent + percentDelta).coerceIn(50, 150))
 }
 
 /**
@@ -143,7 +151,8 @@ object CustomArmorLayers {
     ): PixelSprite {
         val bounds = opaqueBounds(sprite) ?: return PixelSprite.fromArgb(64, 64, IntArray(4096))
         val target = mount(slot, body)
-        val ratio = min(target.w.toFloat() / bounds.width, target.h.toFloat() / bounds.height)
+        val fit = min(target.w.toFloat() / bounds.width, target.h.toFloat() / bounds.height)
+        val ratio = fit * offset.scalePercent / 100f
         val w = max(1, (bounds.width * ratio).toInt())
         val h = max(1, (bounds.height * ratio).toInt())
         val left = target.centerX + offset.dx - w / 2

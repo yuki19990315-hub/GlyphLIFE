@@ -146,4 +146,31 @@ class CustomArmorLayersTest {
         )
     }
 
+    @Test fun scalableImageLayerUsesNonDestructiveSizeMetadata() {
+        val asset=sampleLayer()
+        val monster=monster(stage=3).copy(customArmorParts=mapOf("HEAD" to idA))
+        fun frame(item:WildMonster):PixelSprite =
+            CustomArmorLayers.compose(MonsterDesign.sprite(item),item) { asset }
+        val normal=frame(monster)
+        val small=frame(monster.copy(customArmorOffsets=
+            mapOf("HEAD" to ArmorOffset(0,0,50))))
+        val large=frame(monster.copy(customArmorOffsets=
+            mapOf("HEAD" to ArmorOffset(0,0,150))))
+        assertFalse(normal.pixels().contentEquals(small.pixels()))
+        assertFalse(normal.pixels().contentEquals(large.pixels()))
+        assertTrue(small.colors().size<=16)
+        assertTrue(large.colors().size<=16)
+        assertEquals(0,asset.pixel(0,0))
+        assertEquals(120,ArmorOffset(2,-1,110).scaled(10).scalePercent)
+        assertEquals(110,ArmorOffset(2,-1,110).moved(1,1).scalePercent)
+        assertEquals(50,ArmorOffset(0,0,50).scaled(-10).scalePercent)
+        assertEquals(150,ArmorOffset(0,0,150).scaled(10).scalePercent)
+        try { ArmorOffset(0,0,151);fail("Bad scale accepted") }
+        catch (_:IllegalArgumentException) {}
+        val transferred=monster.copy(customArmorOffsets=mapOf("HEAD" to ArmorOffset(1,2,140)))
+        val secondary=monster.copy(id="00000000-0000-4000-8000-000000000612")
+        assertEquals(140,FusionRules.preview(transferred,secondary)
+            .customArmorOffsets["HEAD"]?.scalePercent)
+    }
+
 }

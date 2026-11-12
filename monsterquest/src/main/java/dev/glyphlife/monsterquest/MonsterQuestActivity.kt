@@ -238,6 +238,23 @@ class MonsterQuestActivity : ComponentActivity() {
                 artworkRevision++
             }
 
+            fun scaleCustomPart(
+                wild: WildMonster, slot: ArmorSlot, delta: Int
+            ) {
+                if (state.inBattle || aiBusy) return
+                val current=state.captures.firstOrNull { it.id==wild.id } ?: return
+                if (current != wild || slot.name !in current.customArmorParts) return
+                val old=current.customArmorOffsets[slot.name] ?: ArmorOffset()
+                val updated=current.copy(
+                    customArmorOffsets=current.customArmorOffsets +
+                        (slot.name to old.scaled(delta))
+                ).let { it.copy(pixels=artworkStore.glyphFor(it)) }
+                update(state.copy(captures=state.captures.map {
+                    if(it.id==current.id) updated else it
+                }))
+                artworkRevision++
+            }
+
             fun generatePortrait(wild: WildMonster, style: ConceptStyle) {
                 if (aiBusy || aiKey.isBlank()) return
                 aiBusy = true
@@ -344,7 +361,7 @@ class MonsterQuestActivity : ComponentActivity() {
             ) {
                 Scaffold(topBar = {
                     Surface(tonalElevation = 2.dp) {
-                        Text("MONSTER QUEST  /  v2.8",
+                        Text("MONSTER QUEST  /  v2.8.2",
                             modifier = Modifier.padding(18.dp),
                             style = MaterialTheme.typography.titleMedium)
                     }
@@ -377,6 +394,7 @@ class MonsterQuestActivity : ComponentActivity() {
                         },
                         onRemovePart = ::removeCustomPart,
                         onMovePart = ::moveCustomPart,
+                        onScalePart = ::scaleCustomPart,
                         onEvolve = { id ->
                             runCatching {
                                 val evolved = EvolutionRules.evolve(state,id)
@@ -609,6 +627,7 @@ private fun QuestScreen(
     onImportPart: (WildMonster, ArmorSlot) -> Unit,
     onRemovePart: (WildMonster, ArmorSlot) -> Unit,
     onMovePart: (WildMonster, ArmorSlot, Int, Int) -> Unit,
+    onScalePart: (WildMonster, ArmorSlot, Int) -> Unit,
     onGenerateArt: (WildMonster, ConceptStyle) -> Unit,
     onImportArt: (WildMonster) -> Unit,
     aiKey: String,
@@ -878,6 +897,7 @@ private fun QuestScreen(
             onImportPart = onImportPart,
             onRemovePart = onRemovePart,
             onMovePart = onMovePart,
+            onScalePart = onScalePart,
             onSendGlyph = onSendGlyph,
             onExportPng = onExportPng,
             onExportSpriteSheet = onExportSpriteSheet,

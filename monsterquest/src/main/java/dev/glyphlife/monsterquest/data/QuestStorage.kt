@@ -83,7 +83,9 @@ class QuestStorage(context: Context) {
         .put("customArmorParts", JSONObject(w.customArmorParts))
         .put("customArmorOffsets", JSONObject().apply {
             w.customArmorOffsets.forEach { (slot, offset) ->
-                put(slot, JSONObject().put("dx", offset.dx).put("dy", offset.dy))
+                put(slot, JSONObject()
+                    .put("dx", offset.dx).put("dy", offset.dy)
+                    .put("scale", offset.scalePercent))
             }
         })
 
@@ -135,7 +137,7 @@ class QuestStorage(context: Context) {
             val pos = value.optJSONObject(slot.name) ?: return@mapNotNull null
             val offset = runCatching {
                 dev.glyphlife.monsterquest.pixel.ArmorOffset(
-                    pos.getInt("dx"), pos.getInt("dy"))
+                    pos.getInt("dx"), pos.getInt("dy"), pos.optInt("scale", 100))
             }.getOrNull() ?: return@mapNotNull null
             slot.name to offset
         }.toMap()

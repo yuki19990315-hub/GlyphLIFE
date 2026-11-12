@@ -247,4 +247,30 @@ class MonsterPixelPreviewTest {
         save(w,h,pixels,"10-armor-4-styles.png")
     }
 
+    @Test fun imagePartScaleFiveWayVisualReview() {
+        val base=MonsterPrototypeFactory.preview(
+            "装備サイズ比較",MonsterBodyType.BEAST,"雷",3,4)
+        val id="20000000-0000-4000-8000-000000000001"
+        val module=PixelSprite.fromArgb(64,64,IntArray(4096) { n ->
+            if (n%64 in 23..42 && n/64 in 13..37) 0xffedcf8a.toInt() else 0
+        })
+        val variants=listOf(
+            base,
+            base.copy(customArmorParts=mapOf("HEAD" to id)),
+            base.copy(customArmorParts=mapOf("HEAD" to id),
+                customArmorOffsets=mapOf("HEAD" to ArmorOffset(0,0,50))),
+            base.copy(customArmorParts=mapOf("HEAD" to id),
+                customArmorOffsets=mapOf("HEAD" to ArmorOffset(0,0,150))),
+            base.copy(customArmorParts=mapOf("HEAD" to id),
+                customArmorOffsets=mapOf("HEAD" to ArmorOffset(6,-5,120)))
+        )
+        val width=variants.size*256
+        val pixels=IntArray(width*256)
+        variants.forEachIndexed { col,wild ->
+            val sprite=CustomArmorLayers.compose(MonsterDesign.sprite(wild),wild) { module }
+            drawCell(pixels,width,sprite,col,0)
+        }
+        save(width,256,pixels,"12-custom-armor-scale-comparison.png")
+    }
+
 }

@@ -1,4 +1,4 @@
-# GlyphLIFE v0.14 / Monster Quest v2.8.1
+# GlyphLIFE v0.14 / Monster Quest v2.8.2.1
 
 Two **independently installable Android apps** in one repository:
 
@@ -164,3 +164,7 @@ See [v2.8 source and verification guide](docs/MONSTER_V28_REFERENCE_ARMOR_JA.md)
 ## Monster Quest v2.8.1: persistent positioning of imported armor parts
 
 Every imported or AI-generated armor component can be nudged in 2px increments (native 64px coordinate system) up to ±12px independently per slot. The player's monster stores these offsets as JSON metadata; the original PNG is immutable. Evolution retains offsets and fusion inherits offsets from the same parent as each inherited attachment. Preview of not-yet-unlocked slots now depicts the actual unlocked evolution stage, without evolving the monster. Fusion preview uses the artwork store to render imported armor rather than ignoring custom layers. A CI PNG contact sheet compares armor positioned left/center/right. Android build and local unit tests do **not** constitute device or live Gemini generation tests.
+
+## Image armor scaling (v2.8.2)
+
+Custom AI-generated/imported PNG attachments can be resized **50–150%** in 10% increments as well as repositioned with the existing X/Y controls. The 64×64 original part asset is never rewritten. The size is stored with the already supported `customArmorOffsets` per-slot placement metadata, defaulting to **100%** for older save files, and is inherited with the part when two monsters fuse. Battle art, idle animation, PNG exports and Glyph projection use the same post-composited pixels. GitHub Actions produces a deterministic five-way comparison PNG; no real Gemini billing/API call or on-device visual test is implied.

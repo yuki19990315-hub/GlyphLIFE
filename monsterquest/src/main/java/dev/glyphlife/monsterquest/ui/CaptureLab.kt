@@ -35,6 +35,7 @@ fun CaptureLab(
     onImportPart: (WildMonster, ArmorSlot) -> Unit,
     onRemovePart: (WildMonster, ArmorSlot) -> Unit,
     onMovePart: (WildMonster, ArmorSlot, Int, Int) -> Unit,
+    onScalePart: (WildMonster, ArmorSlot, Int) -> Unit,
     onSendGlyph: (WildMonster) -> Unit,
     onExportPng: (WildMonster, Int) -> Unit,
     onExportSpriteSheet: (WildMonster) -> Unit,
@@ -169,6 +170,21 @@ fun CaptureLab(
                                     onClick={onMovePart(monster,slot,0,2)}) {
                                     Text("下 ↓")
                                 }
+                            }
+                            Text("画像の大きさ：${pos.scalePercent}%",
+                                style=MaterialTheme.typography.bodySmall)
+                            Row(
+                                modifier=Modifier.horizontalScroll(rememberScrollState()),
+                                horizontalArrangement=Arrangement.spacedBy(6.dp)
+                            ) {
+                                OutlinedButton(
+                                    enabled=!inBattle && pos.scalePercent>50,
+                                    onClick={onScalePart(monster,slot,-10)}
+                                ) { Text("小さく −10%") }
+                                OutlinedButton(
+                                    enabled=!inBattle && pos.scalePercent<150,
+                                    onClick={onScalePart(monster,slot,10)}
+                                ) { Text("大きく +10%") }
                             }
                         }
                         Row(modifier=Modifier.horizontalScroll(rememberScrollState()),
