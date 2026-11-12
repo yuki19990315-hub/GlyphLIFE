@@ -19,7 +19,7 @@ class ArmorAssetCatalogTest {
             ArmorAssetFile("$a.PNG", 200, 100),
             ArmorAssetFile("$a.png", 5, 100),
             ArmorAssetFile("$a.png", 3_500_001, 100),
-            asset(a.uppercase(), 90)
+            ArmorAssetFile("ABCDEF00-0000-4000-8000-000000000003.png", 234, 90)
         )
         assertEquals(listOf(b, a), ArmorAssetCatalog.ids(files))
     }
