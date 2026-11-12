@@ -26,15 +26,27 @@ object QuestProtocol {
         return Companion(id, name, species, element, level, pixels, true)
     }
 
-    /** Glyph artwork protocol intentionally has no high-res pixels. */
-    fun exportGlyphAnimation(wild: WildMonster, pixels13: String): String {
-        require(pixels13.length == 169 && pixels13.all { it == '0' || it == '1' })
-        require(pixels13.withIndex().all { (i, bit) ->
-            bit != '1' || GlyphProjector.isPhysical(i)
-        }) { "Glyph実LEDの範囲外に画素があります" }
-        val frames = org.json.JSONArray().put(
-            JSONObject().put("pixels", pixels13).put("durationMs", 350)
-        )
+    /** Backwards-compatible static frame export. */
+    fun exportGlyphAnimation(wild: WildMonster, pixels13: String): String =
+        exportGlyphAnimationFrames(wild, listOf(pixels13 to 350))
+
+    /**
+     * Derivative animation format shared with GlyphLIFE Creator.
+     * Each 64px source frame must be projected independently before calling.
+     */
+    fun exportGlyphAnimationFrames(
+        wild: WildMonster, sourceFrames: List<Pair<String, Int>>
+    ): String {
+        require(sourceFrames.size in 1..64)
+        val frames = org.json.JSONArray()
+        sourceFrames.forEach { (pixels13, durationMs) ->
+            require(pixels13.length == 169 && pixels13.all { it == '0' || it == '1' })
+            require(pixels13.withIndex().all { (i, bit) ->
+                bit != '1' || GlyphProjector.isPhysical(i)
+            }) { "Glyph実LEDの範囲外に画素があります" }
+            require(durationMs in 100..2000) { "コマの再生時間が範囲外です" }
+            frames.put(JSONObject().put("pixels", pixels13).put("durationMs", durationMs))
+        }
         return JSONObject()
             .put("schemaVersion", 1)
             .put("type", "glyph-life-animation")

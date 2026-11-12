@@ -119,3 +119,6 @@ See [Monster Design v2 specification](docs/MONSTER_DESIGN_V2_JA.md). Real device
 ## Native 64px animations (v2.2)
 
 Every monster's native color sprite generates a 4-frame idle animation and a 3-frame attack pose. The battle and collection views render the idle frames at 256x256 with nearest-neighbour interpolation. Captured or encountered monsters can export the 4-frame 256x64 PNG animation strip to `Pictures/MonsterQuest`. The visual QA GitHub Actions artifact includes a motion preview strip generated from the runtime art code, not unrelated mock-ups. This is a procedural placeholder animation; character-specific hand-animated effects remain future work.
+
+### Animated Glyph export
+The Monster Quest → GlyphLIFE transfer now carries **all four idle animation frames**, each independently downsampled from its 64×64 original to the 137-LED (logical 13×13) Glyph shape. The receiving GlyphLIFE application previews the action and asks permission before overwriting Creator's current animation. This is a source-preserving projection, not the master asset.

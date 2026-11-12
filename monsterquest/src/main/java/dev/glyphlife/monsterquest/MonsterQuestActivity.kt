@@ -33,6 +33,7 @@ import dev.glyphlife.monsterquest.ui.MonsterArtworkView
 import dev.glyphlife.monsterquest.ui.CaptureLab
 import dev.glyphlife.monsterquest.ui.MonsterDesignerPanel
 import dev.glyphlife.monsterquest.pixel.GlyphProjector
+import dev.glyphlife.monsterquest.pixel.MonsterAnimation
 import dev.glyphlife.monsterquest.pixel.MonsterDesign
 import kotlinx.coroutines.launch
 
@@ -157,9 +158,12 @@ class MonsterQuestActivity : ComponentActivity() {
             }
             fun sendGlyphToLife(wild: WildMonster) {
                 runCatching {
-                    val encoded=QuestProtocol.exportGlyphAnimation(
-                        wild, artworkStore.glyphFor(wild)
-                    )
+                    val master = artworkStore.loadNative(wild.id,wild.stage)
+                        ?: MonsterDesign.sprite(wild)
+                    val glyphFrames = MonsterAnimation.idle(master,wild).map { frame ->
+                        GlyphProjector.project(frame.sprite) to frame.durationMs
+                    }
+                    val encoded=QuestProtocol.exportGlyphAnimationFrames(wild,glyphFrames)
                     val share=Intent(Intent.ACTION_SEND).apply {
                         type="application/json"
                         putExtra(Intent.EXTRA_TEXT,encoded)
@@ -446,8 +450,8 @@ private fun QuestScreen(
                         pixels = artworkStore.glyphFor(enemy),
                         element = enemy.element, modifier = Modifier.size(164.dp)
                     )
-                    Text("64×64の正本を13×13に変換し、実LED137点のマスクを適用。" +
-                        " GlyphLIFEで受信した後、読み込み確認が必要です。",
+                    Text("64×64の待機4コマをそれぞれ13×13へ変換し、実LED137点のマスクを適用。" +
+                        " GlyphLIFEではアニメ4コマの上書き確認が必要です。",
                         style = MaterialTheme.typography.bodySmall)
                 }
                 Text("モンスタードット絵生成（任意の有料API）",
