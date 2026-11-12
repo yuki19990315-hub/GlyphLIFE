@@ -19,7 +19,7 @@ internal class GlyphBridgeImpl(private val context: Context) : GlyphBridge {
     override val isSupported = true
     private var manager: GlyphMatrixManager? = null
     private var connected = false
-    private var latest: List<Boolean>? = null
+    private var latest: List<Int>? = null
 
     override fun connect(onStatus: (String) -> Unit) {
         if (manager != null) return
@@ -32,7 +32,7 @@ internal class GlyphBridgeImpl(private val context: Context) : GlyphBridge {
                         gm.register(Glyph.DEVICE_25111p)
                         connected = true
                         onStatus("接続済み")
-                        latest?.let { showFrame(it) }
+                        latest?.let { showBrightnessFrame(it) }
                     } catch (e: Exception) {
                         connected = false
                         onStatus("Glyph登録失敗: ${e.message}")
@@ -53,14 +53,22 @@ internal class GlyphBridgeImpl(private val context: Context) : GlyphBridge {
 
     override fun showFrame(pixels: List<Boolean>) {
         require(pixels.size == PixelArt.COUNT)
-        val visiblePixels = GlyphMask.normalize(pixels)
-        latest = visiblePixels
+        showBrightnessFrame(GlyphMask.normalize(pixels).map { if (it) 255 else 0 })
+    }
+
+    override fun showBrightnessFrame(levels: List<Int>) {
+        require(levels.size == PixelArt.COUNT && levels.all { it in 0..255 })
+        val visible = levels.mapIndexed { i, v ->
+            if (GlyphMask.isPhysical(i)) v else 0
+        }
+        latest = visible
         if (!connected) return
         val image = Bitmap.createBitmap(PixelArt.WIDTH, PixelArt.HEIGHT, Bitmap.Config.ARGB_8888)
         try {
-            visiblePixels.forEachIndexed { i, lit ->
-                image.setPixel(i % 13, i / 13, if (lit) Color.WHITE else Color.BLACK)
+            visible.forEachIndexed { i, level ->
+                image.setPixel(i % 13, i / 13, Color.rgb(level, level, level))
             }
+            // The bitmap stores per-dot luminance; 255 is the overall cap.
             val item = GlyphMatrixObject.Builder()
                 .setImageSource(image)
                 .setScale(100)
