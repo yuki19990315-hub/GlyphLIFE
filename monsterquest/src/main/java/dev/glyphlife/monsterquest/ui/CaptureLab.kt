@@ -196,7 +196,7 @@ fun CaptureLab(
                     Column {
                         Text("Glyph：13×13")
                         MonsterPortrait(
-                            pixels = target.pixels,
+                            pixels = artworkStore.glyphFor(target),
                             element = target.element,
                             modifier = Modifier.size(120.dp)
                         )

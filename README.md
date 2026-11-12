@@ -1,4 +1,4 @@
-# GlyphLIFE v0.14 / Monster Quest v2.6
+# GlyphLIFE v0.14 / Monster Quest v2.7
 
 Two **independently installable Android apps** in one repository:
 
@@ -146,3 +146,11 @@ The new original electric quadruped **ライゼル** is a catchable ordinary enc
 - Selected pieces are persisted in the monster's save metadata. Evolving unlocks the reserved slots. Fusion inherits first-parent head/core/shoulder and second-parent tail/back/wing. The same layered master is used for animation, 256px view, 64/256 PNG export and downstream 13×13 Glyph projection.
 - Existing saves (with no armor parts) retain their original appearance. Saved user images receive optional overlays at render time without overwriting the original image.
 - Preview artifacts include **09-base-armor-evolution.png** and **10-armor-4-styles.png**, generated from the actual rendering code. See [technical design](docs/MONSTER_ARMOR_V26_JA.md).
+
+## Monster Quest v2.7 — Custom AI-generated pixel armor layers
+
+The captured-monster workshop can now select a **specific equipment slot** (head, core, tail, shoulder, back, wing) and either import an isolated transparent PNG, or request a **paid BYOK Gemini image-model** to draw a new original isolated part (not a complete monster). Import accepts transparent PNG or flat magenta background; a normal opaque photo background is rejected. The local pipeline isolates the part, saves it privately as a 64×64 PNG asset identified by a UUID, fits it to a predetermined anatomy mount, and previews the complete creature before irreversible confirmation.
+
+Custom PNG layers are **independent of the procedural armor styles**, unlock according to stage, follow the creature through evolution, and are inherited by fusion according to parental slot rules (head/core/shoulder A; tail/back/wing B). All rendered sprites and Glyph animations use the same compositing pipeline. The 13×13 Glyph image is always a derivative of the final 64×64 artwork, with hardware LED mask. Legacy JSON remains supported; metadata contains UUID references but no embedded images.
+
+The generated AI image's artistic quality, chroma-key cleanliness and actual device behavior remain **unverified**; visual review and an explicit confirm dialog prevent automatic application. The Google image API may incur charges and needs a user-provided key. No training on protected game IP is performed.

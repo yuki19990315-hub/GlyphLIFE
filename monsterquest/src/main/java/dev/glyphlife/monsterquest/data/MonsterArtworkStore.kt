@@ -14,6 +14,7 @@ import dev.glyphlife.monsterquest.pixel.MonsterAnimation
 import dev.glyphlife.monsterquest.pixel.PixelAssetPipeline
 import dev.glyphlife.monsterquest.pixel.PixelSprite
 import dev.glyphlife.monsterquest.pixel.MonsterArmor
+import dev.glyphlife.monsterquest.pixel.CustomArmorLayers
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import java.io.File
@@ -28,6 +29,74 @@ import java.util.UUID
  */
 class MonsterArtworkStore(private val context: Context) {
     private val folder = File(context.filesDir, "monster_art_v1")
+    private val armorFolder = File(context.filesDir, "monster_armor_layers_v1")
+
+    private fun layerFile(id: String): File {
+        val canonical = UUID.fromString(id).toString()
+        require(canonical.equals(id, ignoreCase = true)) { "無効な装備画像ID" }
+        return File(armorFolder, "$canonical.png")
+    }
+
+    /** Missing imported assets never break old saves or gameplay. */
+    fun loadArmorLayer(id: String): PixelSprite? = runCatching {
+        val bitmap = BitmapFactory.decodeFile(layerFile(id).absolutePath)
+            ?: return@runCatching null
+        try {
+            if (bitmap.width != 64 || bitmap.height != 64) return@runCatching null
+            val pixels = IntArray(4096)
+            bitmap.getPixels(pixels, 0, 64, 0, 0, 64, 64)
+            PixelSprite.fromArgb(64, 64, pixels)
+        } finally { bitmap.recycle() }
+    }.getOrNull()
+
+    suspend fun importArmorLayer(uri: Uri): String = withContext(Dispatchers.IO) {
+        val encoded = context.contentResolver.openInputStream(uri)?.use {
+            it.readNBytes(8_000_001)
+        } ?: error("パーツ画像を開けません")
+        storeArmorLayer(encoded)
+    }
+
+    /** Imports an isolated part, not a whole-monster image. Returns immutable asset ID. */
+    suspend fun storeArmorLayer(encoded: ByteArray): String = withContext(Dispatchers.IO) {
+        require(encoded.size in 64..8_000_000) { "パーツ画像が大きすぎます" }
+        val bounds = BitmapFactory.Options().apply { inJustDecodeBounds = true }
+        BitmapFactory.decodeByteArray(encoded, 0, encoded.size, bounds)
+        require(bounds.outWidth in 16..4096 && bounds.outHeight in 16..4096) {
+            "画像の縦横サイズが不正です"
+        }
+        var sample = 1
+        while (maxOf(bounds.outWidth / sample, bounds.outHeight / sample) > 256) sample *= 2
+        val decoded = BitmapFactory.decodeByteArray(
+            encoded, 0, encoded.size, BitmapFactory.Options().apply { inSampleSize = sample }
+        ) ?: error("画像を読み込めません")
+        try {
+            val cols = IntArray(decoded.width * decoded.height)
+            decoded.getPixels(cols, 0, decoded.width, 0, 0, decoded.width, decoded.height)
+            val asset = CustomArmorLayers.normalize(
+                PixelSprite.fromArgb(decoded.width, decoded.height, cols))
+            check(armorFolder.isDirectory || armorFolder.mkdirs()) { "装備画像の保存先を作れません" }
+            val id = UUID.randomUUID().toString()
+            val output = layerFile(id)
+            val temp = File(armorFolder, "$id.pending")
+            val bitmap = PixelAssetPipeline.toBitmap(asset)
+            try {
+                temp.outputStream().use { stream ->
+                    check(bitmap.compress(Bitmap.CompressFormat.PNG, 100, stream))
+                }
+                check(temp.length() in 100..3_500_000) { "パーツ画像の保存に失敗しました" }
+                check(temp.renameTo(output)) { "パーツ画像を保存できません" }
+                id
+            } finally {
+                bitmap.recycle()
+                temp.delete()
+            }
+        } finally { decoded.recycle() }
+    }
+
+    /** Only use for a not-yet-confirmed asset. Shared fusion assets must be retained. */
+    fun discardUnassignedLayer(id: String) {
+        runCatching { layerFile(id).delete() }
+    }
 
     private fun pathFor(id: String, extension: String, stage:Int=1): File {
         UUID.fromString(id)
@@ -67,8 +136,9 @@ class MonsterArtworkStore(private val context: Context) {
     /** Resolve the same layered art for UI, export, animation and Glyph. */
     fun spriteFor(monster: WildMonster): PixelSprite {
         val saved = loadNative(monster.id, monster.stage)
-        return if (saved != null) MonsterArmor.compose(saved, monster)
+        val base = if (saved != null) MonsterArmor.compose(saved, monster)
             else MonsterDesign.sprite(monster)
+        return CustomArmorLayers.compose(base, monster, ::loadArmorLayer)
     }
 
     /** Render the 64-pixel master at 256 pixels without any interpolation. */

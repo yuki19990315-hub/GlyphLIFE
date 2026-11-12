@@ -53,7 +53,9 @@ object FusionRules {
             motifSecondary = b.motifPrimary.ifBlank { b.species },
             designSeed = "fusion-" + visualId,
             armorParts = dev.glyphlife.monsterquest.pixel.MonsterArmor.inherit(
-                a.armorParts, b.armorParts)
+                a.armorParts, b.armorParts),
+            customArmorParts = dev.glyphlife.monsterquest.pixel.CustomArmorLayers.inherit(
+                a.customArmorParts, b.customArmorParts)
         )
         return fusion.copy(pixels = GlyphProjector.project(MonsterDesign.sprite(fusion)))
     }

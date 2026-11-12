@@ -38,7 +38,16 @@ import dev.glyphlife.monsterquest.pixel.MonsterAnimation
 import dev.glyphlife.monsterquest.pixel.MonsterDesign
 import dev.glyphlife.monsterquest.pixel.MonsterArmor
 import dev.glyphlife.monsterquest.ai.ArmorAi
+import dev.glyphlife.monsterquest.ai.ArmorImageAi
+import dev.glyphlife.monsterquest.pixel.ArmorSlot
+import dev.glyphlife.monsterquest.pixel.CustomArmorLayers
 import kotlinx.coroutines.launch
+
+private data class PendingPartImage(
+    val monster: WildMonster,
+    val slot: ArmorSlot,
+    val assetId: String
+)
 
 class MonsterQuestActivity : ComponentActivity() {
     private var incoming by mutableStateOf<String?>(null)
@@ -57,6 +66,8 @@ class MonsterQuestActivity : ComponentActivity() {
             var artworkRevision by remember { mutableIntStateOf(0) }
             var artImportId by remember { mutableStateOf<String?>(null) }
             var artImportStage by remember { mutableIntStateOf(1) }
+            var partImportTarget by remember { mutableStateOf<Pair<WildMonster, ArmorSlot>?>(null) }
+            var pendingPartImage by remember { mutableStateOf<PendingPartImage?>(null) }
             val scope = rememberCoroutineScope()
 
             fun update(next: QuestState) {
@@ -126,6 +137,76 @@ class MonsterQuestActivity : ComponentActivity() {
                     }
                 }
             }
+            val partPicker = rememberLauncherForActivityResult(
+                ActivityResultContracts.GetContent()
+            ) { uri ->
+                val request = partImportTarget
+                partImportTarget = null
+                if (uri != null && request != null && !aiBusy) {
+                    aiBusy = true
+                    scope.launch {
+                        try {
+                            val id = artworkStore.importArmorLayer(uri)
+                            if (!state.inBattle && state.captures.any { it == request.first }) {
+                                pendingPartImage?.let { old ->
+                                    artworkStore.discardUnassignedLayer(old.assetId)
+                                }
+                                pendingPartImage = PendingPartImage(request.first, request.second, id)
+                                notify("装備画像を読み込みました。装着前に確認してください")
+                            } else {
+                                artworkStore.discardUnassignedLayer(id)
+                                notify("仲間の状態が変わったので画像を破棄しました")
+                            }
+                        } catch (e: Exception) {
+                            notify("装備画像の読み込みに失敗：${e.message}")
+                        } finally { aiBusy = false }
+                    }
+                }
+            }
+
+            fun generatePartImage(wild: WildMonster, slot: ArmorSlot) {
+                if (aiBusy || aiKey.isBlank() || state.inBattle) return
+                aiBusy = true
+                val key = aiKey
+                scope.launch {
+                    try {
+                        val bytes = ArmorImageAi.generate(key, wild, slot)
+                        val id = artworkStore.storeArmorLayer(bytes)
+                        if (!state.inBattle && state.captures.any { it == wild }) {
+                            pendingPartImage?.let { old ->
+                                artworkStore.discardUnassignedLayer(old.assetId)
+                            }
+                            pendingPartImage = PendingPartImage(wild, slot, id)
+                            notify("AIパーツ画像が完成しました。装着前に確認してください")
+                        } else {
+                            artworkStore.discardUnassignedLayer(id)
+                            notify("仲間の状態が変わったため装備案を破棄しました")
+                        }
+                    } catch(e: Exception) {
+                        notify("パーツ画像AIに失敗：${e.message}")
+                    } finally { aiBusy = false }
+                }
+            }
+
+            fun removeCustomPart(wild: WildMonster, slot: ArmorSlot) {
+                if (state.inBattle) return
+                val current = state.captures.firstOrNull { it.id == wild.id }
+                if (current != wild) {
+                    notify("仲間の状態が変わりました。選び直してください")
+                    return
+                }
+                runCatching {
+                    val updated = current.copy(
+                        customArmorParts = current.customArmorParts - slot.name
+                    ).let { it.copy(pixels = artworkStore.glyphFor(it)) }
+                    update(state.copy(captures = state.captures.map {
+                        if (it.id == wild.id) updated else it
+                    }))
+                    artworkRevision++
+                    notify("${wild.species}の${slot.label}画像を解除しました")
+                }.onFailure { notify("解除に失敗：${it.message}") }
+            }
+
             fun generatePortrait(wild: WildMonster, style: ConceptStyle) {
                 if (aiBusy || aiKey.isBlank()) return
                 aiBusy = true
@@ -193,8 +274,7 @@ class MonsterQuestActivity : ComponentActivity() {
             }
             fun sendGlyphToLife(wild: WildMonster) {
                 runCatching {
-                    val master = artworkStore.loadNative(wild.id,wild.stage)
-                        ?: MonsterDesign.sprite(wild)
+                    val master = artworkStore.spriteFor(wild)
                     val glyphFrames = MonsterAnimation.idle(master,wild).map { frame ->
                         GlyphProjector.project(frame.sprite) to frame.durationMs
                     }
@@ -229,7 +309,7 @@ class MonsterQuestActivity : ComponentActivity() {
             ) {
                 Scaffold(topBar = {
                     Surface(tonalElevation = 2.dp) {
-                        Text("MONSTER QUEST  /  v2.5",
+                        Text("MONSTER QUEST  /  v2.7",
                             modifier = Modifier.padding(18.dp),
                             style = MaterialTheme.typography.titleMedium)
                     }
@@ -253,9 +333,23 @@ class MonsterQuestActivity : ComponentActivity() {
                         onExportSpriteSheet = ::exportSpriteSheet,
                         onEquip = ::equipCaptured,
                         onAiEquip = ::suggestCapturedArmor,
+                        onGeneratePart = ::generatePartImage,
+                        onImportPart = { wild, slot ->
+                            if (!aiBusy && !state.inBattle) {
+                                partImportTarget = wild to slot
+                                partPicker.launch("image/png")
+                            }
+                        },
+                        onRemovePart = ::removeCustomPart,
                         onEvolve = { id ->
                             runCatching {
-                                update(EvolutionRules.evolve(state,id))
+                                val evolved = EvolutionRules.evolve(state,id)
+                                val members = evolved.captures.map { member ->
+                                    if(member.id == id) member.copy(
+                                        pixels = artworkStore.glyphFor(member))
+                                    else member
+                                }
+                                update(evolved.copy(captures = members))
                                 artworkRevision += 1
                                 notify("モンスターが進化しました。64×64の外見が変化します")
                             }.onFailure { notify("進化できません：${it.message}") }
@@ -288,8 +382,15 @@ class MonsterQuestActivity : ComponentActivity() {
                             if (!aiBusy) update(QuestRules.supportAttack(state))
                         },
                         onFuse = { a, b ->
-                            runCatching { update(FusionRules.fuse(state, a, b)) }
-                                .onFailure { notify("合成に失敗：${it.message}") }
+                            runCatching {
+                                val result = FusionRules.fuse(state, a, b)
+                                val combined = result.captures.last()
+                                val corrected = combined.copy(
+                                    pixels = artworkStore.glyphFor(combined))
+                                update(result.copy(captures = result.captures.dropLast(1) +
+                                    corrected))
+                                artworkRevision++
+                            }.onFailure { notify("合成に失敗：${it.message}") }
                         },
                         onDefend = { if (!aiBusy) update(QuestRules.defend(state)) },
                         onNextRoom = { update(QuestRules.nextRoom(state)) },
@@ -317,6 +418,74 @@ class MonsterQuestActivity : ComponentActivity() {
                             }.onFailure { notify("共有できません：${it.message}") }
                         }
                     )
+                }
+                val pending = pendingPartImage
+                if (pending != null) {
+                    val current = state.captures.firstOrNull { it.id == pending.monster.id }
+                    if (current == null || current != pending.monster || state.inBattle) {
+                        LaunchedEffect(pending, state.inBattle, current) {
+                            artworkStore.discardUnassignedLayer(pending.assetId)
+                            pendingPartImage = null
+                        }
+                    } else {
+                        val candidate = remember(pending, current) {
+                            current.copy(customArmorParts = current.customArmorParts +
+                                (pending.slot.name to pending.assetId))
+                        }
+                        AlertDialog(
+                            onDismissRequest = {
+                                artworkStore.discardUnassignedLayer(pending.assetId)
+                                pendingPartImage = null
+                            },
+                            title = { Text("装備画像を確認") },
+                            text = {
+                                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                                    Text("${current.species}：${pending.slot.label}の画像パーツ")
+                                    MonsterStaticSprite(
+                                        candidate, Modifier.size(192.dp),
+                                        store = artworkStore,
+                                        revision = artworkRevision
+                                    )
+                                    Text("元の64×64素体に、画像を自動配置した完成予想です。")
+                                    if (pending.slot.minStage > current.stage) {
+                                        Text("この部位は進化${pending.slot.minStage}から表示されます。")
+                                    }
+                                    Text("透明PNGかマゼンタ背景の画像のみ。AI生成結果は" +
+                                        "実際の装着位置を確認してください。",
+                                        style = MaterialTheme.typography.bodySmall)
+                                }
+                            },
+                            confirmButton = {
+                                TextButton(onClick = {
+                                    if (state.inBattle ||
+                                        state.captures.firstOrNull { it.id == current.id } != current) {
+                                        artworkStore.discardUnassignedLayer(pending.assetId)
+                                        notify("仲間が更新されたため適用できません")
+                                    } else {
+                                        runCatching {
+                                            val valid = CustomArmorLayers.validated(
+                                                candidate.customArmorParts)
+                                            val armored = candidate.copy(
+                                                customArmorParts = valid
+                                            ).let { it.copy(pixels = artworkStore.glyphFor(it)) }
+                                            update(state.copy(captures = state.captures.map {
+                                                if(it.id == current.id) armored else it
+                                            }))
+                                            artworkRevision++
+                                            notify("画像パーツを装着しました")
+                                        }.onFailure { notify("装着に失敗：${it.message}") }
+                                    }
+                                    pendingPartImage = null
+                                }) { Text("この画像を装着") }
+                            },
+                            dismissButton = {
+                                TextButton(onClick = {
+                                    artworkStore.discardUnassignedLayer(pending.assetId)
+                                    pendingPartImage = null
+                                }) { Text("キャンセル") }
+                            }
+                        )
+                    }
                 }
             }
         }
@@ -348,6 +517,9 @@ private fun QuestScreen(
     onEvolve: (String) -> Unit,
     onEquip: (String, Map<String,String>) -> Unit,
     onAiEquip: (WildMonster) -> Unit,
+    onGeneratePart: (WildMonster, ArmorSlot) -> Unit,
+    onImportPart: (WildMonster, ArmorSlot) -> Unit,
+    onRemovePart: (WildMonster, ArmorSlot) -> Unit,
     onGenerateArt: (WildMonster, ConceptStyle) -> Unit,
     onImportArt: (WildMonster) -> Unit,
     aiKey: String,
@@ -613,6 +785,9 @@ private fun QuestScreen(
             onEquip = onEquip,
             onAiEquip = onAiEquip,
             allowAiEquip = aiKey.isNotBlank() && !aiBusy,
+            onGeneratePart = onGeneratePart,
+            onImportPart = onImportPart,
+            onRemovePart = onRemovePart,
             onSendGlyph = onSendGlyph,
             onExportPng = onExportPng,
             onExportSpriteSheet = onExportSpriteSheet,

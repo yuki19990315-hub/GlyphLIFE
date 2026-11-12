@@ -79,6 +79,8 @@ class QuestStorage(context: Context) {
         .put("lineage", w.lineage)
         .put("motifPrimary", w.motifPrimary).put("motifSecondary", w.motifSecondary)
         .put("designSeed", w.designSeed)
+        .put("armorParts", JSONObject(w.armorParts))
+        .put("customArmorParts", JSONObject(w.customArmorParts))
 
     private fun wildFromJson(o: JSONObject): WildMonster = WildMonster(
         id = o.getString("id"), species = o.getString("species"),
@@ -92,6 +94,31 @@ class QuestStorage(context: Context) {
         lineage = o.optString("lineage", "").take(130),
         motifPrimary = o.optString("motifPrimary", "").take(60),
         motifSecondary = o.optString("motifSecondary", "").take(60),
-        designSeed = o.optString("designSeed", "").take(64)
+        designSeed = o.optString("designSeed", "").take(64),
+        armorParts = readArmorParts(o.optJSONObject("armorParts")),
+        customArmorParts = readCustomLayers(o.optJSONObject("customArmorParts"))
     )
+
+    private fun readArmorParts(value: JSONObject?): Map<String, String> {
+        if(value == null) return emptyMap()
+        return runCatching {
+            val allowed = dev.glyphlife.monsterquest.pixel.ArmorSlot.entries
+            val names = value.keys().asSequence().toList()
+            dev.glyphlife.monsterquest.pixel.MonsterArmor.validated(
+                names.filter { name -> allowed.any { it.name == name } }
+                    .associateWith { name -> value.getString(name) }
+            )
+        }.getOrDefault(emptyMap())
+    }
+
+    private fun readCustomLayers(value: JSONObject?): Map<String, String> {
+        if(value == null) return emptyMap()
+        return runCatching {
+            val result = value.keys().asSequence()
+                .filter { key -> dev.glyphlife.monsterquest.pixel.ArmorSlot.entries
+                    .any { it.name == key } }
+                .associateWith { key -> value.getString(key) }
+            dev.glyphlife.monsterquest.pixel.CustomArmorLayers.validated(result)
+        }.getOrDefault(emptyMap())
+    }
 }
