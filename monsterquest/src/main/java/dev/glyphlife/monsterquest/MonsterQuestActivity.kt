@@ -344,9 +344,10 @@ class MonsterQuestActivity : ComponentActivity() {
             fun sendGlyphToLife(wild: WildMonster) {
                 runCatching {
                     val master = artworkStore.spriteFor(wild)
-                    val glyphFrames = MonsterAnimation.idle(master,wild).map { frame ->
-                        GlyphProjector.project(frame.sprite) to frame.durationMs
-                    }
+                    val glyphFrames = MonsterAnimation.idle(master,wild)
+                        .mapIndexed { pose, frame ->
+                            artworkStore.glyphFrameFor(wild, frame.sprite, pose) to frame.durationMs
+                        }
                     val encoded=QuestProtocol.exportGlyphAnimationFrames(wild,glyphFrames)
                     val share=Intent(Intent.ACTION_SEND).apply {
                         type="application/json"
@@ -702,11 +703,13 @@ private fun QuestScreen(
                 }
             )
         }
+        Text("全身デザイン（64×64原画を拡大表示）",
+            style = MaterialTheme.typography.labelMedium)
         MonsterArtworkView(
             monster = companionWild,
             store = artworkStore,
             revision = artworkRevision,
-            modifier = Modifier.size(152.dp)
+            modifier = Modifier.fillMaxWidth().height(280.dp)
         )
         LinearProgressIndicator(
             progress = { state.playerHp / 100f }, modifier = Modifier.fillMaxWidth())
@@ -797,8 +800,9 @@ private fun QuestScreen(
                         pixels = artworkStore.glyphFor(enemy),
                         element = enemy.element, modifier = Modifier.size(164.dp)
                     )
-                    Text("64×64の待機4コマをそれぞれ13×13へ変換し、実LED137点のマスクを適用。" +
-                        " GlyphLIFEではアニメ4コマの上書き確認が必要です。",
+                    Text("Glyphは137点の限られた表示領域です。" +
+                        " ライゼル／ルナは全身の単純縮小でなく顔の専用アイコンを使います。" +
+                        " その他は64×64から変換。GlyphLIFEでは上書き確認が必要です。",
                         style = MaterialTheme.typography.bodySmall)
                 }
                 Text("モンスタードット絵生成（任意の有料API）",
