@@ -173,4 +173,39 @@ class CustomArmorLayersTest {
             .customArmorOffsets["HEAD"]?.scalePercent)
     }
 
+    @Test fun reusedArmorAssetCanBeEquippedByTwoMonstersAndInheritedByFusion() {
+        val reused = sampleLayer()
+        val basePixels = reused.pixels()
+        val first = monster().copy(
+            id = "00000000-0000-4000-8000-000000000501",
+            bodyType = MonsterBodyType.BEAST.name,
+            customArmorParts = mapOf("HEAD" to idA)
+        )
+        val second = monster().copy(
+            id = "00000000-0000-4000-8000-000000000502",
+            bodyType = MonsterBodyType.DRAGON.name,
+            customArmorParts = mapOf("TAIL" to idA)
+        )
+        val artA = CustomArmorLayers.compose(MonsterDesign.sprite(first), first) { id ->
+            if (id == idA) reused else null
+        }
+        val artB = CustomArmorLayers.compose(MonsterDesign.sprite(second), second) { id ->
+            if (id == idA) reused else null
+        }
+        assertTrue(artA.opaqueCount() > 100)
+        assertTrue(artB.opaqueCount() > 100)
+        assertArrayEquals("Shared source must remain immutable", basePixels, reused.pixels())
+        assertEquals(idA, first.customArmorParts["HEAD"])
+        assertEquals(idA, second.customArmorParts["TAIL"])
+        val hybrid = FusionRules.preview(first, second)
+        assertEquals(idA, hybrid.customArmorParts["HEAD"])
+        assertEquals(idA, hybrid.customArmorParts["TAIL"])
+        val result = CustomArmorLayers.compose(MonsterDesign.sprite(hybrid), hybrid) { reused }
+        assertTrue(result.colors().size <= 16)
+        val glyph = GlyphProjector.project(result)
+        assertTrue(glyph.withIndex().all { (i, bit) ->
+            bit == '0' || (bit == '1' && GlyphProjector.isPhysical(i))
+        })
+    }
+
 }

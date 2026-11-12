@@ -33,6 +33,7 @@ fun CaptureLab(
     allowAiEquip: Boolean,
     onGeneratePart: (WildMonster, ArmorSlot) -> Unit,
     onImportPart: (WildMonster, ArmorSlot) -> Unit,
+    onReusePart: (WildMonster, ArmorSlot, String) -> Unit,
     onRemovePart: (WildMonster, ArmorSlot) -> Unit,
     onMovePart: (WildMonster, ArmorSlot, Int, Int) -> Unit,
     onScalePart: (WildMonster, ArmorSlot, Int) -> Unit,
@@ -47,6 +48,10 @@ fun CaptureLab(
     var secondId by remember { mutableStateOf<String?>(null) }
     var confirm by remember { mutableStateOf(false) }
     var armorEditing by remember { mutableStateOf(false) }
+    var librarySlot by remember { mutableStateOf<ArmorSlot?>(null) }
+    val savedPartIds = remember(artworkStore, artworkRevision) {
+        artworkStore.listArmorLayerIds()
+    }
     val first = captured.firstOrNull { it.id == firstId }
     val second = captured.firstOrNull { it.id == secondId }
     val fusionPreview = remember(first, second) {
@@ -139,6 +144,13 @@ fun CaptureLab(
                                 onClick = { onImportPart(monster, slot) }) {
                                 Text("画像パーツを選ぶ")
                             }
+                            OutlinedButton(enabled = !inBattle,
+                                onClick = {
+                                    librarySlot = if (librarySlot == slot) null else slot
+                                }) {
+                                Text(if (librarySlot == slot) "保管庫を閉じる"
+                                     else "保存済みパーツを使う")
+                            }
                             OutlinedButton(enabled = allowAiEquip && !inBattle,
                                 onClick = { onGeneratePart(monster, slot) }) {
                                 Text("素体を見せてAIパーツ生成")
@@ -147,6 +159,18 @@ fun CaptureLab(
                                 onClick = { onRemovePart(monster, slot) }) {
                                 Text("画像パーツ解除")
                             }
+                        }
+                        if (librarySlot == slot) {
+                            ArmorLibraryPicker(
+                                ids = savedPartIds,
+                                store = artworkStore,
+                                revision = artworkRevision,
+                                enabled = !inBattle,
+                                onSelect = { assetId ->
+                                    onReusePart(monster, slot, assetId)
+                                    librarySlot = null
+                                }
+                            )
                         }
                         if (imported) {
                             val pos=monster.customArmorOffsets[slot.name] ?: ArmorOffset()

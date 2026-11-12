@@ -52,7 +52,9 @@ private data class PendingArmorStyles(
 private data class PendingPartImage(
     val monster: WildMonster,
     val slot: ArmorSlot,
-    val assetId: String
+    val assetId: String,
+    /** Reused library assets are SHARED and must never be discarded on cancel. */
+    val newlyCreated: Boolean = true
 )
 
 class MonsterQuestActivity : ComponentActivity() {
@@ -158,7 +160,7 @@ class MonsterQuestActivity : ComponentActivity() {
                             val id = artworkStore.importArmorLayer(uri)
                             if (!state.inBattle && state.captures.any { it == request.first }) {
                                 pendingPartImage?.let { old ->
-                                    artworkStore.discardUnassignedLayer(old.assetId)
+                                    if (old.newlyCreated) artworkStore.discardUnassignedLayer(old.assetId)
                                 }
                                 pendingPartImage = PendingPartImage(request.first, request.second, id)
                                 notify("装備画像を読み込みました。装着前に確認してください")
@@ -187,7 +189,7 @@ class MonsterQuestActivity : ComponentActivity() {
                         val id = artworkStore.storeArmorLayer(bytes)
                         if (!state.inBattle && state.captures.any { it == wild }) {
                             pendingPartImage?.let { old ->
-                                artworkStore.discardUnassignedLayer(old.assetId)
+                                if (old.newlyCreated) artworkStore.discardUnassignedLayer(old.assetId)
                             }
                             pendingPartImage = PendingPartImage(wild, slot, id)
                             notify("AIパーツ画像が完成しました。装着前に確認してください")
@@ -199,6 +201,33 @@ class MonsterQuestActivity : ComponentActivity() {
                         notify("パーツ画像AIに失敗：${e.message}")
                     } finally { aiBusy = false }
                 }
+            }
+
+            /**
+             * Reuse an existing immutable asset without another paid API call.
+             * The chosen ID is shown in the SAME confirmation dialog as a new
+             * AI/imported layer, but cancellation never deletes this shared PNG.
+             */
+            fun reuseSavedPart(wild: WildMonster, slot: ArmorSlot, id: String) {
+                if (state.inBattle || aiBusy) return
+                val current = state.captures.firstOrNull { it.id == wild.id }
+                if (current != wild) {
+                    notify("仲間の状態が変わったため選択できません")
+                    return
+                }
+                if (id !in artworkStore.listArmorLayerIds() ||
+                    artworkStore.loadArmorLayer(id) == null) {
+                    notify("保存済みパーツが見つからないか破損しています")
+                    return
+                }
+                pendingPartImage?.let { old ->
+                    if (old.newlyCreated) artworkStore.discardUnassignedLayer(old.assetId)
+                }
+                pendingPartImage = PendingPartImage(
+                    monster = current, slot = slot, assetId = id,
+                    newlyCreated = false
+                )
+                notify("保存済みパーツを選択しました。装着前に確認できます")
             }
 
             fun removeCustomPart(wild: WildMonster, slot: ArmorSlot) {
@@ -361,7 +390,7 @@ class MonsterQuestActivity : ComponentActivity() {
             ) {
                 Scaffold(topBar = {
                     Surface(tonalElevation = 2.dp) {
-                        Text("MONSTER QUEST  /  v2.8.2",
+                        Text("MONSTER QUEST  /  v2.9",
                             modifier = Modifier.padding(18.dp),
                             style = MaterialTheme.typography.titleMedium)
                     }
@@ -386,6 +415,7 @@ class MonsterQuestActivity : ComponentActivity() {
                         onEquip = ::equipCaptured,
                         onAiEquip = ::suggestCapturedArmor,
                         onGeneratePart = ::generatePartImage,
+                        onReusePart = ::reuseSavedPart,
                         onImportPart = { wild, slot ->
                             if (!aiBusy && !state.inBattle) {
                                 partImportTarget = wild to slot
@@ -521,7 +551,7 @@ class MonsterQuestActivity : ComponentActivity() {
                     val current = state.captures.firstOrNull { it.id == pending.monster.id }
                     if (current == null || current != pending.monster || state.inBattle) {
                         LaunchedEffect(pending, state.inBattle, current) {
-                            artworkStore.discardUnassignedLayer(pending.assetId)
+                            if (pending.newlyCreated) artworkStore.discardUnassignedLayer(pending.assetId)
                             pendingPartImage = null
                         }
                     } else {
@@ -539,7 +569,7 @@ class MonsterQuestActivity : ComponentActivity() {
                         }
                         AlertDialog(
                             onDismissRequest = {
-                                artworkStore.discardUnassignedLayer(pending.assetId)
+                                if (pending.newlyCreated) artworkStore.discardUnassignedLayer(pending.assetId)
                                 pendingPartImage = null
                             },
                             title = { Text("装備画像を確認") },
@@ -565,7 +595,7 @@ class MonsterQuestActivity : ComponentActivity() {
                                 TextButton(onClick = {
                                     if (state.inBattle ||
                                         state.captures.firstOrNull { it.id == current.id } != current) {
-                                        artworkStore.discardUnassignedLayer(pending.assetId)
+                                        if (pending.newlyCreated) artworkStore.discardUnassignedLayer(pending.assetId)
                                         notify("仲間が更新されたため適用できません")
                                     } else {
                                         runCatching {
@@ -586,7 +616,7 @@ class MonsterQuestActivity : ComponentActivity() {
                             },
                             dismissButton = {
                                 TextButton(onClick = {
-                                    artworkStore.discardUnassignedLayer(pending.assetId)
+                                    if (pending.newlyCreated) artworkStore.discardUnassignedLayer(pending.assetId)
                                     pendingPartImage = null
                                 }) { Text("キャンセル") }
                             }
@@ -625,6 +655,7 @@ private fun QuestScreen(
     onAiEquip: (WildMonster) -> Unit,
     onGeneratePart: (WildMonster, ArmorSlot) -> Unit,
     onImportPart: (WildMonster, ArmorSlot) -> Unit,
+    onReusePart: (WildMonster, ArmorSlot, String) -> Unit,
     onRemovePart: (WildMonster, ArmorSlot) -> Unit,
     onMovePart: (WildMonster, ArmorSlot, Int, Int) -> Unit,
     onScalePart: (WildMonster, ArmorSlot, Int) -> Unit,
@@ -895,6 +926,7 @@ private fun QuestScreen(
             allowAiEquip = aiKey.isNotBlank() && !aiBusy,
             onGeneratePart = onGeneratePart,
             onImportPart = onImportPart,
+            onReusePart = onReusePart,
             onRemovePart = onRemovePart,
             onMovePart = onMovePart,
             onScalePart = onScalePart,

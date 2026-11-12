@@ -38,6 +38,19 @@ class MonsterArtworkStore(private val context: Context) {
         return File(armorFolder, "$canonical.png")
     }
 
+    /**
+     * Reusable local equipment library, newest first. Asset IDs are never
+     * transformed into user-controlled paths except through layerFile().
+     * Listing does not decode image data and does not contact AI services.
+     */
+    fun listArmorLayerIds(): List<String> {
+        val files = armorFolder.listFiles()?.asSequence()
+            ?.filter { it.isFile }
+            ?.map { ArmorAssetFile(it.name, it.length(), it.lastModified()) }
+            ?.toList() ?: return emptyList()
+        return ArmorAssetCatalog.ids(files)
+    }
+
     /** Missing imported assets never break old saves or gameplay. */
     fun loadArmorLayer(id: String): PixelSprite? = runCatching {
         val bitmap = BitmapFactory.decodeFile(layerFile(id).absolutePath)
