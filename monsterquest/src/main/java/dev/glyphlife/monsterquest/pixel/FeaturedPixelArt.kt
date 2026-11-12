@@ -40,7 +40,8 @@ object FeaturedPixelArt {
     }
 
     fun find(monster: WildMonster): PixelSprite? =
-        if (monster.species == "ライゼル" && monster.element == "雷") {
+        if (monster.species == "ライゼル" && monster.element == "雷" &&
+            (monster.bodyType.isBlank() || monster.bodyType == MonsterBodyType.BEAST.name)) {
             frames[monster.stage.coerceIn(1, 3) - 1]
         } else null
 }

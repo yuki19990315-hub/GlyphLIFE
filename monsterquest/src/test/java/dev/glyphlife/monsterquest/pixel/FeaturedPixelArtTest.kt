@@ -47,6 +47,7 @@ class FeaturedPixelArtTest {
     @Test fun authoredSpriteIsNotUsedForOtherMonstersOrElements() {
         assertNull(FeaturedPixelArt.find(wild(1).copy(species = "別の獣")))
         assertNull(FeaturedPixelArt.find(wild(1).copy(element = "火")))
+        assertNull(FeaturedPixelArt.find(wild(1).copy(bodyType = "DRAGON")))
         assertEquals(MonsterBodyType.BEAST, MonsterDesign.classify("ライゼル"))
     }
 }

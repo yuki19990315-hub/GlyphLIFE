@@ -52,6 +52,16 @@ fun MonsterDesignerPanel(
         Text(if(expanded)"工房を閉じる" else "オリジナルモンスターを設計")
     }
     if(expanded) {
+        OutlinedButton(onClick={
+            name="ライゼル"
+            type=MonsterBodyType.BEAST
+            element="雷"
+            stage=1
+            variantPage=0
+            selectedVariant=0
+        }) {
+            Text("固有ドット絵「ライゼル」を見る")
+        }
         OutlinedTextField(
             value=name,onValueChange={name=it.take(16)},
             modifier=Modifier.fillMaxWidth(),
@@ -81,6 +91,12 @@ fun MonsterDesignerPanel(
                     label={Text("進化$candidate")})
             }
         }
+        val featured=(name.trim()=="ライゼル" && element=="雷" &&
+            type==MonsterBodyType.BEAST)
+        if(featured) {
+            Text("ライゼルはオリジナルの固定64×64ドット絵です。" +
+                " 進化段階を変えて3つの姿を比べられます。")
+        } else {
         HorizontalDivider()
         Text("外見比較（全32案・4案ずつ）",style=MaterialTheme.typography.titleMedium)
         Text("同じ体型・属性でも角、装甲、尾、頭部の輪郭が変わります。" +
@@ -116,6 +132,7 @@ fun MonsterDesignerPanel(
                     )
                 }
             }
+        }
         }
         val model=remember(name,type,element,stage,selectedVariant) {
             MonsterPrototypeFactory.preview(name,type,element,stage,selectedVariant)
