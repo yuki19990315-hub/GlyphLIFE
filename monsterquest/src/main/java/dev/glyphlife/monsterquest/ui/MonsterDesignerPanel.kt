@@ -124,7 +124,7 @@ fun MonsterDesignerPanel(
         ) {
             candidates.forEach { (number,candidate) ->
                 Column(verticalArrangement=Arrangement.spacedBy(3.dp)) {
-                    MonsterStaticSprite(candidate,Modifier.size(88.dp))
+                    MonsterStaticSprite(candidate,Modifier.size(108.dp))
                     FilterChip(
                         selected=selectedVariant==number,
                         onClick={selectedVariant=number},
@@ -148,7 +148,11 @@ fun MonsterDesignerPanel(
         Text("ゲーム画面：ネイティブ64×64を256×256に整数拡大。" +
             " 13×13の拡大画像ではありません。",
             style=MaterialTheme.typography.bodySmall)
-        Text("Glyphに変換した結果",style=MaterialTheme.typography.titleSmall)
+        Text("背面Glyph表示（13×13の簡略アイコン）",
+            style=MaterialTheme.typography.titleSmall)
+        Text("本編の全身画像とは別表示です。ライゼルは角付きの顔、ルナは光輪の顔を優先し、" +
+            "物理137LEDの範囲に収めます。",
+            style=MaterialTheme.typography.bodySmall)
         MonsterPortrait(
             pixels=model.pixels, element=model.element,
             modifier=Modifier.size(138.dp)
