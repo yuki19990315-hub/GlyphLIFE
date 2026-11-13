@@ -56,6 +56,10 @@ fun QuestBottomNavigation(tab:QuestTab,onTab:(QuestTab)->Unit) {
 fun QuestHome(
     state:QuestState,store:MonsterArtworkStore,revision:Int,
     onSelectParty:(String)->Unit,
+    onEvolve:(String)->Unit,
+    onBuyUpgrade:(String)->Unit,
+    onBuySupply:(String)->Unit,
+    onClaimAchievement:(String)->Unit,
     management:@Composable ()->Unit
 ) {
     var currentPanel by remember { mutableIntStateOf(0) }
@@ -66,8 +70,8 @@ fun QuestHome(
             attack=10+state.companion.level,
             artFamily=state.companion.gameArtFamily(),
             stage=when {
-                state.companion.level>=12 -> 3
-                state.companion.level>=5 -> 2
+                state.companion.level>=16 -> 3
+                state.companion.level>=7 -> 2
                 else -> 1
             }
         )
@@ -108,13 +112,17 @@ fun QuestHome(
                     fontWeight=FontWeight.Bold)
                 Text("LV "+state.companion.level+"  HP "+state.playerHp+"/100",
                     color=Color.White,style=MaterialTheme.typography.labelMedium)
+                Text("EXP "+state.companionXp+"/"+
+                    (if(state.companion.level>=GrowthRules.LEVEL_CAP)"MAX"
+                     else GrowthRules.xpNeeded(state.companion.level).toString()),
+                    color=Gold,style=MaterialTheme.typography.labelSmall)
                 Text("最高 "+state.tapRun.bestFloor+"F",
                     color=Blue,style=MaterialTheme.typography.labelSmall)
             }
         }
         val shortcuts=listOf(
             "♟" to "パーティ", "⚔" to "装備", "◈" to "アイテム",
-            "▤" to "図鑑", "✦" to "進化", "☰" to "プロフィール"
+            "▤" to "図鑑", "✦" to "進化", "★" to "育成"
         )
         repeat(2) { row ->
             Row(Modifier.fillMaxWidth(),horizontalArrangement=Arrangement.spacedBy(7.dp)) {
@@ -161,8 +169,8 @@ fun QuestHome(
                             Spacer(Modifier.width(8.dp))
                             Column(Modifier.weight(1f)) {
                                 Text(monster.species,style=MaterialTheme.typography.titleMedium)
-                                Text("進化"+monster.stage+"   ATK "+monster.attack+
-                                    "   "+monster.element,
+                                Text("Lv."+monster.level+" / 進化"+monster.stage+
+                                    "  ATK "+monster.attack+"   "+monster.element,
                                     style=MaterialTheme.typography.bodySmall)
                                 Text(if(selected)"✓ 出撃中" else "＋ タップで編成",
                                     color=if(selected)Gold else Blue)
@@ -175,6 +183,42 @@ fun QuestHome(
                 SectionTitle(if(currentPanel==1)"装備・素材工房" else "進化・合成")
                 Text("仲間の装備や進化を編集できます。原画は64×64ドットの全身素材。",
                     color=Blue,style=MaterialTheme.typography.bodySmall)
+                if(currentPanel==4) {
+                    Text("編成した仲間は戦闘で経験値・個別勝利数を獲得。" +
+                        "Lv7＋3勝で2段階、Lv16＋12勝で3段階に進化します。",
+                        color=Gold,style=MaterialTheme.typography.bodySmall)
+                    if(state.captures.isEmpty())Text("まず探索・召喚で仲間を獲得しよう。")
+                    state.captures.forEach { monster ->
+                        Card(Modifier.fillMaxWidth(),
+                            colors=CardDefaults.cardColors(containerColor=Color(0xFF192944))) {
+                            Row(Modifier.padding(9.dp),
+                                verticalAlignment=Alignment.CenterVertically) {
+                                MonsterArtworkView(monster,store,revision,Modifier.size(76.dp))
+                                Column(Modifier.weight(1f)) {
+                                    Text(monster.species+" / 進化"+monster.stage,
+                                        color=Gold,style=MaterialTheme.typography.titleSmall)
+                                    Text("Lv"+monster.level+" EXP "+monster.xp+"/"+
+                                        GrowthRules.xpNeeded(monster.level)+
+                                        "　出撃"+monster.victories+"勝",
+                                        style=MaterialTheme.typography.bodySmall)
+                                    if(monster.stage<3) {
+                                        Text("目標 Lv"+GrowthRules.requiredLevel(monster.stage)+
+                                            "／"+GrowthRules.requiredVictories(monster.stage)+"勝",
+                                            color=Blue,style=MaterialTheme.typography.labelSmall)
+                                    }
+                                }
+                                OutlinedButton(onClick={onEvolve(monster.id)},
+                                    enabled=!state.inBattle &&
+                                        monster.stage<3 &&
+                                        monster.level>=GrowthRules.requiredLevel(monster.stage) &&
+                                        monster.victories>=GrowthRules.requiredVictories(monster.stage),
+                                    contentPadding=PaddingValues(horizontal=10.dp)) {
+                                    Text(if(monster.stage>=3)"完成" else "進化")
+                                }
+                            }
+                        }
+                    }
+                }
                 management()
             }
             2 -> {
@@ -218,16 +262,80 @@ fun QuestHome(
                 }
             }
             5 -> {
+                SectionTitle("育成・長期チャレンジ")
+                Text("探索で敵を倒すと相棒と出撃中の仲間が経験値を獲得。" +
+                    " 相棒はLv7／16で姿が変化。仲間は個別のLvと勝利数で進化できる。",
+                    color=Blue,style=MaterialTheme.typography.bodySmall)
+                Text("相棒 Lv."+state.companion.level+
+                    "　EXP "+state.companionXp+"/"+GrowthRules.xpNeeded(state.companion.level),
+                    color=Gold,style=MaterialTheme.typography.titleMedium)
+                if(state.companion.level<GrowthRules.LEVEL_CAP)
+                    LinearProgressIndicator(
+                        progress={
+                            state.companionXp.toFloat()/
+                                GrowthRules.xpNeeded(state.companion.level).coerceAtLeast(1)
+                        },
+                        modifier=Modifier.fillMaxWidth(),color=Color(0xFF79D5EA))
+                SectionTitle("恒久強化・ショップ")
+                Text("所持金 "+state.tapRun.gold+"G。全滅しても修練効果と所持金は維持されます。",
+                    color=Gold,style=MaterialTheme.typography.bodyMedium)
+                OutlinedButton(
+                    onClick={onBuyUpgrade("attack")},
+                    enabled=state.attackUpgrade<GrowthRules.UPGRADE_CAP &&
+                        state.tapRun.gold>=GrowthRules.upgradeCost(state.attackUpgrade),
+                    modifier=Modifier.fillMaxWidth()
+                ) { Text("攻撃修練 Lv."+state.attackUpgrade+
+                    "（連打威力 +"+(state.attackUpgrade*2)+
+                    "）　"+GrowthRules.upgradeCost(state.attackUpgrade)+"G") }
+                OutlinedButton(
+                    onClick={onBuyUpgrade("defense")},
+                    enabled=state.defenseUpgrade<GrowthRules.UPGRADE_CAP &&
+                        state.tapRun.gold>=GrowthRules.upgradeCost(state.defenseUpgrade),
+                    modifier=Modifier.fillMaxWidth()
+                ) { Text("守護修練 Lv."+state.defenseUpgrade+
+                    "（被ダメージ -"+state.defenseUpgrade+
+                    "）　"+GrowthRules.upgradeCost(state.defenseUpgrade)+"G") }
+                Row(horizontalArrangement=Arrangement.spacedBy(8.dp)) {
+                    OutlinedButton(onClick={onBuySupply("potion")},
+                        enabled=state.tapRun.gold>=35&&state.potions<99,
+                        modifier=Modifier.weight(1f)) {
+                        Text("回復薬 35G")
+                    }
+                    OutlinedButton(onClick={onBuySupply("orb")},
+                        enabled=state.tapRun.gold>=45&&state.captureOrbs<99,
+                        modifier=Modifier.weight(1f)) {
+                        Text("捕獲玉 45G")
+                    }
+                }
+                SectionTitle("実績と召喚結晶")
+                Text("一度だけ受け取れる挑戦報酬。高階層・進化・収集を目指そう。",
+                    color=Blue,style=MaterialTheme.typography.bodySmall)
+                GrowthRules.achievements.forEach { goal ->
+                    val claimed=goal.id in state.achievementsClaimed
+                    val ready=goal.ready(state)
+                    Card(Modifier.fillMaxWidth(),
+                        colors=CardDefaults.cardColors(containerColor=Color(0xFF1A2944))) {
+                        Row(Modifier.padding(horizontal=10.dp,vertical=8.dp),
+                            verticalAlignment=Alignment.CenterVertically) {
+                            Column(Modifier.weight(1f)) {
+                                Text(goal.title,color=Gold,
+                                    style=MaterialTheme.typography.titleSmall)
+                                Text(goal.target+"　報酬：結晶+"+goal.reward,
+                                    style=MaterialTheme.typography.labelSmall)
+                            }
+                            Button(
+                                onClick={onClaimAchievement(goal.id)},
+                                enabled=ready&&!claimed,
+                                contentPadding=PaddingValues(horizontal=10.dp)
+                            ) { Text(if(claimed)"受取済" else if(ready)"受取" else "未達成") }
+                        }
+                    }
+                }
                 SectionTitle("冒険記録")
-                Text("相棒： "+state.companion.name+
-                    " / "+state.companion.species+" / "+state.companion.element)
-                Text("レベル："+state.companion.level+
-                    "　撃破："+state.defeated+"　捕獲："+state.captures.size)
-                Text("最高到達階："+state.tapRun.bestFloor+"F")
-                Text("踏破歩数："+state.tapRun.distance+
+                Text("撃破："+state.defeated+"　BOSS討伐："+state.bossWins+
+                    "　仲間："+state.captures.size)
+                Text("最高："+state.tapRun.bestFloor+"F　歩数："+state.tapRun.distance+
                     "　リトライ："+state.tapRun.deaths)
-                Text("所持金："+state.tapRun.gold+" G",
-                    color=Gold)
             }
         }
         Spacer(Modifier.height(6.dp))
@@ -409,8 +517,8 @@ fun TapExplorationScreen(
             bodyType=if(state.companion.species=="精霊") "SPIRIT" else "",
             maxHp=100,attack=10+state.companion.level,
             stage=when {
-                state.companion.level>=12 -> 3
-                state.companion.level>=5 -> 2
+                state.companion.level>=16 -> 3
+                state.companion.level>=7 -> 2
                 else -> 1
             }
         )

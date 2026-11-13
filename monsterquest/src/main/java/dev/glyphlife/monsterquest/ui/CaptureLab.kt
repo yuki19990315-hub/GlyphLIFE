@@ -259,15 +259,22 @@ fun CaptureLab(
                     Text("AIの装備スタイル提案も、下部に入力したGemini APIキーを使います。",
                         style=MaterialTheme.typography.bodySmall)
                 }
+                Text("Lv."+monster.level+"　経験値 "+monster.xp+
+                    (if(monster.level>=50)" / MAX"
+                     else " / "+dev.glyphlife.monsterquest.model.GrowthRules.xpNeeded(monster.level)),
+                    style=MaterialTheme.typography.bodySmall)
                 Text(
-                    if (monster.stage >= 3) "最終進化に到達済み"
-                    else "次の進化条件：累計${EvolutionRules.requiredVictories(monster.stage)}体撃破（現在${defeated}体）",
-                    style = MaterialTheme.typography.bodySmall
+                    if(monster.stage>=3)"最終進化到達済み"
+                    else "次の進化：Lv"+EvolutionRules.requiredLevel(monster.stage)+
+                        "以上、出撃勝利"+EvolutionRules.requiredVictories(monster.stage)+
+                        "回以上（現在"+monster.victories+"回）。出撃パーティに編成して育てよう。",
+                    style=MaterialTheme.typography.bodySmall
                 )
                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                     OutlinedButton(
                         enabled = !inBattle && monster.stage < 3 &&
-                            defeated >= EvolutionRules.requiredVictories(monster.stage),
+                            monster.level>=EvolutionRules.requiredLevel(monster.stage) &&
+                            monster.victories>=EvolutionRules.requiredVictories(monster.stage),
                         onClick = { onEvolve(monster.id) }
                     ) { Text("選択モンスターを進化") }
                     OutlinedButton(onClick = { onSendGlyph(monster) }) {

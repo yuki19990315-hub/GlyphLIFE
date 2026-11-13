@@ -109,7 +109,8 @@ object TapAdventure {
             .sumOf { it.attack.coerceIn(0,80)/12 }.coerceAtMost(15)
         val critical=rng.nextInt(100)<12
         val weak=run.phase==TapPhase.BOSS && run.weakpointTaps>0
-        val amount=(6+state.companion.level.coerceIn(1,35)/3+support+rng.nextInt(5)) *
+        val amount=(6+state.companion.level.coerceIn(1,50)/3+
+            state.attackUpgrade*2+support+rng.nextInt(5)) *
             (if(critical)2 else 1) * (if(weak)3 else 1)
         val hp=(run.enemyHp-amount).coerceAtLeast(0)
         val hit=run.copy(enemyHp=hp,combo=run.combo+1,
@@ -134,7 +135,7 @@ object TapAdventure {
         if(remaining>0)return state.copy(tapRun=run.copy(attackTimerMs=remaining))
         val foe=run.enemy
         if(run.phase==TapPhase.FIGHT) {
-            val harm=foe.attack+rng.nextInt(3)
+            val harm=(foe.attack+rng.nextInt(3)-state.defenseUpgrade).coerceAtLeast(1)
             val hp=(state.playerHp-harm).coerceAtLeast(0)
             if(hp==0)return death(state.copy(playerHp=0))
             return state.copy(playerHp=hp,tapRun=run.copy(
@@ -143,7 +144,8 @@ object TapAdventure {
         }
         val avoided=run.lane!=0 && run.lane!=run.bossTarget
         val enraged=run.enemyHp<=foe.maxHp/2
-        val harm=if(avoided)0 else foe.attack+(if(enraged)11 else 0)+rng.nextInt(6)
+        val harm=if(avoided)0 else (foe.attack+(if(enraged)11 else 0)+
+            rng.nextInt(6)-state.defenseUpgrade).coerceAtLeast(1)
         val hp=(state.playerHp-harm).coerceAtLeast(0)
         if(hp==0)return death(state.copy(playerHp=0))
         return state.copy(playerHp=hp,tapRun=run.copy(
@@ -240,23 +242,24 @@ object TapAdventure {
         val drop=if(boss)2 else if(rng.nextInt(100)<8)1 else 0
         val next=state.copy(
             summonStones=(state.summonStones+drop).coerceAtMost(999),
-            defeated=(state.defeated+1).coerceAtMost(1000),
+            defeated=(state.defeated+1).coerceAtMost(999999),
             earnedXp=(state.earnedXp+(if(boss)30 else 4)).coerceAtMost(100),
             earnedHappiness=(state.earnedHappiness+1).coerceAtMost(20)
         )
         if(boss) {
             val floor=(r.floor+1).coerceAtMost(MAX_FLOOR)
-            return next.copy(tapRun=r.copy(
+            return GrowthRules.rewardBattle(next.copy(tapRun=r.copy(
                 floor=floor,bestFloor=maxOf(r.bestFloor,floor),steps=0,
+                gold=(r.gold+50+r.floor*10).coerceAtMost(999999),
                 phase=TapPhase.WALK,enemy=null,enemyHp=0,combo=0,
                 message="BOSS撃破！ 召喚結晶+2。"+floor+"Fへ！"
-            ))
+            )),boss=true,floor=r.floor)
         }
-        return next.copy(tapRun=r.copy(
+        return GrowthRules.rewardBattle(next.copy(tapRun=r.copy(
             phase=TapPhase.WALK,enemy=null,enemyHp=0,combo=0,
-            gold=r.gold+5+r.floor,
+            gold=(r.gold+10+r.floor*2).coerceAtMost(999999),
             message="勝利！ "+foe.species+(if(drop>0)" / 召喚結晶+1！" else "")
-        ))
+        )),boss=false,floor=r.floor)
     }
 
     private fun death(state:QuestState):QuestState {
