@@ -486,8 +486,10 @@ object GlyphProjector {
     /** All species are projected from their full 64px artwork.
      * The legacy 1-bit string is derived from brightness, never a face icon.
      */
-    fun project(sprite: PixelSprite): String =
-        FullBodyGlyphProjector.asBinary(FullBodyGlyphProjector.project(sprite))
+    fun project(sprite: PixelSprite): String {
+        require(sprite.width >= 13 && sprite.height >= 13)
+        return FullBodyGlyphProjector.asBinary(FullBodyGlyphProjector.project(sprite))
+    }
 
     @Suppress("UNUSED_PARAMETER")
     fun projectFor(monster: WildMonster, sprite: PixelSprite, pose: Int = 0): String =
