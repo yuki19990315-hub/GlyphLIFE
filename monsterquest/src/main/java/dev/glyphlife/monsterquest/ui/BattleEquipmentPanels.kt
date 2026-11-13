@@ -196,6 +196,9 @@ fun PartySkillButtons(
 fun MonsterPotentialPanel(monster:WildMonster) {
     val bonus=SkillRules.extraFor(monster)
     Column(verticalArrangement=Arrangement.spacedBy(5.dp)) {
+        Text("能力は各スロットで独立抽選。同じ能力が2～3枠出てもOK！"+
+            " 重複した強化値は合計されます。",
+            color=RelicBlue,style=MaterialTheme.typography.labelSmall)
         Text("ランダム追加スキル：◆ "+bonus.name+
             "　"+bonus.detail,
             color=RelicGold,style=MaterialTheme.typography.bodySmall)

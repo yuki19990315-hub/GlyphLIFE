@@ -28,6 +28,8 @@ object TalentRules {
 
     private fun roll(id:String,index:Int):StatSlot {
         val r=rng(id,100+index)
+        // Draw WITH replacement: attack/attack/attack is a valid perfect roll.
+        // Never exclude an attribute chosen by an earlier slot.
         val kind=statKinds[r.nextInt(statKinds.size)]
         val percent=r.nextInt(100)
         val rarity=if(percent<10)3 else if(percent<37)2 else 1

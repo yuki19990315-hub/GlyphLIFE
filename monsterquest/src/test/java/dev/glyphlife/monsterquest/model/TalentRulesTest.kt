@@ -46,6 +46,43 @@ class TalentRulesTest {
             TalentRules.awaken(three.copy(stage=3)).statSlots)
     }
 
+    @Test fun repeatedStatKindsAreAllowedInAllThreeSlots() {
+        // Every slot independently samples all four kinds WITH replacement.
+        // This also ensures future refactors don't introduce de-duplication.
+        val tripleAttack=(1..2000).asSequence().map { index ->
+            TalentRules.awaken(monster("triple-attack-"+index,30))
+        }.firstOrNull { result ->
+            result.statSlots.size==3 &&
+                result.statSlots.all { slot -> slot.kind=="attack" }
+        }
+        assertNotNull("All three Attack slots must be obtainable",tripleAttack)
+        val rolled=tripleAttack!!
+        val attackSum=rolled.statSlots.sumOf { it.value }
+        assertEquals(attackSum,TalentRules.ownStats(rolled.statSlots).attack)
+        assertEquals(0,TalentRules.ownStats(rolled.statSlots).defense)
+        // Reload and evolution must not reroll duplicate slots.
+        val evolved=TalentRules.awaken(rolled.copy(stage=3))
+        assertEquals(rolled.statSlots,evolved.statSlots)
+    }
+
+    @Test fun threeIdenticalStatsStackWithoutClampingAtIndividualLevel() {
+        val tripleCritical=listOf(
+            StatSlot("critical",3,1),
+            StatSlot("critical",6,2),
+            StatSlot("critical",9,3)
+        )
+        assertEquals(18,TalentRules.ownStats(tripleCritical).critical)
+        val tripleHp=listOf(
+            StatSlot("hp",8,1),StatSlot("hp",16,2),StatSlot("hp",24,3)
+        )
+        assertEquals(48,TalentRules.ownStats(tripleHp).hp)
+        val single=monster("stacked",30).copy(statSlots=tripleHp)
+        val team=QuestState(
+            companion=Companion(id="pet",level=30),
+            captures=listOf(single),partyIds=listOf(single.id))
+        assertEquals(148,TalentRules.maxHp(team))
+    }
+
     @Test fun evolutionAndReloadDoNotRerollAnyExistingBonuses() {
         val grown=TalentRules.awaken(monster("same-id",30))
         val evolved=TalentRules.awaken(grown.copy(stage=3))
