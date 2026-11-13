@@ -2,6 +2,7 @@ package dev.glyphlife.monsterquest.ui
 
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.*
@@ -248,49 +249,11 @@ fun PixelDungeonBackdrop(floor:Int,boss:Boolean,steps:Int=0,modifier:Modifier=Mo
     }
 }
 
-/** Pure square-pixel 24x24 adventurer silhouette; never mistaken for monster art. */
-@Composable
-private fun PixelAdventurer(modifier:Modifier=Modifier) {
-    val rows=listOf(
-        "..........dddd..........",
-        ".........dhhhhd.........",
-        "........dhhhhhd.........",
-        "........hhhhhhhh........",
-        "........hssssssh........",
-        ".......hhskkskkhh.......",
-        ".......ddssssssdd.......",
-        "........dssssssd........",
-        "........drrrbrd.........",
-        ".......ddrrrrrdd........",
-        "......ddrrbbbrdd........",
-        ".....ddrrrbbrrrdd.......",
-        "....ddrrrrbbrrrrddd.....",
-        "....drrrrrbbrrrrrdd.....",
-        "....drrrrrbbrrrrrdd.....",
-        "......ddrdbbdrrdd.......",
-        ".......dddbbddd.........",
-        ".......dddbbdd..........",
-        "........dd..dd..........",
-        "........dd..dd..........",
-        ".......ddd..ddd.........",
-        ".......ddd..ddd.........",
-        "......dddd..dddd........",
-        "........................")
-    val colors=mapOf('d' to Color(0xFF202033),'h' to Color(0xFFCEAC6F),
-        's' to Color(0xFFF6D2A6),'k' to Color(0xFF181C2A),
-        'r' to Color(0xFF31477A),'b' to Color(0xFFD3C6A9))
-    Canvas(modifier) {
-        val p=size.minDimension/24f
-        rows.forEachIndexed { y,row ->
-            row.forEachIndexed { x,ch ->
-                colors[ch]?.let { c ->
-                    drawRect(c,Offset(x*p,y*p),Size(p,p))
-                }
-            }
-        }
-    }
-}
-
+/**
+ * Companion-to-enemy battle composition: the player's selected main monster is
+ * always on the LEFT facing RIGHT, while the enemy is RIGHT facing LEFT.
+ * No human-avatar fallback is drawn.
+ */
 @Composable
 fun TapExplorationScreen(
     state:QuestState,store:MonsterArtworkStore,revision:Int,
@@ -299,130 +262,228 @@ fun TapExplorationScreen(
 ) {
     val run=state.tapRun
     val boss=run.phase==TapPhase.BOSS
+    val fighting=run.phase==TapPhase.BOSS || run.phase==TapPhase.FIGHT
+    val companion=remember(state.companion) {
+        WildMonster(
+            id=state.companion.id,species=state.companion.species,
+            element=state.companion.element,
+            artFamily=state.companion.gameArtFamily(),
+            bodyType=if(state.companion.species=="精霊") "SPIRIT" else "",
+            maxHp=100,attack=10+state.companion.level,
+            stage=when {
+                state.companion.level>=12 -> 3
+                state.companion.level>=5 -> 2
+                else -> 1
+            }
+        )
+    }
     Column(
-        Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(12.dp),
-        verticalArrangement=Arrangement.spacedBy(10.dp)
+        Modifier.fillMaxSize().background(Color(0xFF090F24))
+            .verticalScroll(rememberScrollState())
+            .padding(horizontal=10.dp,vertical=7.dp),
+        verticalArrangement=Arrangement.spacedBy(8.dp)
     ) {
-        Row(verticalAlignment=Alignment.CenterVertically,
-            horizontalArrangement=Arrangement.SpaceBetween,
-            modifier=Modifier.fillMaxWidth()) {
-            Column {
-                Text("探索  "+run.floor+"F",style=MaterialTheme.typography.headlineSmall,
-                    color=Gold,fontWeight=FontWeight.Bold)
-                Text(if(boss)"★ BOSS BATTLE"
-                    else "タップで前進・敵が来たら連打で攻撃",
-                    style=MaterialTheme.typography.labelSmall)
-            }
-            Text("最高 "+run.bestFloor+"F",color=Blue)
-        }
-        LinearProgressIndicator(
-            progress={state.playerHp/100f},modifier=Modifier.fillMaxWidth(),
-            color=Color(0xFF7ED9A3))
-        Text("HP "+state.playerHp+"/100　捕獲玉 ×"+state.captureOrbs+
-            "　結晶 ×"+state.summonStones)
-        Box(Modifier.fillMaxWidth().height(315.dp)
-            .background(Ink,RoundedCornerShape(12.dp))
-            .clickable(enabled=run.phase!=TapPhase.BRANCH,onClick=onTap)
+        // GBA RPG style: compact counters and a framed battle vista.
+        Row(
+            modifier=Modifier.fillMaxWidth(),
+            verticalAlignment=Alignment.CenterVertically,
+            horizontalArrangement=Arrangement.SpaceBetween
         ) {
-            PixelDungeonBackdrop(run.floor,boss,run.steps,Modifier.fillMaxSize())
-            PixelAdventurer(Modifier.size(110.dp).align(Alignment.BottomStart)
-                .offset(x=(if(run.phase==TapPhase.FIGHT||boss)run.combo%2*8 else run.steps%3*3).dp,
-                    y=(if(run.steps%2==0)0 else -3).dp)
-                .padding(start=8.dp,bottom=27.dp))
-            run.enemy?.let { foe ->
-                MonsterArtworkView(foe,store,revision,
-                    Modifier.size(if(boss)208.dp else 156.dp)
-                        .align(Alignment.BottomEnd).padding(end=8.dp,bottom=12.dp))
+            Text(
+                "✧ 探索  "+run.floor+"F",
+                style=MaterialTheme.typography.titleLarge,
+                fontWeight=FontWeight.ExtraBold,color=Gold
+            )
+            Text("◆ "+state.summonStones+"  ◉ "+state.captureOrbs+
+                "   BEST "+run.bestFloor+"F",
+                color=Blue,style=MaterialTheme.typography.labelMedium)
+        }
+        Box(
+            Modifier.fillMaxWidth()
+                .border(
+                    2.dp,Color(0xFFBDA66D),RoundedCornerShape(10.dp))
+                .background(Color(0xFF101C34),RoundedCornerShape(10.dp))
+                .padding(4.dp)
+        ) {
+            Column(verticalArrangement=Arrangement.spacedBy(5.dp)) {
+                Row(
+                    Modifier.fillMaxWidth().padding(horizontal=4.dp,vertical=3.dp),
+                    horizontalArrangement=Arrangement.SpaceBetween
+                ) {
+                    Text("⚔ "+companion.species+"  Lv."+state.companion.level,
+                        style=MaterialTheme.typography.labelMedium,color=Gold)
+                    Text(if(fighting)"ENCOUNTER" else "歩数 "+
+                        run.steps+"/"+TapAdventure.STEPS_PER_FLOOR,
+                        style=MaterialTheme.typography.labelMedium,color=Color.White)
+                }
+                Row(Modifier.fillMaxWidth(),
+                    horizontalArrangement=Arrangement.spacedBy(8.dp),
+                    verticalAlignment=Alignment.CenterVertically) {
+                    Column(Modifier.weight(1f)) {
+                        LinearProgressIndicator(
+                            progress={state.playerHp/100f},
+                            modifier=Modifier.fillMaxWidth().height(8.dp),
+                            color=Color(0xFF67D49C),
+                            trackColor=Color(0xFF283953))
+                        Text("HP "+state.playerHp+"/100",
+                            color=Color.White,style=MaterialTheme.typography.labelSmall)
+                    }
+                    if(run.enemy!=null) {
+                        Column(Modifier.weight(1f),
+                            horizontalAlignment=Alignment.End) {
+                            LinearProgressIndicator(
+                                progress={run.enemyHp.toFloat()/
+                                    run.enemy.maxHp.coerceAtLeast(1)},
+                                modifier=Modifier.fillMaxWidth().height(8.dp),
+                                color=Color(0xFFF58596),
+                                trackColor=Color(0xFF283953))
+                            Text(run.enemy.species+"  "+
+                                run.enemyHp+"/"+run.enemy.maxHp,
+                                maxLines=1,color=Color.White,
+                                style=MaterialTheme.typography.labelSmall)
+                        }
+                    }
+                }
+                Box(
+                    Modifier.fillMaxWidth().height(346.dp)
+                        .background(Color(0xFF132742),RoundedCornerShape(6.dp))
+                        .clickable(enabled=run.phase!=TapPhase.BRANCH,onClick=onTap)
+                ) {
+                    PixelDungeonBackdrop(run.floor,boss,run.steps,Modifier.fillMaxSize())
+                    // Stage characters are big, full-body 64x64 pixel sprites.
+                    MonsterArtworkView(
+                        monster=companion,store=store,revision=revision,
+                        modifier=Modifier.size(169.dp)
+                            .align(Alignment.BottomStart)
+                            .offset(
+                                x=(if(fighting)run.combo%2*9 else run.steps%2*4).dp,
+                                y=(if(run.steps%2==0)0 else -3).dp
+                            )
+                            .padding(start=4.dp,bottom=19.dp),
+                        facingRight=true
+                    )
+                    run.enemy?.let { foe ->
+                        MonsterArtworkView(
+                            monster=foe,store=store,revision=revision,
+                            modifier=Modifier.size(if(boss)199.dp else 161.dp)
+                                .align(Alignment.BottomEnd)
+                                .offset(x=(if(run.combo%2==0)0 else -3).dp)
+                                .padding(end=4.dp,bottom=18.dp),
+                            facingRight=false
+                        )
+                    }
+                    if(!fighting) {
+                        Box(Modifier.align(Alignment.TopCenter)
+                            .padding(top=9.dp)
+                            .background(Color(0xB9142342),RoundedCornerShape(6.dp))
+                            .padding(horizontal=10.dp,vertical=4.dp)) {
+                            Text("タップで前進 ▶",
+                                color=Gold,style=MaterialTheme.typography.labelLarge)
+                        }
+                    } else if(boss) {
+                        Box(Modifier.align(Alignment.TopCenter).padding(top=8.dp)
+                            .background(Color(0xE2201C35),RoundedCornerShape(5.dp))
+                            .padding(horizontal=8.dp,vertical=5.dp)) {
+                            Text(
+                                if(run.weakpointTaps>0)
+                                    "WEAK POINT ×"+run.weakpointTaps+"  攻撃3倍"
+                                else (if(run.bossTarget<0)"左に攻撃！ 右へ回避 →"
+                                      else "← 左へ回避！ 右に攻撃")+
+                                    "  "+String.format("%.1f",run.attackTimerMs/1000f)+"秒",
+                                color=Gold,style=MaterialTheme.typography.labelMedium
+                            )
+                        }
+                    } else {
+                        Box(Modifier.align(Alignment.TopCenter).padding(top=8.dp)
+                            .background(Color(0xD51A2340),RoundedCornerShape(5.dp))
+                            .padding(horizontal=10.dp,vertical=5.dp)) {
+                            Text("敵の次の攻撃まで "+
+                                String.format("%.1f",run.attackTimerMs/1000f)+"秒",
+                                color=Color.White,
+                                style=MaterialTheme.typography.labelMedium)
+                        }
+                    }
+                    if(fighting) {
+                        Text(run.combo.toString()+" HIT",
+                            Modifier.align(Alignment.Center)
+                                .offset(y=(-85).dp)
+                                .background(Color(0xB7141A2D),RoundedCornerShape(6.dp))
+                                .padding(horizontal=9.dp,vertical=3.dp),
+                            color=Gold,fontWeight=FontWeight.Black,
+                            style=MaterialTheme.typography.titleLarge)
+                    }
+                }
             }
-            Surface(color=Color(0xCC101827),shape=RoundedCornerShape(8.dp),
-                modifier=Modifier.align(Alignment.TopCenter).padding(10.dp)) {
-                Text(when(run.phase) {
-                    TapPhase.WALK -> "前進 "+run.steps+"/"+TapAdventure.STEPS_PER_FLOOR
-                    TapPhase.FIGHT -> "連打 "+run.combo+" HIT"
-                    TapPhase.BOSS -> "BOSS  "+run.combo+" HIT"
-                    TapPhase.BRANCH -> "フロア分岐"
-                },modifier=Modifier.padding(horizontal=12.dp,vertical=6.dp),
-                    color=Color.White)
+        }
+        // Compact battle log. Actions remain above the fixed bottom navigation.
+        Box(Modifier.fillMaxWidth()
+            .androidx.compose.foundation.border(
+                1.dp,Color(0xFF4E638A),RoundedCornerShape(7.dp))
+            .background(Color(0xFF182541),RoundedCornerShape(7.dp))
+            .padding(horizontal=12.dp,vertical=9.dp)) {
+            Text(run.message,color=Color(0xFFF6E8CB),
+                style=MaterialTheme.typography.bodyMedium,
+                maxLines=2)
+        }
+        if(run.phase==TapPhase.BRANCH) {
+            Text("◇ 分かれ道：進むルートを選択",
+                color=Gold,style=MaterialTheme.typography.titleMedium)
+            listOf(
+                "✚ 精霊の泉　HP回復",
+                "◆ 宝箱の小道　アイテム・結晶",
+                "⚔ 危険な近道　強敵・レア報酬"
+            ).forEachIndexed { index,title ->
+                Button(
+                    modifier=Modifier.fillMaxWidth().height(52.dp),
+                    onClick={onBranch(index)},
+                    colors=ButtonDefaults.buttonColors(containerColor=Color(0xFF283659))
+                ) { Text(title,color=Color.White) }
             }
-            if(run.phase==TapPhase.WALK)
-                Text("TAP TO WALK",Modifier.align(Alignment.BottomCenter)
-                    .padding(bottom=12.dp),color=Gold,
-                    style=MaterialTheme.typography.titleMedium)
-            if(boss)
+        } else {
+            Button(
+                onClick=onTap,
+                modifier=Modifier.fillMaxWidth().height(68.dp),
+                shape=RoundedCornerShape(14.dp),
+                colors=ButtonDefaults.buttonColors(
+                    containerColor=Color(0xFFBA883A),
+                    contentColor=Color(0xFF11182B))
+            ) {
                 Text(
-                    if(run.weakpointTaps>0)"弱点露出！ 3倍攻撃 ×"+run.weakpointTaps
-                    else "予告："+(if(run.bossTarget<0)"左に大技！ →右へ"
-                                  else "右に大技！ ←左へ")+
-                        "　残り"+run.bossCountdown,
-                    modifier=Modifier.align(Alignment.TopCenter).padding(top=47.dp)
-                        .background(Color(0xD9221D35),RoundedCornerShape(7.dp))
-                        .padding(6.dp),color=Gold,
-                    style=MaterialTheme.typography.labelMedium)
-        }
-        if(run.enemy!=null) {
-            Text((if(boss)"★ " else "")+run.enemy.species+" / "+run.enemy.element,
-                style=MaterialTheme.typography.titleMedium)
-            LinearProgressIndicator(
-                progress={
-                    run.enemyHp.toFloat()/run.enemy.maxHp.coerceAtLeast(1)
-                },modifier=Modifier.fillMaxWidth(),color=Color(0xFFFF7F86))
-            Text("敵 HP "+run.enemyHp+"/"+run.enemy.maxHp,
-                style=MaterialTheme.typography.labelSmall)
-        }
-        Card(Modifier.fillMaxWidth()) {
-            Text(run.message,Modifier.padding(12.dp),
-                style=MaterialTheme.typography.bodyMedium)
-        }
-        when(run.phase) {
-            TapPhase.WALK,TapPhase.FIGHT,TapPhase.BOSS -> {
-                Button(onClick=onTap,modifier=Modifier.fillMaxWidth().height(65.dp)) {
-                    Text(if(run.phase==TapPhase.WALK)"タップして前進"
-                         else "⚔ タップ連打で攻撃",
-                        style=MaterialTheme.typography.titleMedium)
-                }
-                if(boss) {
-                    Text("ボス専用：赤い予告方向の反対側へ移動。回避成功で弱点が露出！",
-                        style=MaterialTheme.typography.bodySmall)
-                    Row(horizontalArrangement=Arrangement.spacedBy(8.dp)) {
-                        OutlinedButton(onClick={onDodge(-1)},modifier=Modifier.weight(1f)) {
-                            Text(if(run.lane==-1)"✓ 左へ移動" else "← 左へ回避")
-                        }
-                        OutlinedButton(onClick={onDodge(1)},modifier=Modifier.weight(1f)) {
-                            Text(if(run.lane==1)"✓ 右へ移動" else "右へ回避 →")
-                        }
-                    }
-                }
+                    if(fighting)"⚔  連打して攻撃  ⚔" else "▶  タップして前進",
+                    style=MaterialTheme.typography.titleLarge,fontWeight=FontWeight.Black
+                )
+            }
+            if(boss) {
                 Row(horizontalArrangement=Arrangement.spacedBy(8.dp)) {
-                    OutlinedButton(onClick=onCapture,
-                        enabled=run.phase==TapPhase.FIGHT && state.captureOrbs>0,
-                        modifier=Modifier.weight(1f)) {
-                        Text("◉ 捕獲（"+state.captureOrbs+"）")
+                    OutlinedButton(onClick={onDodge(-1)},modifier=Modifier.weight(1f)) {
+                        Text(if(run.lane==-1)"◀ 左：選択中" else "◀ 左へ回避")
                     }
-                    OutlinedButton(onClick=onHeal,
-                        enabled=state.potions>0 && state.playerHp<100,
-                        modifier=Modifier.weight(1f)) {
-                        Text("✚ 回復（"+state.potions+"）")
+                    OutlinedButton(onClick={onDodge(1)},modifier=Modifier.weight(1f)) {
+                        Text(if(run.lane==1)"右：選択中 ▶" else "右へ回避 ▶")
                     }
                 }
             }
-            TapPhase.BRANCH -> {
-                Text("ランダムイベント：どの道を選ぶ？",
-                    style=MaterialTheme.typography.titleMedium)
-                listOf(
-                    "精霊の泉 — HPを28回復",
-                    "宝箱の道 — コイン、捕獲玉、時々召喚結晶",
-                    "危険な道 — 強敵か召喚結晶"
-                ).forEachIndexed { i,label ->
-                    OutlinedButton(
-                        modifier=Modifier.fillMaxWidth(),onClick={onBranch(i)}
-                    ) { Text(label) }
+            Row(horizontalArrangement=Arrangement.spacedBy(8.dp)) {
+                OutlinedButton(onClick=onHeal,
+                    enabled=state.potions>0 && state.playerHp<100,
+                    modifier=Modifier.weight(1f)) {
+                    Text("✚ 回復 "+state.potions)
                 }
+                OutlinedButton(onClick=onCapture,
+                    enabled=run.phase==TapPhase.FIGHT && state.captureOrbs>0,
+                    modifier=Modifier.weight(1f)) {
+                    Text("◉ 捕獲 "+state.captureOrbs)
+                }
+            }
+            if(fighting) {
+                Text(
+                    if(boss)"BOSS：攻撃は時間経過。予告方向の逆に回避して弱点を狙おう"
+                    else "タップだけで連続攻撃！ 敵は時間経過で反撃します",
+                    style=MaterialTheme.typography.labelMedium,color=Blue
+                )
             }
         }
-        Text("5Fごとに強敵BOSS / 3Fごとに分岐。戦闘不能では1Fから再開。" +
-            " 仲間・図鑑・アイテムは失いません。",
-            style=MaterialTheme.typography.bodySmall)
-        Spacer(Modifier.height(18.dp))
+        Spacer(Modifier.height(6.dp))
     }
 }
 
