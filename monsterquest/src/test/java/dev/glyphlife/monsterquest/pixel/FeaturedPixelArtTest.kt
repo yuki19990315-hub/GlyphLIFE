@@ -53,9 +53,11 @@ class FeaturedPixelArtTest {
             val coords = pixels.indices.filter { index -> (pixels[index] ushr 24) != 0 }
             val xs = coords.map { index -> index % 64 }
             val ys = coords.map { index -> index / 64 }
-            // Real full-body artwork fills the available width while maintaining a margin.
-            assertTrue("Stage $stage is too narrow", xs.max() - xs.min() >= 48)
-            assertTrue("Stage $stage is too flat", ys.max() - ys.min() >= 33)
+            // Juvenile and final form intentionally grow in the same 64px canvas.
+            val minWidth = when(stage) { 1 -> 35; 2 -> 45; else -> 55 }
+            val minHeight = when(stage) { 1 -> 28; 2 -> 35; else -> 44 }
+            assertTrue("Stage $stage is too narrow", xs.max() - xs.min() >= minWidth)
+            assertTrue("Stage $stage is too flat", ys.max() - ys.min() >= minHeight)
             assertTrue("Stage $stage cropped at edge", xs.min() >= 1 && xs.max() <= 62)
             assertTrue("Stage $stage cropped at edge", ys.min() >= 1 && ys.max() <= 62)
             opaqueCounts.add(coords.size)
