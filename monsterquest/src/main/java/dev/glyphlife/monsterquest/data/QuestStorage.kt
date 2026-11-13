@@ -130,6 +130,7 @@ class QuestStorage(context: Context) {
         .put("motifPrimary", w.motifPrimary).put("motifSecondary", w.motifSecondary)
         .put("designSeed", w.designSeed)
         .put("artFamily", w.artFamily)
+        .put("artSourceId", w.artSourceId)
         .put("armorParts", JSONObject(w.armorParts))
         .put("customArmorParts", JSONObject(w.customArmorParts))
         .put("customArmorOffsets", JSONObject().apply {
@@ -158,7 +159,11 @@ class QuestStorage(context: Context) {
                 it == MonsterArtFamilies.LUNA }.orEmpty(),
         armorParts = readArmorParts(o.optJSONObject("armorParts")),
         customArmorParts = readCustomLayers(o.optJSONObject("customArmorParts")),
-        customArmorOffsets = readCustomOffsets(o.optJSONObject("customArmorOffsets"))
+        customArmorOffsets = readCustomOffsets(o.optJSONObject("customArmorOffsets")),
+        artSourceId = o.optString("artSourceId","").take(64)
+            .takeIf { id -> id.isBlank() || runCatching {
+                java.util.UUID.fromString(id)
+            }.isSuccess }.orEmpty()
     )
 
     private fun readArmorParts(value: JSONObject?): Map<String, String> {
