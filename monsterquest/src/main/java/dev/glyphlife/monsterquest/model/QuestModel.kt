@@ -64,6 +64,8 @@ fun Companion.gameArtFamily(): String =
 
 data class QuestState(
     val companion: Companion = Companion(),
+    /** Tower and arena are separate from the main exploration session. */
+    val challenge: ChallengeState = ChallengeState(),
     val companionXp: Int = 0,
     val attackUpgrade: Int = 0,
     val defenseUpgrade: Int = 0,
