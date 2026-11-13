@@ -41,14 +41,14 @@ object GrowthRules {
             if(monster.id !in state.partyIds) monster else {
                 val (level,xp)=advance(monster.level,monster.xp,earned*3/4)
                 val gained=(level-monster.level).coerceAtLeast(0)
-                monster.copy(level=level,xp=xp,
+                TalentRules.awaken(monster.copy(level=level,xp=xp,
                     victories=(monster.victories+1).coerceAtMost(100000),
                     maxHp=(monster.maxHp+gained*3).coerceAtMost(100000),
-                    attack=(monster.attack+gained).coerceAtMost(10000))
+                    attack=(monster.attack+gained).coerceAtMost(10000)))
             }
         }
         return state.copy(
-            companion=state.companion.copy(level=mainLevel),
+            companion=TalentRules.awaken(state.companion.copy(level=mainLevel)),
             companionXp=mainXp,captures=roster,
             bossWins=(state.bossWins+(if(boss)1 else 0)).coerceAtMost(999999),
             tapRun=state.tapRun.copy(message=state.tapRun.message+
