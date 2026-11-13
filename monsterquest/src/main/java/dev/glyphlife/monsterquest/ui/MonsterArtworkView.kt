@@ -10,6 +10,7 @@ import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.graphics.graphicsLayer
 import dev.glyphlife.monsterquest.data.MonsterArtworkStore
 import dev.glyphlife.monsterquest.model.WildMonster
+import dev.glyphlife.monsterquest.pixel.BossRelicPixels
 import dev.glyphlife.monsterquest.pixel.MonsterAnimation
 import dev.glyphlife.monsterquest.pixel.MonsterDesign
 import dev.glyphlife.monsterquest.pixel.PixelAssetPipeline
@@ -26,12 +27,16 @@ fun MonsterArtworkView(
     revision: Int,
     modifier: Modifier = Modifier,
     /** Authored assets face right; enemies are mirrored to face left. */
-    facingRight: Boolean = true
+    facingRight: Boolean = true,
+    /** Overlay is only visual; source and native PNG stay unmodified. */
+    bossRelicKind:String?=null
 ) {
-    val frames=remember(monster,store,revision) {
+    val frames=remember(monster,store,revision,bossRelicKind) {
         val master=store.spriteFor(monster)
         MonsterAnimation.idle(master,monster).map { frame ->
-            frame.durationMs to PixelAssetPipeline.display256(frame.sprite).asImageBitmap()
+            frame.durationMs to PixelAssetPipeline.display256(
+                BossRelicPixels.compose(frame.sprite,bossRelicKind)
+            ).asImageBitmap()
         }
     }
     var index by remember(monster.id,monster.stage,revision) { mutableIntStateOf(0) }
