@@ -11,8 +11,8 @@ android {
         applicationId = "dev.glyphlife.monsterquest"
         minSdk = 29
         targetSdk = 35
-        versionCode = 30
-        versionName = "4.4.0"
+        versionCode = 31
+        versionName = "4.5.0"
     }
     buildFeatures { compose = true }
     buildTypes { release { isMinifyEnabled = false } }

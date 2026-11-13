@@ -70,7 +70,8 @@ object FusionRules {
         val b = state.captures.firstOrNull { it.id == secondId }
             ?: throw IllegalArgumentException("素材Bが見つかりません")
         val preview = preview(a, b)
-        val fused = preview.copy(id = UUID.randomUUID().toString())
+        val fused = TalentRules.awaken(preview.copy(
+            id=UUID.randomUUID().toString(),extraSkillId="",statSlots=emptyList()))
         val remaining = state.captures.filterNot { it.id == firstId || it.id == secondId }
         return state.copy(
             captures = remaining + fused,

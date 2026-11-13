@@ -29,7 +29,7 @@ fun QuestChallenge(
     state:QuestState,store:MonsterArtworkStore,revision:Int,
     onStartTower:()->Unit,onStartArena:()->Unit,
     onAttack:()->Unit,onGuard:()->Unit,
-    onUseSkill:(String)->Unit,onRetreat:()->Unit
+    onUseSkill:(String,Boolean)->Unit,onRetreat:()->Unit
 ) {
     val c=state.challenge
     val active=c.mode!=ChallengeMode.NONE
@@ -40,6 +40,8 @@ fun QuestChallenge(
             element=state.companion.element,
             maxHp=100,attack=10+state.companion.level,
             artFamily=state.companion.gameArtFamily(),
+            extraSkillId=state.companion.extraSkillId,
+            statSlots=state.companion.statSlots,
             stage=when {
                 state.companion.level>=16 -> 3
                 state.companion.level>=7 -> 2
@@ -132,10 +134,10 @@ fun QuestChallenge(
                             Text(state.companion.name+" / "+state.companion.level+"Lv",
                                 color=CGold,style=MaterialTheme.typography.labelMedium)
                             LinearProgressIndicator(
-                                progress={c.playerHp/100f},modifier=Modifier.fillMaxWidth(),
+                                progress={c.playerHp.toFloat()/TalentRules.maxHp(state)},modifier=Modifier.fillMaxWidth(),
                                 color=Color(0xFF7CE3AC),
                                 trackColor=Color(0xFF38405A))
-                            Text("HP "+c.playerHp+"/100",color=Color.White,
+                            Text("HP "+c.playerHp+"/"+TalentRules.maxHp(state),color=Color.White,
                                 style=MaterialTheme.typography.labelSmall)
                         }
                         Column(Modifier.weight(1f),horizontalAlignment=Alignment.End) {
@@ -168,7 +170,8 @@ fun QuestChallenge(
                             modifier=Modifier.size(143.dp)
                                 .align(Alignment.BottomStart)
                                 .padding(start=4.dp,bottom=18.dp),
-                            facingRight=true
+                            facingRight=true,
+                            bossRelicKind=RelicRules.visualKind(state,state.companion.id)
                         )
                         c.opponent?.let { enemy ->
                             MonsterArtworkView(

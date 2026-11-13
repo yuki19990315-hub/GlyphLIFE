@@ -137,40 +137,84 @@ fun BossRelicPanel(
     }
 }
 
-/** Each member has its own action and per-encounter tap cooldown. */
+/** Each captured individual has innate + independently rolled bonus ability. */
 @Composable
 fun PartySkillButtons(
     state:QuestState,cooldowns:Map<String,Int>,
-    enabled:Boolean,onUse:(String)->Unit
+    enabled:Boolean,onUse:(String,Boolean)->Unit
 ) {
     val members=SkillRules.party(state)
     Column(verticalArrangement=Arrangement.spacedBy(5.dp)) {
-        Text("✦ 固有スキル",
+        Text("✦ 固有＋ランダムスキル",
             color=RelicGold,style=MaterialTheme.typography.titleSmall)
-        Text("ボタンで発動。再使用には通常攻撃が必要。"+
-            " 編成によって使えるスキルが変わります。",
+        Text("各個体2種類。追加スキルは捕獲・召喚時に決まります。"+
+            "それぞれ通常攻撃で再使用までのカウントを減らせます。",
             color=RelicBlue,style=MaterialTheme.typography.labelSmall)
         Row(
             Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()),
-            horizontalArrangement=Arrangement.spacedBy(7.dp)
+            horizontalArrangement=Arrangement.spacedBy(8.dp)
         ) {
             members.forEach { monster ->
-                val skill=SkillRules.forMonster(monster)
-                val remaining=cooldowns[monster.id] ?: 0
-                OutlinedButton(
-                    onClick={onUse(monster.id)},
-                    enabled=enabled && remaining==0,
-                    modifier=Modifier.widthIn(min=124.dp)
+                Column(
+                    Modifier.width(150.dp)
+                        .background(Color(0xFF1B2A47),RoundedCornerShape(9.dp))
+                        .padding(7.dp),
+                    horizontalAlignment=Alignment.CenterHorizontally,
+                    verticalArrangement=Arrangement.spacedBy(4.dp)
                 ) {
-                    Column(horizontalAlignment=Alignment.CenterHorizontally) {
-                        Text(monster.species,maxLines=1,
-                            style=MaterialTheme.typography.labelSmall)
-                        Text(skill.name,
-                            style=MaterialTheme.typography.labelMedium,
-                            fontWeight=FontWeight.Bold)
-                        Text(if(remaining==0)"使用可能" else "あと"+remaining+"打",
-                            color=if(remaining==0)RelicGold else RelicBlue,
-                            style=MaterialTheme.typography.labelSmall)
+                    Text(monster.species,maxLines=1,
+                        color=RelicGold,style=MaterialTheme.typography.labelSmall)
+                    listOf(false,true).forEach { bonus ->
+                        val skill=if(bonus)SkillRules.extraFor(monster)
+                            else SkillRules.forMonster(monster)
+                        val key=SkillRules.cooldownKey(monster.id,bonus)
+                        val left=cooldowns[key]?:0
+                        OutlinedButton(
+                            onClick={onUse(monster.id,bonus)},
+                            enabled=enabled && left==0,
+                            modifier=Modifier.fillMaxWidth(),
+                            contentPadding=PaddingValues(horizontal=4.dp,vertical=5.dp)
+                        ) {
+                            Column(horizontalAlignment=Alignment.CenterHorizontally) {
+                                Text((if(bonus)"◆ " else "✦ ")+skill.name,
+                                    style=MaterialTheme.typography.labelSmall,
+                                    maxLines=1)
+                                Text(if(left==0)"使用可能" else "あと"+left+"打",
+                                    style=MaterialTheme.typography.labelSmall,
+                                    color=if(left==0)RelicGold else RelicBlue)
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
+/** The 3 independent roll slots are always visible, even when locked. */
+@Composable
+fun MonsterPotentialPanel(monster:WildMonster) {
+    val bonus=SkillRules.extraFor(monster)
+    Column(verticalArrangement=Arrangement.spacedBy(5.dp)) {
+        Text("ランダム追加スキル：◆ "+bonus.name+
+            "　"+bonus.detail,
+            color=RelicGold,style=MaterialTheme.typography.bodySmall)
+        Row(Modifier.fillMaxWidth(),horizontalArrangement=Arrangement.spacedBy(4.dp)) {
+            TalentRules.levels.forEachIndexed { index,level ->
+                val slot=monster.statSlots.getOrNull(index)
+                Card(Modifier.weight(1f),colors=CardDefaults.cardColors(
+                    containerColor=if(slot==null)Color(0xFF242B3D)
+                    else Color(0xFF344268))) {
+                    Column(
+                        Modifier.padding(horizontal=3.dp,vertical=6.dp),
+                        horizontalAlignment=Alignment.CenterHorizontally
+                    ) {
+                        Text("SLOT "+(index+1),
+                            color=RelicBlue,style=MaterialTheme.typography.labelSmall)
+                        Text(if(slot==null)"Lv"+level+"で解放" else TalentRules.label(slot),
+                            color=if(slot==null)Color(0xFF97A6BA) else RelicGold,
+                            style=MaterialTheme.typography.labelSmall,
+                            maxLines=2)
                     }
                 }
             }

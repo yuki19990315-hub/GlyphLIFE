@@ -499,7 +499,7 @@ class MonsterQuestActivity : ComponentActivity() {
                 Scaffold(
                     topBar={
                         Surface(tonalElevation=2.dp,color=Color(0xFF121B30)) {
-                            Text("MONSTER QUEST / v4.4.0",Modifier.padding(14.dp),
+                            Text("MONSTER QUEST / v4.5.0",Modifier.padding(14.dp),
                                 style=MaterialTheme.typography.titleMedium,
                                 color=Color(0xFFFFD990))
                         }
@@ -593,9 +593,9 @@ class MonsterQuestActivity : ComponentActivity() {
                                     if(!aiBusy && !ChallengeRules.active(state))
                                         update(TapAdventure.tap(state))
                                 },
-                                onUseSkill={ owner ->
+                                onUseSkill={ owner,bonus ->
                                     if(!ChallengeRules.active(state))
-                                        update(TapAdventure.useSkill(state,owner))
+                                        update(TapAdventure.useSkill(state,owner,bonus=bonus))
                                 },
                                 onDodge={ side ->
                                     if(!ChallengeRules.active(state))
@@ -652,8 +652,8 @@ class MonsterQuestActivity : ComponentActivity() {
                                 onStartArena={update(ChallengeRules.startArena(state))},
                                 onAttack={update(ChallengeRules.attack(state))},
                                 onGuard={update(ChallengeRules.defend(state))},
-                                onUseSkill={ owner ->
-                                    update(ChallengeRules.useSkill(state,owner))
+                                onUseSkill={ owner,bonus ->
+                                    update(ChallengeRules.useSkill(state,owner,bonus=bonus))
                                 },
                                 onRetreat={update(ChallengeRules.retreat(state))}
                             )

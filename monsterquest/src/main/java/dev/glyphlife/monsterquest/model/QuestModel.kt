@@ -11,7 +11,9 @@ data class Companion(
     val element: String = "光",
     val level: Int = 1,
     val glyph: String = "0".repeat(169),
-    val importedFromGlyphLife: Boolean = false
+    val importedFromGlyphLife: Boolean = false,
+    val extraSkillId:String = "",
+    val statSlots:List<StatSlot> = emptyList()
 )
 
 data class WildMonster(
@@ -30,6 +32,9 @@ data class WildMonster(
     val level: Int = 1,
     val xp: Int = 0,
     val victories: Int = 0,
+    /** Individual bonuses never change when the species evolves. */
+    val extraSkillId:String = "",
+    val statSlots:List<StatSlot> = emptyList(),
     val lineage: String = "",
     val motifPrimary: String = "",
     val motifSecondary: String = "",

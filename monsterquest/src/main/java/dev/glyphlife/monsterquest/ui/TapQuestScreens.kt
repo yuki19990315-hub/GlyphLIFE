@@ -71,6 +71,8 @@ fun QuestHome(
             element=state.companion.element,maxHp=100,
             attack=10+state.companion.level,
             artFamily=state.companion.gameArtFamily(),
+            extraSkillId=state.companion.extraSkillId,
+            statSlots=state.companion.statSlots,
             stage=when {
                 state.companion.level>=16 -> 3
                 state.companion.level>=7 -> 2
@@ -90,7 +92,8 @@ fun QuestHome(
             PixelDungeonBackdrop(1,false,0,Modifier.fillMaxSize().padding(3.dp))
             MonsterArtworkView(companion,store,revision,
                 Modifier.size(174.dp).align(Alignment.BottomStart)
-                    .padding(start=12.dp,bottom=10.dp),facingRight=true)
+                    .padding(start=12.dp,bottom=10.dp),facingRight=true,
+                bossRelicKind=RelicRules.visualKind(state,state.companion.id))
             Column(
                 modifier=Modifier.align(Alignment.TopCenter)
                     .background(Color(0xC90B1830),RoundedCornerShape(6.dp))
@@ -157,6 +160,9 @@ fun QuestHome(
         when(currentPanel) {
             0 -> {
                 SectionTitle("パーティ詳細　"+state.partyIds.size+"/3")
+                Text("相棒："+state.companion.name+"（Lv"+state.companion.level+"）",
+                    color=Gold,style=MaterialTheme.typography.titleSmall)
+                MonsterPotentialPanel(SkillRules.party(state).first())
                 Text("仲間をタップして編成を変更。戦闘時は選んだ仲間が援護します。",
                     color=Blue,style=MaterialTheme.typography.labelMedium)
                 if(state.captures.isEmpty())
@@ -167,7 +173,8 @@ fun QuestHome(
                         colors=CardDefaults.cardColors(containerColor=Color(0xFF1A2944))) {
                         Row(Modifier.padding(9.dp),
                             verticalAlignment=Alignment.CenterVertically) {
-                            MonsterArtworkView(monster,store,revision,Modifier.size(86.dp))
+                            MonsterArtworkView(monster,store,revision,Modifier.size(86.dp),
+                                bossRelicKind=RelicRules.visualKind(state,monster.id))
                             Spacer(Modifier.width(8.dp))
                             Column(Modifier.weight(1f)) {
                                 Text(monster.species,style=MaterialTheme.typography.titleMedium)
@@ -177,6 +184,9 @@ fun QuestHome(
                                 Text(if(selected)"✓ 出撃中" else "＋ タップで編成",
                                     color=if(selected)Gold else Blue)
                             }
+                        }
+                        Box(Modifier.fillMaxWidth().padding(start=9.dp,end=9.dp,bottom=9.dp)) {
+                            MonsterPotentialPanel(monster)
                         }
                     }
                 }
@@ -512,7 +522,7 @@ fun PixelDungeonBackdrop(floor:Int,boss:Boolean,steps:Int=0,modifier:Modifier=Mo
 @Composable
 fun TapExplorationScreen(
     state:QuestState,store:MonsterArtworkStore,revision:Int,
-    onTap:()->Unit,onUseSkill:(String)->Unit,
+    onTap:()->Unit,onUseSkill:(String,Boolean)->Unit,
     onDodge:(Int)->Unit,onCapture:()->Unit,
     onHeal:()->Unit,onBranch:(Int)->Unit
 ) {
@@ -524,6 +534,8 @@ fun TapExplorationScreen(
             id=state.companion.id,species=state.companion.species,
             element=state.companion.element,
             artFamily=state.companion.gameArtFamily(),
+            extraSkillId=state.companion.extraSkillId,
+            statSlots=state.companion.statSlots,
             bodyType=if(state.companion.species=="精霊") "SPIRIT" else "",
             maxHp=100,attack=10+state.companion.level,
             stage=when {
@@ -577,11 +589,12 @@ fun TapExplorationScreen(
                     verticalAlignment=Alignment.CenterVertically) {
                     Column(Modifier.weight(1f)) {
                         LinearProgressIndicator(
-                            progress={state.playerHp/100f},
+                            progress={state.playerHp.toFloat()/
+                                TalentRules.maxHp(state)},
                             modifier=Modifier.fillMaxWidth().height(8.dp),
                             color=Color(0xFF67D49C),
                             trackColor=Color(0xFF283953))
-                        Text("HP "+state.playerHp+"/100",
+                        Text("HP "+state.playerHp+"/"+TalentRules.maxHp(state),
                             color=Color.White,style=MaterialTheme.typography.labelSmall)
                     }
                     if(run.enemy!=null) {
@@ -618,7 +631,8 @@ fun TapExplorationScreen(
                                 y=(if(run.steps%2==0)0 else -3).dp
                             )
                             .padding(start=4.dp,bottom=19.dp),
-                        facingRight=true
+                        facingRight=true,
+                        bossRelicKind=RelicRules.visualKind(state,state.companion.id)
                     )
                     run.enemy?.let { foe ->
                         MonsterArtworkView(

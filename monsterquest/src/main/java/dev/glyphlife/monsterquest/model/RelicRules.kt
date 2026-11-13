@@ -85,6 +85,11 @@ object RelicRules {
         if(id==state.companion.id)state.companion.name
         else state.captures.firstOrNull{it.id==id}?.species ?: "仲間"
 
+    fun visualKind(state:QuestState,ownerId:String):String? {
+        val id=state.relicEquipment[ownerId] ?: return null
+        return state.bossRelics.firstOrNull{it.id==id}?.kind
+    }
+
     fun relicName(relic:BossRelic):String =
         spec(relic.kind)?.name ?: "未知の遺物"
 
@@ -122,7 +127,9 @@ object RelicRules {
         val heal=stats(state).heal
         if(heal<=0)return state
         return if(challenge)state.copy(challenge=state.challenge.copy(
-            playerHp=(state.challenge.playerHp+heal).coerceAtMost(100)))
-        else state.copy(playerHp=(state.playerHp+heal).coerceAtMost(100))
+            playerHp=(state.challenge.playerHp+heal)
+                .coerceAtMost(TalentRules.maxHp(state))))
+        else state.copy(playerHp=(state.playerHp+heal)
+                .coerceAtMost(TalentRules.maxHp(state)))
     }
 }

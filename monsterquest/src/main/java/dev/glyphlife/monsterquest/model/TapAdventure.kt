@@ -112,11 +112,14 @@ object TapAdventure {
         val support=state.partyIds.mapNotNull { id -> state.captures.find { it.id==id } }
             .sumOf { it.attack.coerceIn(0,80)/12 }.coerceAtMost(15)
         val relic=RelicRules.stats(state)
-        val critical=rng.nextInt(100)<12+relic.critical
+        val talent=TalentRules.teamStats(state)
+        val critical=rng.nextInt(100)<
+            (12+relic.critical+talent.critical).coerceAtMost(80)
         val weak=run.phase==TapPhase.BOSS && run.weakpointTaps>0
         val venom=if(run.venomCharges>0)8 else 0
         val amount=(6+state.companion.level.coerceIn(1,50)/3+
-            state.attackUpgrade*2+support+relic.attack+rng.nextInt(5)) *
+            state.attackUpgrade*2+support+relic.attack+talent.attack+
+            rng.nextInt(5)) *
             (if(critical)2 else 1) * (if(weak)3 else 1)+venom
         val hp=(run.enemyHp-amount).coerceAtLeast(0)
         val hit=run.copy(enemyHp=hp,combo=run.combo+1,
@@ -131,10 +134,10 @@ object TapAdventure {
     }
 
     fun useSkill(state:QuestState,ownerId:String,
-                 rng:Random=Random.Default):QuestState {
+                 rng:Random=Random.Default,bonus:Boolean=false):QuestState {
         val old=state.tapRun
         val foe=old.enemy ?: return state
-        val updated=SkillRules.useExplore(state,ownerId)
+        val updated=SkillRules.useExplore(state,ownerId,bonus)
         if(updated==state)return state
         return if(old.enemyHp>0 && updated.tapRun.enemyHp==0)
             win(updated,foe,rng) else updated
@@ -154,7 +157,8 @@ object TapAdventure {
         val foe=run.enemy
         if(run.phase==TapPhase.FIGHT) {
             val raw=(foe.attack+rng.nextInt(3)-state.defenseUpgrade-
-                RelicRules.stats(state).defense).coerceAtLeast(1)
+                RelicRules.stats(state).defense-
+                TalentRules.teamStats(state).defense).coerceAtLeast(1)
             val harm=if(run.guardHits>0)(raw*3/10).coerceAtLeast(1) else raw
             val hp=(state.playerHp-harm).coerceAtLeast(0)
             if(hp==0)return death(state.copy(playerHp=0))
@@ -167,7 +171,8 @@ object TapAdventure {
         val enraged=run.enemyHp<=foe.maxHp/2
         val raw=(foe.attack+(if(enraged)11 else 0)+
             rng.nextInt(6)-state.defenseUpgrade-
-            RelicRules.stats(state).defense).coerceAtLeast(1)
+            RelicRules.stats(state).defense-
+            TalentRules.teamStats(state).defense).coerceAtLeast(1)
         val harm=if(avoided)0 else if(run.guardHits>0)
             (raw*3/10).coerceAtLeast(1) else raw
         val hp=(state.playerHp-harm).coerceAtLeast(0)
@@ -200,7 +205,7 @@ object TapAdventure {
         val chance=(18+(foe.maxHp-r.enemyHp)*65/foe.maxHp).coerceIn(18,85)
         val next=state.copy(captureOrbs=state.captureOrbs-1)
         if(rng.nextInt(100)<chance) {
-            val member=foe.copy(isBoss=false)
+            val member=TalentRules.awaken(foe.copy(isBoss=false))
             return next.copy(
                 captures=next.captures+member,
                 partyIds=if(next.partyIds.size<3)next.partyIds+member.id else next.partyIds,
@@ -216,9 +221,10 @@ object TapAdventure {
     }
 
     fun heal(state:QuestState):QuestState {
-        if(state.potions<=0 || state.playerHp>=100)return state
+        if(state.potions<=0 || state.playerHp>=TalentRules.maxHp(state))
+            return state
         return state.copy(potions=state.potions-1,
-            playerHp=(state.playerHp+40).coerceAtMost(100),
+            playerHp=(state.playerHp+40).coerceAtMost(TalentRules.maxHp(state)),
             tapRun=state.tapRun.copy(message="回復薬でHP+40"))
     }
 
@@ -229,7 +235,8 @@ object TapAdventure {
         val next=r.copy(floor=floor,bestFloor=maxOf(r.bestFloor,floor),
             phase=TapPhase.WALK,steps=0)
         return when(route) {
-            0 -> state.copy(playerHp=(state.playerHp+28).coerceAtMost(100),
+            0 -> state.copy(playerHp=(state.playerHp+28)
+                .coerceAtMost(TalentRules.maxHp(state)),
                 tapRun=next.copy(message="精霊の泉を発見！ HP+28"))
             1 -> {
                 val crystal=rng.nextInt(100)<40
@@ -295,7 +302,8 @@ object TapAdventure {
 
     private fun death(state:QuestState):QuestState {
         val r=state.tapRun
-        return state.copy(playerHp=100,potions=maxOf(state.potions,1),
+        return state.copy(playerHp=TalentRules.maxHp(state),
+            potions=maxOf(state.potions,1),
             tapRun=TapRun(bestFloor=r.bestFloor,deaths=r.deaths+1,
                 distance=r.distance,gold=r.gold,
                 message="戦闘不能！ 探索は1Fから再開。仲間・図鑑・アイテムは保持！"))
@@ -325,8 +333,10 @@ object TapAdventure {
     ):QuestState {
         if(state.inBattle || state.summonStones<1 || state.captures.size>=100)return state
         require(monster.species.isNotBlank() && monster.maxHp in 1..100_000)
-        val owned=monster.copy(id=UUID.randomUUID().toString(),stage=1,isBoss=false,
-            lineage=if(generatedByAi)"ai-summoned" else monster.lineage)
+        val owned=TalentRules.awaken(monster.copy(
+            id=UUID.randomUUID().toString(),stage=1,isBoss=false,
+            extraSkillId="",statSlots=emptyList(),
+            lineage=if(generatedByAi)"ai-summoned" else monster.lineage))
         return state.copy(
             summonStones=state.summonStones-1,
             captures=state.captures+owned,
