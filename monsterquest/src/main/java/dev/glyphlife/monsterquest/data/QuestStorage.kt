@@ -29,6 +29,22 @@ class QuestStorage(context: Context) {
                 companion = pet,
                 challenge = obj.optJSONObject("challenge")?.let(::readChallenge)
                     ?: ChallengeState(),
+                bossRelics = obj.optJSONArray("bossRelics")?.let { arr ->
+                    (0 until arr.length()).mapNotNull { index ->
+                        runCatching {
+                            val item=arr.getJSONObject(index)
+                            val id=item.optString("id","")
+                            val kind=item.optString("kind","")
+                            if(id.isBlank() || RelicRules.spec(kind)==null) null
+                            else BossRelic(id,kind,
+                                item.optString("source","").take(80),
+                                item.optInt("floor",1).coerceIn(1,999))
+                        }.getOrNull()
+                    }.distinctBy{it.id}.take(RelicRules.INVENTORY_LIMIT)
+                } ?: emptyList(),
+                relicEquipment = readRelicAssignments(obj),
+                relicDryBosses = obj.optInt("relicDryBosses",0)
+                    .coerceIn(0,RelicRules.PITY_LIMIT-1),
                 companionXp = obj.optInt("companionXp",0).coerceIn(0,10000),
                 attackUpgrade = obj.optInt("attackUpgrade",0).coerceIn(0,GrowthRules.UPGRADE_CAP),
                 defenseUpgrade = obj.optInt("defenseUpgrade",0).coerceIn(0,GrowthRules.UPGRADE_CAP),
@@ -77,6 +93,14 @@ class QuestStorage(context: Context) {
                 .put("level", s.companion.level).put("glyph", s.companion.glyph)
                 .put("imported", s.companion.importedFromGlyphLife))
             .put("challenge",writeChallenge(s.challenge))
+            .put("bossRelics",JSONArray().apply {
+                s.bossRelics.take(RelicRules.INVENTORY_LIMIT).forEach {
+                    put(JSONObject().put("id",it.id).put("kind",it.kind)
+                        .put("source",it.source).put("floor",it.floor))
+                }
+            })
+            .put("relicEquipment",JSONObject(s.relicEquipment))
+            .put("relicDryBosses",s.relicDryBosses)
             .put("companionXp",s.companionXp)
             .put("attackUpgrade",s.attackUpgrade).put("defenseUpgrade",s.defenseUpgrade)
             .put("bossWins",s.bossWins)
@@ -108,6 +132,40 @@ class QuestStorage(context: Context) {
         prefs.edit().putString("session", data.toString()).apply()
     }
 
+    private fun readCooldowns(value:JSONObject?):Map<String,Int> {
+        if(value==null)return emptyMap()
+        return value.keys().asSequence().take(8)
+            .mapNotNull { key ->
+                if(key.isBlank() || key.length>90) null
+                else key to value.optInt(key,0).coerceIn(0,30)
+            }.filter { it.second>0 }.toMap()
+    }
+
+    /** Ignore orphaned or duplicate gear references; loading a damaged bag
+     * must not grant copies of the same unique equipment. */
+    private fun readRelicAssignments(obj:JSONObject):Map<String,String> {
+        val items=obj.optJSONArray("bossRelics") ?: return emptyMap()
+        val known=(0 until items.length()).mapNotNull {
+            items.optJSONObject(it)?.let {entry ->
+                if(RelicRules.spec(entry.optString("kind",""))!=null)
+                    entry.optString("id","") else null
+            }
+        }.filter{it.isNotBlank()}.take(RelicRules.INVENTORY_LIMIT).toSet()
+        val assignment=obj.optJSONObject("relicEquipment") ?: return emptyMap()
+        val captures=obj.optJSONArray("captures")
+        val petId=obj.optJSONObject("companion")?.optString("id","").orEmpty()
+        val owners=mutableSetOf(petId)
+        if(captures!=null) for(i in 0 until captures.length())
+            owners.add(captures.optJSONObject(i)?.optString("id","").orEmpty())
+        val found=mutableSetOf<String>()
+        return assignment.keys().asSequence().take(130)
+            .mapNotNull {owner ->
+                val id=assignment.optString(owner,"")
+                if(owner !in owners || id !in known || id in found) null
+                else {found+=id;owner to id}
+            }.toMap()
+    }
+
     private fun writeChallenge(c:ChallengeState):JSONObject=JSONObject()
         .put("mode",c.mode.name)
         .put("towerFloor",c.towerFloor).put("towerBest",c.towerBest)
@@ -124,6 +182,8 @@ class QuestStorage(context: Context) {
         .put("attackTimerMs",c.attackTimerMs)
         .put("guardCooldownMs",c.guardCooldownMs)
         .put("guardActive",c.guardActive).put("combo",c.combo)
+        .put("skillCooldowns",JSONObject(c.skillCooldowns))
+        .put("guardHits",c.guardHits).put("venomCharges",c.venomCharges)
         .put("message",c.message)
 
     private fun readChallenge(o:JSONObject):ChallengeState {
@@ -163,6 +223,9 @@ class QuestStorage(context: Context) {
             guardCooldownMs=o.optInt("guardCooldownMs",0)
                 .coerceIn(0,ChallengeRules.GUARD_COOLDOWN_MS),
             guardActive=o.optBoolean("guardActive",false),
+            skillCooldowns=readCooldowns(o.optJSONObject("skillCooldowns")),
+            guardHits=o.optInt("guardHits",0).coerceIn(0,1),
+            venomCharges=o.optInt("venomCharges",0).coerceIn(0,2),
             combo=o.optInt("combo",0).coerceIn(0,999999),
             message=o.optString("message","塔とアリーナに挑戦しよう！").take(180)
         )
@@ -173,6 +236,8 @@ class QuestStorage(context: Context) {
         .put("enemy",r.enemy?.let(::wildToJson)).put("enemyHp",r.enemyHp)
         .put("combo",r.combo).put("bossCountdown",r.bossCountdown)
         .put("attackTimerMs",r.attackTimerMs)
+        .put("skillCooldowns",JSONObject(r.skillCooldowns))
+        .put("guardHits",r.guardHits).put("venomCharges",r.venomCharges)
         .put("bossTarget",r.bossTarget).put("lane",r.lane)
         .put("weakpointTaps",r.weakpointTaps)
         .put("bestFloor",r.bestFloor).put("deaths",r.deaths)
@@ -190,7 +255,10 @@ class QuestStorage(context: Context) {
             phase=safePhase,enemy=foe,enemyHp=o.optInt("enemyHp",0).coerceIn(0,20000),
             combo=o.optInt("combo",0).coerceIn(0,100000),
             bossCountdown=o.optInt("bossCountdown",3).coerceIn(1,3),
-            attackTimerMs=o.optInt("attackTimerMs",2800).coerceIn(1,3800),
+            attackTimerMs=o.optInt("attackTimerMs",2800).coerceIn(1,5500),
+            skillCooldowns=readCooldowns(o.optJSONObject("skillCooldowns")),
+            guardHits=o.optInt("guardHits",0).coerceIn(0,1),
+            venomCharges=o.optInt("venomCharges",0).coerceIn(0,2),
             bossTarget=if(o.optInt("bossTarget",-1)==1)1 else -1,
             lane=o.optInt("lane",0).coerceIn(-1,1),
             weakpointTaps=o.optInt("weakpointTaps",0).coerceIn(0,3),
