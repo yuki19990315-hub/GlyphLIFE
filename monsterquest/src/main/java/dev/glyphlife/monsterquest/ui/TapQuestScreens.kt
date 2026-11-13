@@ -56,6 +56,7 @@ fun QuestBottomNavigation(tab:QuestTab,onTab:(QuestTab)->Unit) {
 fun QuestHome(
     state:QuestState,store:MonsterArtworkStore,revision:Int,
     onSelectParty:(String)->Unit,
+    onEvolve:(String)->Unit,
     onBuyUpgrade:(String)->Unit,
     onBuySupply:(String)->Unit,
     onClaimAchievement:(String)->Unit,
@@ -182,6 +183,42 @@ fun QuestHome(
                 SectionTitle(if(currentPanel==1)"装備・素材工房" else "進化・合成")
                 Text("仲間の装備や進化を編集できます。原画は64×64ドットの全身素材。",
                     color=Blue,style=MaterialTheme.typography.bodySmall)
+                if(currentPanel==4) {
+                    Text("編成した仲間は戦闘で経験値・個別勝利数を獲得。" +
+                        "Lv7＋3勝で2段階、Lv16＋12勝で3段階に進化します。",
+                        color=Gold,style=MaterialTheme.typography.bodySmall)
+                    if(state.captures.isEmpty())Text("まず探索・召喚で仲間を獲得しよう。")
+                    state.captures.forEach { monster ->
+                        Card(Modifier.fillMaxWidth(),
+                            colors=CardDefaults.cardColors(containerColor=Color(0xFF192944))) {
+                            Row(Modifier.padding(9.dp),
+                                verticalAlignment=Alignment.CenterVertically) {
+                                MonsterArtworkView(monster,store,revision,Modifier.size(76.dp))
+                                Column(Modifier.weight(1f)) {
+                                    Text(monster.species+" / 進化"+monster.stage,
+                                        color=Gold,style=MaterialTheme.typography.titleSmall)
+                                    Text("Lv"+monster.level+" EXP "+monster.xp+"/"+
+                                        GrowthRules.xpNeeded(monster.level)+
+                                        "　出撃"+monster.victories+"勝",
+                                        style=MaterialTheme.typography.bodySmall)
+                                    if(monster.stage<3) {
+                                        Text("目標 Lv"+GrowthRules.requiredLevel(monster.stage)+
+                                            "／"+GrowthRules.requiredVictories(monster.stage)+"勝",
+                                            color=Blue,style=MaterialTheme.typography.labelSmall)
+                                    }
+                                }
+                                OutlinedButton(onClick={onEvolve(monster.id)},
+                                    enabled=!state.inBattle &&
+                                        monster.stage<3 &&
+                                        monster.level>=GrowthRules.requiredLevel(monster.stage) &&
+                                        monster.victories>=GrowthRules.requiredVictories(monster.stage),
+                                    contentPadding=PaddingValues(horizontal=10.dp)) {
+                                    Text(if(monster.stage>=3)"完成" else "進化")
+                                }
+                            }
+                        }
+                    }
+                }
                 management()
             }
             2 -> {
