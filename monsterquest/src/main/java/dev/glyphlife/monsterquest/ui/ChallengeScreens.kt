@@ -28,7 +28,8 @@ private val CBorder=Color(0xFF5E7399)
 fun QuestChallenge(
     state:QuestState,store:MonsterArtworkStore,revision:Int,
     onStartTower:()->Unit,onStartArena:()->Unit,
-    onAttack:()->Unit,onGuard:()->Unit,onRetreat:()->Unit
+    onAttack:()->Unit,onGuard:()->Unit,
+    onUseSkill:(String)->Unit,onRetreat:()->Unit
 ) {
     val c=state.challenge
     val active=c.mode!=ChallengeMode.NONE
@@ -212,6 +213,8 @@ fun QuestChallenge(
                     fontWeight=FontWeight.Black,
                     style=MaterialTheme.typography.titleLarge)
             }
+            PartySkillButtons(
+                state,c.skillCooldowns,enabled=true,onUse=onUseSkill)
             Row(Modifier.fillMaxWidth(),horizontalArrangement=Arrangement.spacedBy(9.dp)) {
                 OutlinedButton(onClick=onGuard,modifier=Modifier.weight(1f),
                     enabled=!c.guardActive && c.guardCooldownMs==0) {
