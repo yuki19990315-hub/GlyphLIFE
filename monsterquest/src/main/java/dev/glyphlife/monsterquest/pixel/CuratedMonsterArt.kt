@@ -111,10 +111,56 @@ object CuratedMonsterArt {
             }
         }
     }
+    /**
+     * Small cohesive crest/tail differences make distinct individuals without
+     * returning to random ellipse geometry. Identity follows designSeed,
+     * or the encounter UUID for older wild monsters.
+     */
+    private fun personalized(base:PixelSprite, monster:WildMonster):PixelSprite {
+        val type=MonsterDesign.bodyType(monster)
+        val key=(monster.designSeed.ifBlank { monster.id })+":"+type.name
+        val variant=Math.floorMod(key.hashCode(),16)
+        val bounds=GbaMonsterArtStandard.bounds(base) ?: return base
+        val colors=base.colors().sortedBy {
+            (((it ushr 16) and 255)*30)+(((it ushr 8) and 255)*59)+(it and 255)*11
+        }
+        if(colors.size<3)return base
+        val mid=colors[colors.size/2]
+        val glow=colors.last()
+        val out=base.pixels()
+        // The head-facing direction is right: use subtle horns/spikes near
+        // its upper forehead. Deliberately stay within the 1px safety border.
+        val top=bounds.top
+        val x=(bounds.right-bounds.width/4-3+(variant%7)).coerceIn(3,60)
+        val length=1+(variant/4)%3
+        for(d in 1..length) {
+            val y=top-d
+            if(y in 2..61)out[y*64+x]=if(d==length)glow else mid
+        }
+        if((variant and 1)==1 && top-length in 2..61 && x+1<=61)
+            out[(top-length)*64+x+1]=mid
+        // Machine-like armor has a distinctive side antenna. It is not a
+        // round-body generator or a standalone disconnected decorative shape.
+        if(type==MonsterBodyType.MECHA) {
+            val cx=(bounds.left+5).coerceIn(2,60)
+            val cy=(bounds.top+8).coerceIn(2,60)
+            out[cy*64+cx]=glow
+            out[(cy-1)*64+cx]=mid
+        }
+        // Different silhouettes among otherwise identical evolution sprites.
+        if((variant and 2)!=0) {
+            val tx=(bounds.left+1).coerceIn(2,61)
+            val ty=(bounds.bottom-6+(variant%3)).coerceIn(2,61)
+            out[ty*64+tx]=mid
+            if(tx-1>=2)out[ty*64+tx-1]=glow
+        }
+        return PixelSprite.fromArgb(64,64,out)
+    }
+
     /** An authored 64px silhouette instead of procedural circle/oval bodies. */
     fun find(monster: WildMonster):PixelSprite {
         val family=family(monster)
         val stage=monster.stage.coerceIn(1,3)
-        return stages[family*3+stage-1]
+        return personalized(stages[family*3+stage-1],monster)
     }
 }
