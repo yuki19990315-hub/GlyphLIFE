@@ -111,7 +111,7 @@ class MonsterQuestActivity : ComponentActivity() {
                 status = text
                 Toast.makeText(this@MonsterQuestActivity, text, Toast.LENGTH_SHORT).show()
             }
-            suspend fun applyIdea(idea: MonsterIdea) {
+            suspend fun applyIdea(idea: MonsterIdea, withArt:Boolean, key:String) {
                 if (state.summonStones<1 || state.captures.size>=100 ||
                     state.tapRun.phase in listOf(TapPhase.FIGHT,TapPhase.BOSS)) {
                     notify("召喚結晶不足、満員、または戦闘中です")
@@ -120,10 +120,10 @@ class MonsterQuestActivity : ComponentActivity() {
                 val candidate=idea.asWildMonster(1)
                 val next=TapAdventure.registerSummon(state,candidate,generatedByAi=true)
                 if(next==state)return
-                if(aiArtEnabled) {
+                if(withArt) {
                     // The user chose the separate external image API explicitly.
                     val sprite=next.captures.last()
-                    val image=MonsterConceptArt.generate(aiKey,sprite,ConceptStyle.GBA_PIXEL)
+                    val image=MonsterConceptArt.generate(key,sprite,ConceptStyle.GBA_PIXEL)
                     artworkStore.store(sprite.id,image,1)
                     artworkRevision++
                 }
@@ -135,11 +135,12 @@ class MonsterQuestActivity : ComponentActivity() {
                     state.captures.size>=100 ||
                     state.tapRun.phase in listOf(TapPhase.FIGHT,TapPhase.BOSS)) return
                 val key = aiKey
+                val withArt=aiArtEnabled
                 val instruction = aiDescription.ifBlank { "不思議な生き物" }
                 aiBusy = true
                 scope.launch {
                     try {
-                        applyIdea(MonsterAi.generate(key, instruction, image))
+                        applyIdea(MonsterAi.generate(key, instruction, image),withArt,key)
                     } catch (e: Exception) {
                         notify("AI生成に失敗：${e.message}")
                     } finally {
@@ -154,12 +155,13 @@ class MonsterQuestActivity : ComponentActivity() {
                     state.summonStones>0 && state.captures.size<100 &&
                     state.tapRun.phase !in listOf(TapPhase.FIGHT,TapPhase.BOSS)) {
                     val key = aiKey
+                    val withArt=aiArtEnabled
                     val description = aiDescription.ifBlank { "この写真をもとに独自のモンスターを作って" }
                     aiBusy = true
                     scope.launch {
                         try {
                             val jpeg = MonsterAi.preparePhoto(this@MonsterQuestActivity, uri)
-                            applyIdea(MonsterAi.generate(key, description, jpeg))
+                            applyIdea(MonsterAi.generate(key, description, jpeg),withArt,key)
                         } catch (e: Exception) {
                             notify("写真AI生成に失敗：${e.message}")
                         } finally {
