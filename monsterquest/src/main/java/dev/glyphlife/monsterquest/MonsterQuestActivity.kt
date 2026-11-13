@@ -104,8 +104,16 @@ class MonsterQuestActivity : ComponentActivity() {
                     inBattle=next.tapRun.phase in listOf(TapPhase.FIGHT,TapPhase.BOSS),
                     roomCleared=false,completed=false
                 )
+                val rapidStrike =
+                    state.tapRun.phase in listOf(TapPhase.FIGHT,TapPhase.BOSS) &&
+                    fixed.tapRun.phase==state.tapRun.phase &&
+                    fixed.tapRun.enemy?.id==state.tapRun.enemy?.id &&
+                    fixed.playerHp==state.playerHp &&
+                    fixed.tapRun.combo!=state.tapRun.combo
                 state = fixed
-                storage.save(fixed)
+                // Serializing the full bestiary for every finger tap causes
+                // dropped input on mid-range phones; checkpoint every 5 hits.
+                if(!rapidStrike || fixed.tapRun.combo%5==0) storage.save(fixed)
             }
             fun notify(text: String) {
                 status = text
