@@ -119,13 +119,17 @@ class TapAdventureTest {
     }
 
     @Test fun aiRegisteredSpeciesCanAppearAsEnemies() {
-        val ai=enemy().copy(species="オリジナル氷竜",element="水",
+        val ai=enemy().copy(
+            id="00000000-0000-4000-8000-000000000050",
+            species="オリジナル氷竜",element="水",
             lineage="ai-summoned")
         var s=start().copy(catalog=listOf(ai),
             tapRun=TapRun(floor=1,steps=1))
         s=TapAdventure.tap(s,lucky)
         assertEquals(TapPhase.FIGHT,s.tapRun.phase)
         assertEquals("オリジナル氷竜",s.tapRun.enemy!!.species)
+        assertNotEquals(ai.id,s.tapRun.enemy!!.id)
+        assertEquals(ai.id,s.tapRun.enemy!!.artSourceId)
     }
 
     @Test fun partySelectionIsLimitedToThreeAndSupportsDeselection() {
