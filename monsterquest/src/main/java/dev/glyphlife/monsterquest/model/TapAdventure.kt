@@ -133,8 +133,8 @@ object TapAdventure {
         return state.copy(tapRun=hit)
     }
 
-    fun useSkill(state:QuestState,ownerId:String,bonus:Boolean=false,
-                 rng:Random=Random.Default):QuestState {
+    fun useSkill(state:QuestState,ownerId:String,
+                 rng:Random=Random.Default,bonus:Boolean=false):QuestState {
         val old=state.tapRun
         val foe=old.enemy ?: return state
         val updated=SkillRules.useExplore(state,ownerId,bonus)
