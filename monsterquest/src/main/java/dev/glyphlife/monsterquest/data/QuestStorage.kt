@@ -95,6 +95,7 @@ class QuestStorage(context: Context) {
         .put("floor",r.floor).put("steps",r.steps).put("phase",r.phase.name)
         .put("enemy",r.enemy?.let(::wildToJson)).put("enemyHp",r.enemyHp)
         .put("combo",r.combo).put("bossCountdown",r.bossCountdown)
+        .put("attackTimerMs",r.attackTimerMs)
         .put("bossTarget",r.bossTarget).put("lane",r.lane)
         .put("weakpointTaps",r.weakpointTaps)
         .put("bestFloor",r.bestFloor).put("deaths",r.deaths)
@@ -112,6 +113,7 @@ class QuestStorage(context: Context) {
             phase=safePhase,enemy=foe,enemyHp=o.optInt("enemyHp",0).coerceIn(0,20000),
             combo=o.optInt("combo",0).coerceIn(0,100000),
             bossCountdown=o.optInt("bossCountdown",3).coerceIn(1,3),
+            attackTimerMs=o.optInt("attackTimerMs",2800).coerceIn(1,3800),
             bossTarget=if(o.optInt("bossTarget",-1)==1)1 else -1,
             lane=o.optInt("lane",0).coerceIn(-1,1),
             weakpointTaps=o.optInt("weakpointTaps",0).coerceIn(0,3),
