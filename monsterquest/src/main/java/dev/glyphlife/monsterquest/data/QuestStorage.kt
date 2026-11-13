@@ -7,7 +7,7 @@ import org.json.JSONObject
 
 /** A small local JSON save for the standalone Monster Quest MVP. */
 class QuestStorage(context: Context) {
-    private val prefs = context.getSharedPreferences("monsterquest_v1", Context.MODE_PRIVATE)
+    private val prefs = context.getSharedPreferences("monsterquest_v41_clean", Context.MODE_PRIVATE)
 
     fun load(): QuestState {
         val raw = prefs.getString("session", null)
