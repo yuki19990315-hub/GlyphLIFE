@@ -130,6 +130,7 @@ object ChallengeRules {
             mode=ChallengeMode.ARENA,arenaWave=1,opponent=foe,
             opponentHp=foe.maxHp,playerHp=100,attackTimerMs=arenaTimer(1),
             guardCooldownMs=0,guardActive=false,combo=0,
+            skillCooldowns=emptyMap(),guardHits=0,venomCharges=0,
             message="模擬アリーナ開幕！ NPCの3体を連続撃破しよう"
         ))
     }
