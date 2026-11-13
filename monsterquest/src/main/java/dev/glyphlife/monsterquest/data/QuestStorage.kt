@@ -27,6 +27,8 @@ class QuestStorage(context: Context) {
             val captures = (0 until capturesArray.length()).map { wildFromJson(capturesArray.getJSONObject(it)) }
             QuestState(
                 companion = pet,
+                challenge = obj.optJSONObject("challenge")?.let(::readChallenge)
+                    ?: ChallengeState(),
                 companionXp = obj.optInt("companionXp",0).coerceIn(0,10000),
                 attackUpgrade = obj.optInt("attackUpgrade",0).coerceIn(0,GrowthRules.UPGRADE_CAP),
                 defenseUpgrade = obj.optInt("defenseUpgrade",0).coerceIn(0,GrowthRules.UPGRADE_CAP),
@@ -74,6 +76,7 @@ class QuestStorage(context: Context) {
                 .put("species", s.companion.species).put("element", s.companion.element)
                 .put("level", s.companion.level).put("glyph", s.companion.glyph)
                 .put("imported", s.companion.importedFromGlyphLife))
+            .put("challenge",writeChallenge(s.challenge))
             .put("companionXp",s.companionXp)
             .put("attackUpgrade",s.attackUpgrade).put("defenseUpgrade",s.defenseUpgrade)
             .put("bossWins",s.bossWins)
@@ -103,6 +106,66 @@ class QuestStorage(context: Context) {
         // asynchronously; synchronous commit on EVERY rapid combat tap caused
         // frame stalls and missed input on slower Android flash storage.
         prefs.edit().putString("session", data.toString()).apply()
+    }
+
+    private fun writeChallenge(c:ChallengeState):JSONObject=JSONObject()
+        .put("mode",c.mode.name)
+        .put("towerFloor",c.towerFloor).put("towerBest",c.towerBest)
+        .put("towerClears",c.towerClears)
+        .put("towerMilestones",JSONArray().apply {
+            c.towerMilestones.sorted().forEach{put(it)}
+        })
+        .put("arenaRating",c.arenaRating)
+        .put("arenaBestRating",c.arenaBestRating)
+        .put("arenaWins",c.arenaWins).put("arenaLosses",c.arenaLosses)
+        .put("arenaStreak",c.arenaStreak).put("arenaWave",c.arenaWave)
+        .put("opponent",c.opponent?.let(::wildToJson))
+        .put("opponentHp",c.opponentHp).put("playerHp",c.playerHp)
+        .put("attackTimerMs",c.attackTimerMs)
+        .put("guardCooldownMs",c.guardCooldownMs)
+        .put("guardActive",c.guardActive).put("combo",c.combo)
+        .put("message",c.message)
+
+    private fun readChallenge(o:JSONObject):ChallengeState {
+        val mode=runCatching {
+            ChallengeMode.valueOf(o.optString("mode","NONE"))
+        }.getOrDefault(ChallengeMode.NONE)
+        val enemy=o.optJSONObject("opponent")?.let {
+            runCatching { wildFromJson(it) }.getOrNull()
+        }
+        val hp=o.optInt("playerHp",100).coerceIn(0,100)
+        val enemyHp=o.optInt("opponentHp",0).coerceIn(0,100000)
+        val safeMode=if(enemy==null || hp<=0 || enemyHp<=0)
+            ChallengeMode.NONE else mode
+        return ChallengeState(
+            mode=safeMode,
+            towerFloor=o.optInt("towerFloor",1)
+                .coerceIn(1,ChallengeRules.TOWER_LAST_FLOOR),
+            towerBest=o.optInt("towerBest",0)
+                .coerceIn(0,ChallengeRules.TOWER_LAST_FLOOR),
+            towerClears=o.optInt("towerClears",0).coerceIn(0,999999),
+            towerMilestones=o.optJSONArray("towerMilestones")?.let { arr ->
+                (0 until arr.length()).map { arr.optInt(it) }
+                    .filter { it in listOf(5,10,15,20) }.toSet()
+            } ?: emptySet(),
+            arenaRating=o.optInt("arenaRating",1000).coerceIn(900,3000),
+            arenaBestRating=o.optInt("arenaBestRating",1000)
+                .coerceIn(1000,3000),
+            arenaWins=o.optInt("arenaWins",0).coerceIn(0,999999),
+            arenaLosses=o.optInt("arenaLosses",0).coerceIn(0,999999),
+            arenaStreak=o.optInt("arenaStreak",0).coerceIn(0,999999),
+            arenaWave=o.optInt("arenaWave",1)
+                .coerceIn(1,ChallengeRules.ARENA_WAVES),
+            opponent=if(safeMode!=ChallengeMode.NONE)enemy else null,
+            opponentHp=if(safeMode!=ChallengeMode.NONE)enemyHp else 0,
+            playerHp=if(hp>0)hp else 100,
+            attackTimerMs=o.optInt("attackTimerMs",3000).coerceIn(1,5000),
+            guardCooldownMs=o.optInt("guardCooldownMs",0)
+                .coerceIn(0,ChallengeRules.GUARD_COOLDOWN_MS),
+            guardActive=o.optBoolean("guardActive",false),
+            combo=o.optInt("combo",0).coerceIn(0,999999),
+            message=o.optString("message","塔とアリーナに挑戦しよう！").take(180)
+        )
     }
 
     private fun writeTapRun(r:TapRun):JSONObject=JSONObject()
