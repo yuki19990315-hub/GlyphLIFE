@@ -480,8 +480,8 @@ fun TapExplorationScreen(
             bodyType=if(state.companion.species=="精霊") "SPIRIT" else "",
             maxHp=100,attack=10+state.companion.level,
             stage=when {
-                state.companion.level>=12 -> 3
-                state.companion.level>=5 -> 2
+                state.companion.level>=16 -> 3
+                state.companion.level>=7 -> 2
                 else -> 1
             }
         )
