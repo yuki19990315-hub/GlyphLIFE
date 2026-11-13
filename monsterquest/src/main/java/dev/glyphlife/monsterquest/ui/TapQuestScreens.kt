@@ -57,6 +57,8 @@ fun QuestHome(
     state:QuestState,store:MonsterArtworkStore,revision:Int,
     onSelectParty:(String)->Unit,
     onEvolve:(String)->Unit,
+    onEquipRelic:(String,String)->Unit,
+    onUnequipRelic:(String)->Unit,
     onBuyUpgrade:(String)->Unit,
     onBuySupply:(String)->Unit,
     onClaimAchievement:(String)->Unit,
@@ -218,6 +220,13 @@ fun QuestHome(
                             }
                         }
                     }
+                }
+                if(currentPanel==1) {
+                    BossRelicPanel(state,onEquipRelic,onUnequipRelic)
+                    HorizontalDivider()
+                    Text("下記は64×64の見た目を編集する装備工房です。"+
+                        "ボス限定装備の戦闘効果とは別です。",
+                        color=Blue,style=MaterialTheme.typography.bodySmall)
                 }
                 management()
             }
@@ -503,7 +512,8 @@ fun PixelDungeonBackdrop(floor:Int,boss:Boolean,steps:Int=0,modifier:Modifier=Mo
 @Composable
 fun TapExplorationScreen(
     state:QuestState,store:MonsterArtworkStore,revision:Int,
-    onTap:()->Unit,onDodge:(Int)->Unit,onCapture:()->Unit,
+    onTap:()->Unit,onUseSkill:(String)->Unit,
+    onDodge:(Int)->Unit,onCapture:()->Unit,
     onHeal:()->Unit,onBranch:(Int)->Unit
 ) {
     val run=state.tapRun
@@ -707,6 +717,11 @@ fun TapExplorationScreen(
                     if(fighting)"⚔  連打して攻撃  ⚔" else "▶  タップして前進",
                     style=MaterialTheme.typography.titleLarge,fontWeight=FontWeight.Black
                 )
+            }
+            if(fighting) {
+                PartySkillButtons(state,run.skillCooldowns,
+                    enabled=!ChallengeRules.active(state),
+                    onUse=onUseSkill)
             }
             if(boss) {
                 Row(horizontalArrangement=Arrangement.spacedBy(8.dp)) {

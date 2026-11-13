@@ -499,7 +499,7 @@ class MonsterQuestActivity : ComponentActivity() {
                 Scaffold(
                     topBar={
                         Surface(tonalElevation=2.dp,color=Color(0xFF121B30)) {
-                            Text("MONSTER QUEST / v4.3.0",Modifier.padding(14.dp),
+                            Text("MONSTER QUEST / v4.4.0",Modifier.padding(14.dp),
                                 style=MaterialTheme.typography.titleMedium,
                                 color=Color(0xFFFFD990))
                         }
@@ -517,6 +517,12 @@ class MonsterQuestActivity : ComponentActivity() {
                                     else notify("戦闘中は編成を変更できません")
                                 },
                                 onEvolve=::evolveCaptured,
+                                onEquipRelic={ owner,id ->
+                                    update(RelicRules.equip(state,owner,id))
+                                },
+                                onUnequipRelic={ owner ->
+                                    update(RelicRules.unequip(state,owner))
+                                },
                                 onBuyUpgrade={ kind ->
                                     if(!state.inBattle)update(GrowthRules.buy(state,kind))
                                 },
@@ -569,6 +575,10 @@ class MonsterQuestActivity : ComponentActivity() {
                                                 captures=owned,
                                                 partyIds=state.partyIds.filter { id ->
                                                     owned.any { it.id==id }
+                                                },
+                                                relicEquipment=state.relicEquipment.filterKeys { id ->
+                                                    id==state.companion.id ||
+                                                        owned.any{it.id==id}
                                                 }
                                             ))
                                             artworkRevision++
@@ -582,6 +592,10 @@ class MonsterQuestActivity : ComponentActivity() {
                                 onTap={
                                     if(!aiBusy && !ChallengeRules.active(state))
                                         update(TapAdventure.tap(state))
+                                },
+                                onUseSkill={ owner ->
+                                    if(!ChallengeRules.active(state))
+                                        update(TapAdventure.useSkill(state,owner))
                                 },
                                 onDodge={ side ->
                                     if(!ChallengeRules.active(state))
@@ -638,6 +652,9 @@ class MonsterQuestActivity : ComponentActivity() {
                                 onStartArena={update(ChallengeRules.startArena(state))},
                                 onAttack={update(ChallengeRules.attack(state))},
                                 onGuard={update(ChallengeRules.defend(state))},
+                                onUseSkill={ owner ->
+                                    update(ChallengeRules.useSkill(state,owner))
+                                },
                                 onRetreat={update(ChallengeRules.retreat(state))}
                             )
                         }

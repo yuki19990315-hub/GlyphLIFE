@@ -66,6 +66,11 @@ data class QuestState(
     val companion: Companion = Companion(),
     /** Tower and arena are separate from the main exploration session. */
     val challenge: ChallengeState = ChallengeState(),
+    /** Collectible boss equipment and its unique one-owner assignments. */
+    val bossRelics:List<BossRelic> = emptyList(),
+    val relicEquipment:Map<String,String> = emptyMap(),
+    /** Counts consecutive boss victories without a relic; the fourth guarantees. */
+    val relicDryBosses:Int = 0,
     val companionXp: Int = 0,
     val attackUpgrade: Int = 0,
     val defenseUpgrade: Int = 0,

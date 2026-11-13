@@ -74,6 +74,10 @@ object FusionRules {
         val remaining = state.captures.filterNot { it.id == firstId || it.id == secondId }
         return state.copy(
             captures = remaining + fused,
+            // Relics stay in inventory, but consumed parents lose ownership.
+            relicEquipment = state.relicEquipment.filterKeys {
+                it != firstId && it != secondId
+            },
             message = "${a.species}と${b.species}を合成！ ${fused.species}が誕生した"
         )
     }
