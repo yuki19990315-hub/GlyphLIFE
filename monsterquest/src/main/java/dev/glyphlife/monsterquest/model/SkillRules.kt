@@ -28,6 +28,15 @@ object SkillRules {
         UniqueSkill("focus","星光の矢","精密な必殺攻撃",7)
     )
     private fun skill(id:String):UniqueSkill=skills.first {it.id==id}
+    fun extraFor(monster:WildMonster):UniqueSkill {
+        val native=forMonster(monster).id
+        val id=monster.extraSkillId.takeIf {
+            candidate->skills.any{it.id==candidate} && candidate!=native
+        } ?: TalentRules.extraSkill(monster.id,native)
+        return skill(id)
+    }
+    fun cooldownKey(ownerId:String,bonus:Boolean):String =
+        if(bonus) ownerId+":extra" else ownerId
     fun forMonster(monster:WildMonster):UniqueSkill {
         val body=monster.bodyType.uppercase()
         return when {
@@ -59,7 +68,9 @@ object SkillRules {
             element=state.companion.element,maxHp=100,attack=10+
                 state.companion.level,level=state.companion.level,
             bodyType=if(state.companion.element=="光")"SPIRIT" else "",
-            stage=if(state.companion.level>=16)3 else if(state.companion.level>=7)2 else 1
+            stage=if(state.companion.level>=16)3 else if(state.companion.level>=7)2 else 1,
+            extraSkillId=state.companion.extraSkillId,
+            statSlots=state.companion.statSlots
         )
         return listOf(hero)+state.partyIds.distinct().mapNotNull { id ->
             state.captures.firstOrNull{it.id==id}
@@ -81,7 +92,8 @@ object SkillRules {
     ):Effect {
         val lv=monster.level.coerceIn(1,50)
         val stage=monster.stage.coerceIn(1,3)
-        val bonus=bossStats.attack/3
+        val bonus=bossStats.attack/3+
+            TalentRules.ownStats(monster.statSlots).attack/2
         fun dmg(v:Int)=v+lv*2+stage*3+bonus
         return when(skill.id) {
             "moonlight","heal" -> Effect(healing=20+lv/2)
@@ -98,23 +110,25 @@ object SkillRules {
         }
     }
 
-    fun useExplore(state:QuestState,ownerId:String):QuestState {
+    fun useExplore(state:QuestState,ownerId:String,bonus:Boolean=false):QuestState {
         val run=state.tapRun
         if(run.phase !in listOf(TapPhase.FIGHT,TapPhase.BOSS) ||
             run.enemy==null)return state
         val creature=party(state).firstOrNull{it.id==ownerId} ?: return state
-        if((run.skillCooldowns[ownerId] ?: 0)>0)return state
-        val skill=forMonster(creature)
+        val key=cooldownKey(ownerId,bonus)
+        if((run.skillCooldowns[key] ?: 0)>0)return state
+        val skill=if(bonus)extraFor(creature) else forMonster(creature)
         val act=effect(skill,creature,RelicRules.stats(state))
         val hp=(run.enemyHp-act.damage).coerceAtLeast(0)
         return state.copy(
-            playerHp=(state.playerHp+act.healing).coerceAtMost(100),
+            playerHp=(state.playerHp+act.healing)
+                .coerceAtMost(TalentRules.maxHp(state)),
             tapRun=run.copy(
                 enemyHp=hp,
                 guardHits=(run.guardHits+act.shield).coerceAtMost(1),
                 venomCharges=(run.venomCharges+act.poison).coerceAtMost(2),
                 attackTimerMs=(run.attackTimerMs+act.delay).coerceAtMost(5500),
-                skillCooldowns=run.skillCooldowns+(ownerId to skill.cooldown),
+                skillCooldowns=run.skillCooldowns+(key to skill.cooldown),
                 message=creature.species+"の【"+skill.name+"】！"+
                     (if(act.damage>0)" "+act.damage+"ダメージ" else "")+
                     (if(act.healing>0)" HP+"+act.healing else "")+
@@ -124,20 +138,22 @@ object SkillRules {
         )
     }
 
-    fun useChallenge(state:QuestState,ownerId:String):QuestState {
+    fun useChallenge(state:QuestState,ownerId:String,bonus:Boolean=false):QuestState {
         val run=state.challenge
         if(run.mode==ChallengeMode.NONE || run.opponent==null)return state
         val creature=party(state).firstOrNull{it.id==ownerId} ?: return state
-        if((run.skillCooldowns[ownerId] ?: 0)>0)return state
-        val skill=forMonster(creature)
+        val key=cooldownKey(ownerId,bonus)
+        if((run.skillCooldowns[key] ?: 0)>0)return state
+        val skill=if(bonus)extraFor(creature) else forMonster(creature)
         val act=effect(skill,creature,RelicRules.stats(state))
         return state.copy(challenge=run.copy(
-            playerHp=(run.playerHp+act.healing).coerceAtMost(100),
+            playerHp=(run.playerHp+act.healing)
+                .coerceAtMost(TalentRules.maxHp(state)),
             opponentHp=(run.opponentHp-act.damage).coerceAtLeast(0),
             guardHits=(run.guardHits+act.shield).coerceAtMost(1),
             venomCharges=(run.venomCharges+act.poison).coerceAtMost(2),
             attackTimerMs=(run.attackTimerMs+act.delay).coerceAtMost(5500),
-            skillCooldowns=run.skillCooldowns+(ownerId to skill.cooldown),
+            skillCooldowns=run.skillCooldowns+(key to skill.cooldown),
             message=creature.species+"の【"+skill.name+"】！"+
                 (if(act.damage>0)" "+act.damage+"ダメージ" else "")+
                 (if(act.healing>0)" HP+"+act.healing else "")+
