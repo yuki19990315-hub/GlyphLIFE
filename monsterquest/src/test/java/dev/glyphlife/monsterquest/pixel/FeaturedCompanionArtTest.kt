@@ -44,14 +44,18 @@ class FeaturedCompanionArtTest {
         assertEquals(3, stageImages.distinct().size)
     }
 
-    @Test fun moonlitStyleSharesQualitySilhouetteNotExactRaizelColors() {
+    @Test fun spiritHasItsOwnSilhouetteNotRecoloredRaizel() {
         val star = MonsterDesign.sprite(luna())
         val thunder = MonsterDesign.sprite(WildMonster(
             id = "another", species = "ライゼル", element = "雷",
             maxHp = 100, attack = 10, stage = 1,
             artFamily = MonsterArtFamilies.RAIZEL
         ))
-        assertEquals(star.opaqueCount(), thunder.opaqueCount())
+        assertNotEquals(star.opaqueCount(), thunder.opaqueCount())
         assertNotEquals(star.pixels().toList(), thunder.pixels().toList())
+        // Same stage is not just a palette swap of the same bitmap mask.
+        val spiritMask = star.pixels().map { it ushr 24 > 0 }
+        val beastMask = thunder.pixels().map { it ushr 24 > 0 }
+        assertNotEquals(spiritMask, beastMask)
     }
 }
