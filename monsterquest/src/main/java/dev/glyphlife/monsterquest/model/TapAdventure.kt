@@ -110,7 +110,7 @@ object TapAdventure {
         if(run.phase==TapPhase.BOSS) {
             val count=run.bossCountdown-1
             if(count>0)return state.copy(tapRun=hit.copy(bossCountdown=count,
-                message=amount+"ダメージ！ ボスの大技まであと"+count+"タップ"))
+                message=amount.toString()+"ダメージ！ ボスの大技まであと"+count+"タップ"))
             val dodged=run.lane!=0 && run.lane!=run.bossTarget
             val phase2=hp<=foe.maxHp/2
             val damage=if(dodged)0 else foe.attack+(if(phase2)11 else 0)+rng.nextInt(6)
@@ -128,7 +128,7 @@ object TapAdventure {
         val after=(state.playerHp-harm).coerceAtLeast(0)
         return if(after==0)death(state.copy(playerHp=0,tapRun=hit))
         else state.copy(playerHp=after,tapRun=hit.copy(
-            message=amount+"ダメージ！ 敵の反撃 HP-"+harm))
+            message=amount.toString()+"ダメージ！ 敵の反撃 HP-"+harm))
     }
 
     fun dodge(state:QuestState,side:Int):QuestState {
