@@ -40,7 +40,7 @@ class TapAdventureTest {
         val target=s.tapRun.bossTarget
         s=TapAdventure.dodge(s,-target)
         repeat(3){s=TapAdventure.tap(s,lucky)}
-        assertEquals(0,s.tapRun.bossCountdown.coerceAtMost(0)) // reset to >=2
+        assertTrue(s.tapRun.bossCountdown in 2..3)
         assertTrue(s.tapRun.weakpointTaps>0)
         assertEquals(100,s.playerHp)
         val max=s.tapRun.enemyHp
