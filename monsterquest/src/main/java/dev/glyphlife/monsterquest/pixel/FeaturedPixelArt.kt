@@ -41,7 +41,12 @@ object FeaturedPixelArt {
                 check(color < palette.size) { "Invalid palette index" }
                 palette[color]
             }
-            PixelSprite.fromArgb(64,64,pixels)
+            // Source composition faced left; mirror to the design template's
+            // right-facing three-quarter battle view.
+            val facingRight = IntArray(4096) { i ->
+                pixels[(i / 64) * 64 + (63 - i % 64)]
+            }
+            PixelSprite.fromArgb(64,64,facingRight)
         }
     }
     /** The same full-body source is used in encounters, the studio and the bestiary. */
