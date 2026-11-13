@@ -94,6 +94,7 @@ object TapAdventure {
             catalog=addCatalog(state.catalog,monster),
             tapRun=run.copy(
                 enemy=monster,enemyHp=hp,combo=0,lane=0,
+                skillCooldowns=emptyMap(),guardHits=0,venomCharges=0,
                 phase=if(boss)TapPhase.BOSS else TapPhase.FIGHT,
                 bossCountdown=3,
                 attackTimerMs=if(boss)BOSS_ATTACK_INTERVAL_MS else NORMAL_ATTACK_INTERVAL_MS,
@@ -110,19 +111,33 @@ object TapAdventure {
         val foe=run.enemy ?: return state.copy(tapRun=run.copy(phase=TapPhase.WALK))
         val support=state.partyIds.mapNotNull { id -> state.captures.find { it.id==id } }
             .sumOf { it.attack.coerceIn(0,80)/12 }.coerceAtMost(15)
-        val critical=rng.nextInt(100)<12
+        val relic=RelicRules.stats(state)
+        val critical=rng.nextInt(100)<12+relic.critical
         val weak=run.phase==TapPhase.BOSS && run.weakpointTaps>0
+        val venom=if(run.venomCharges>0)8 else 0
         val amount=(6+state.companion.level.coerceIn(1,50)/3+
-            state.attackUpgrade*2+support+rng.nextInt(5)) *
-            (if(critical)2 else 1) * (if(weak)3 else 1)
+            state.attackUpgrade*2+support+relic.attack+rng.nextInt(5)) *
+            (if(critical)2 else 1) * (if(weak)3 else 1)+venom
         val hp=(run.enemyHp-amount).coerceAtLeast(0)
         val hit=run.copy(enemyHp=hp,combo=run.combo+1,
+            venomCharges=(run.venomCharges-1).coerceAtLeast(0),
+            skillCooldowns=SkillRules.countdown(run.skillCooldowns,relic.charge),
             weakpointTaps=(run.weakpointTaps-1).coerceAtLeast(0),
             message=(if(critical)"会心！ " else "")+amount+"ダメージ / "+(run.combo+1)+"HIT")
         if(hp==0)return win(state.copy(tapRun=hit),foe,rng)
         // Attacking has NO enemy counterattack. The enemy moves on its own
         // periodic clock, even if the player does not touch the screen.
         return state.copy(tapRun=hit)
+    }
+
+    fun useSkill(state:QuestState,ownerId:String,
+                 rng:Random=Random.Default):QuestState {
+        val old=state.tapRun
+        val foe=old.enemy ?: return state
+        val updated=SkillRules.useExplore(state,ownerId)
+        if(updated==state)return state
+        return if(old.enemyHp>0 && updated.tapRun.enemyHp==0)
+            win(updated,foe,rng) else updated
     }
 
     /**
@@ -138,17 +153,23 @@ object TapAdventure {
         if(remaining>0)return state.copy(tapRun=run.copy(attackTimerMs=remaining))
         val foe=run.enemy
         if(run.phase==TapPhase.FIGHT) {
-            val harm=(foe.attack+rng.nextInt(3)-state.defenseUpgrade).coerceAtLeast(1)
+            val raw=(foe.attack+rng.nextInt(3)-state.defenseUpgrade-
+                RelicRules.stats(state).defense).coerceAtLeast(1)
+            val harm=if(run.guardHits>0)(raw*3/10).coerceAtLeast(1) else raw
             val hp=(state.playerHp-harm).coerceAtLeast(0)
             if(hp==0)return death(state.copy(playerHp=0))
             return state.copy(playerHp=hp,tapRun=run.copy(
+                guardHits=(run.guardHits-1).coerceAtLeast(0),
                 attackTimerMs=NORMAL_ATTACK_INTERVAL_MS,
                 message="敵が時間経過で攻撃！ HP-"+harm+"。連打で反撃しよう"))
         }
         val avoided=run.lane!=0 && run.lane!=run.bossTarget
         val enraged=run.enemyHp<=foe.maxHp/2
-        val harm=if(avoided)0 else (foe.attack+(if(enraged)11 else 0)+
-            rng.nextInt(6)-state.defenseUpgrade).coerceAtLeast(1)
+        val raw=(foe.attack+(if(enraged)11 else 0)+
+            rng.nextInt(6)-state.defenseUpgrade-
+            RelicRules.stats(state).defense).coerceAtLeast(1)
+        val harm=if(avoided)0 else if(run.guardHits>0)
+            (raw*3/10).coerceAtLeast(1) else raw
         val hp=(state.playerHp-harm).coerceAtLeast(0)
         if(hp==0)return death(state.copy(playerHp=0))
         return state.copy(playerHp=hp,tapRun=run.copy(
@@ -157,6 +178,8 @@ object TapAdventure {
             bossTarget=if(rng.nextBoolean())1 else -1,
             bossCountdown=if(enraged)2 else 3,
             lane=0,weakpointTaps=if(avoided)3 else 0,
+            guardHits=if(avoided)run.guardHits
+                else (run.guardHits-1).coerceAtLeast(0),
             message=if(avoided)"ジャスト回避！ 弱点露出、次の3タップが3倍！"
                 else "ボスの大技！ HP-"+harm+"。次は逆方向へ回避"))
     }
@@ -251,18 +274,23 @@ object TapAdventure {
         )
         if(boss) {
             val floor=(r.floor+1).coerceAtMost(MAX_FLOOR)
-            return GrowthRules.rewardBattle(next.copy(tapRun=r.copy(
+            val grown=GrowthRules.rewardBattle(next.copy(tapRun=r.copy(
                 floor=floor,bestFloor=maxOf(r.bestFloor,floor),steps=0,
                 gold=(r.gold+50+r.floor*10).coerceAtMost(999999),
                 phase=TapPhase.WALK,enemy=null,enemyHp=0,combo=0,
                 message="BOSS撃破！ 召喚結晶+2。"+floor+"Fへ！"
             )),boss=true,floor=r.floor)
+            return RelicRules.afterVictory(
+                RelicRules.reward(grown,foe,r.floor,rng),false)
         }
-        return GrowthRules.rewardBattle(next.copy(tapRun=r.copy(
-            phase=TapPhase.WALK,enemy=null,enemyHp=0,combo=0,
-            gold=(r.gold+10+r.floor*2).coerceAtMost(999999),
-            message="勝利！ "+foe.species+(if(drop>0)" / 召喚結晶+1！" else "")
-        )),boss=false,floor=r.floor)
+        return RelicRules.afterVictory(GrowthRules.rewardBattle(
+            next.copy(tapRun=r.copy(
+                phase=TapPhase.WALK,enemy=null,enemyHp=0,combo=0,
+                gold=(r.gold+10+r.floor*2).coerceAtMost(999999),
+                message="勝利！ "+foe.species+
+                    (if(drop>0)" / 召喚結晶+1！" else "")
+            )),boss=false,floor=r.floor
+        ),false)
     }
 
     private fun death(state:QuestState):QuestState {
