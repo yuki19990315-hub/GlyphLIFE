@@ -40,7 +40,11 @@ class TapAdventureTest {
         val target=s.tapRun.bossTarget
         s=TapAdventure.dodge(s,-target)
         repeat(3){s=TapAdventure.tap(s,lucky)}
-        assertTrue(s.tapRun.bossCountdown in 2..3)
+        // Taps never run the enemy strike clock.
+        assertEquals(TapAdventure.BOSS_ATTACK_INTERVAL_MS,s.tapRun.attackTimerMs)
+        assertEquals(100,s.playerHp)
+        repeat(16){s=TapAdventure.tick(s,250,lucky)}
+        assertTrue(s.tapRun.attackTimerMs>0)
         assertTrue(s.tapRun.weakpointTaps>0)
         assertEquals(100,s.playerHp)
         val max=s.tapRun.enemyHp
@@ -61,8 +65,9 @@ class TapAdventureTest {
             captureOrbs=7,captures=listOf(owned),catalog=listOf(ai),
             partyIds=listOf(owned.id),
             tapRun=TapRun(floor=10,bestFloor=10,phase=TapPhase.BOSS,
-                enemy=enemy(true),enemyHp=190,bossCountdown=1,lane=0))
-        val after=TapAdventure.tap(state,lucky)
+                enemy=enemy(true),enemyHp=190,bossCountdown=1,
+                attackTimerMs=200,lane=0))
+        val after=TapAdventure.tick(state,250,lucky)
         assertEquals(1,after.tapRun.floor)
         assertEquals(TapPhase.WALK,after.tapRun.phase)
         assertEquals(1,after.tapRun.deaths)
@@ -130,6 +135,32 @@ class TapAdventureTest {
         assertEquals("オリジナル氷竜",s.tapRun.enemy!!.species)
         assertNotEquals(ai.id,s.tapRun.enemy!!.id)
         assertEquals(ai.id,s.tapRun.enemy!!.artSourceId)
+    }
+
+
+    @Test fun rapidTapsDoNotCauseInstantEnemyRetaliation() {
+        val hardEnemy=enemy().copy(maxHp=3000,attack=7)
+        var state=start().copy(tapRun=TapRun(
+            phase=TapPhase.FIGHT,enemy=hardEnemy,enemyHp=3000,
+            attackTimerMs=TapAdventure.NORMAL_ATTACK_INTERVAL_MS))
+        repeat(40) { state=TapAdventure.tap(state,lucky) }
+        assertEquals(100,state.playerHp)
+        assertEquals(40,state.tapRun.combo)
+        assertEquals(TapAdventure.NORMAL_ATTACK_INTERVAL_MS,
+            state.tapRun.attackTimerMs)
+        repeat(11) { state=TapAdventure.tick(state,250,lucky) }
+        assertTrue("Enemy should strike on its own time, not on tap",state.playerHp<100)
+        assertEquals(TapAdventure.NORMAL_ATTACK_INTERVAL_MS,state.tapRun.attackTimerMs)
+    }
+
+    @Test fun withoutTappingAnEnemyStillAttacksOverTime() {
+        val foe=enemy().copy(maxHp=400,attack=9)
+        var state=start().copy(tapRun=TapRun(
+            phase=TapPhase.FIGHT,enemy=foe,enemyHp=400,
+            attackTimerMs=TapAdventure.NORMAL_ATTACK_INTERVAL_MS))
+        repeat(11) { state=TapAdventure.tick(state,250,lucky) }
+        assertTrue(state.playerHp<100)
+        assertEquals(400,state.tapRun.enemyHp)
     }
 
     @Test fun partySelectionIsLimitedToThreeAndSupportsDeselection() {

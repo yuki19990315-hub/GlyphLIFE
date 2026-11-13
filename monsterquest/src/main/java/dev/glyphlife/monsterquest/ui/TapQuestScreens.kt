@@ -2,6 +2,7 @@ package dev.glyphlife.monsterquest.ui
 
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.*
@@ -28,7 +29,7 @@ private val Gold=Color(0xFFFFD990)
 private val Blue=Color(0xFF91CBFF)
 
 enum class QuestTab(val label:String,val symbol:String) {
-    HOME("ホーム","⌂"), EXPLORE("探索","⚔"),
+    HOME("ホーム","⌂"), EXPLORE("探検","⚔"),
     SUMMON("召喚","✦"), FUTURE("？","♧")
 }
 
@@ -57,97 +58,179 @@ fun QuestHome(
     onSelectParty:(String)->Unit,
     management:@Composable ()->Unit
 ) {
+    var currentPanel by remember { mutableIntStateOf(0) }
+    val companion=remember(state.companion) {
+        WildMonster(
+            id=state.companion.id,species=state.companion.species,
+            element=state.companion.element,maxHp=100,
+            attack=10+state.companion.level,
+            artFamily=state.companion.gameArtFamily(),
+            stage=when {
+                state.companion.level>=12 -> 3
+                state.companion.level>=5 -> 2
+                else -> 1
+            }
+        )
+    }
     Column(
-        Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(14.dp),
-        verticalArrangement=Arrangement.spacedBy(12.dp)
+        Modifier.fillMaxSize().background(Color(0xFF091126))
+            .verticalScroll(rememberScrollState())
+            .padding(horizontal=10.dp,vertical=8.dp),
+        verticalArrangement=Arrangement.spacedBy(10.dp)
     ) {
-        Text("冒険者の拠点",style=MaterialTheme.typography.headlineSmall,
-            color=Gold,fontWeight=FontWeight.Bold)
-        val companion=remember(state.companion) {
-            WildMonster(
-                id=state.companion.id,species=state.companion.species,
-                element=state.companion.element,maxHp=100,
-                attack=10+state.companion.level,
-                artFamily=state.companion.gameArtFamily(),
-                stage=when {
-                    state.companion.level>=12 -> 3
-                    state.companion.level>=5 -> 2
-                    else -> 1
-                }
-            )
-        }
-        ElevatedCard(Modifier.fillMaxWidth()) {
-            Row(Modifier.padding(12.dp),verticalAlignment=Alignment.CenterVertically) {
-                MonsterArtworkView(companion,store,revision,Modifier.size(118.dp))
-                Spacer(Modifier.width(10.dp))
-                Column(verticalArrangement=Arrangement.spacedBy(6.dp)) {
-                    Text(state.companion.name,style=MaterialTheme.typography.titleLarge)
-                    Text(state.companion.species+" / "+state.companion.element+
-                        "　Lv."+state.companion.level)
-                    Text("HP "+state.playerHp+"/100　最高 "+state.tapRun.bestFloor+"F")
-                    Text("総撃破 "+state.defeated+" / 捕獲 "+state.captures.size,
-                        style=MaterialTheme.typography.bodySmall)
-                }
+        Box(Modifier.fillMaxWidth().height(253.dp)
+            .border(2.dp,Color(0xFFBBA16E),RoundedCornerShape(10.dp))
+            .background(Color(0xFF14253C),RoundedCornerShape(10.dp))) {
+            PixelDungeonBackdrop(1,false,0,Modifier.fillMaxSize().padding(3.dp))
+            MonsterArtworkView(companion,store,revision,
+                Modifier.size(174.dp).align(Alignment.BottomStart)
+                    .padding(start=12.dp,bottom=10.dp),facingRight=true)
+            Column(
+                modifier=Modifier.align(Alignment.TopCenter)
+                    .background(Color(0xC90B1830),RoundedCornerShape(6.dp))
+                    .padding(horizontal=10.dp,vertical=5.dp),
+                horizontalAlignment=Alignment.CenterHorizontally
+            ) {
+                Text("GLYPH LIFE",color=Color(0xFFB2E6F6),
+                    style=MaterialTheme.typography.labelMedium)
+                Text("MONSTER QUEST",color=Gold,
+                    fontWeight=FontWeight.Black,
+                    style=MaterialTheme.typography.titleLarge)
+            }
+            Column(
+                modifier=Modifier.align(Alignment.BottomEnd)
+                    .padding(end=8.dp,bottom=11.dp)
+                    .background(Color(0xCB101C32),RoundedCornerShape(7.dp))
+                    .padding(horizontal=9.dp,vertical=7.dp),
+                horizontalAlignment=Alignment.End
+            ) {
+                Text(state.companion.name,color=Gold,
+                    fontWeight=FontWeight.Bold)
+                Text("LV "+state.companion.level+"  HP "+state.playerHp+"/100",
+                    color=Color.White,style=MaterialTheme.typography.labelMedium)
+                Text("最高 "+state.tapRun.bestFloor+"F",
+                    color=Blue,style=MaterialTheme.typography.labelSmall)
             }
         }
-        SectionTitle("アイテム・所持品")
-        Row(horizontalArrangement=Arrangement.spacedBy(8.dp)) {
-            ItemPlate("✦", "召喚結晶",state.summonStones,Modifier.weight(1f))
-            ItemPlate("◉", "捕獲玉",state.captureOrbs,Modifier.weight(1f))
-            ItemPlate("✚", "回復薬",state.potions,Modifier.weight(1f))
-        }
-        Text("所持金： "+state.tapRun.gold+" G　｜　探索総歩数："+
-            state.tapRun.distance+"　｜　リトライ："+state.tapRun.deaths,
-            style=MaterialTheme.typography.bodySmall)
-        SectionTitle("パーティ（最大3匹）")
-        Text("選んだ仲間は探索中のタップ攻撃を強化します。もう一度押すと解除できます。",
-            style=MaterialTheme.typography.bodySmall)
-        if(state.captures.isEmpty()) {
-            Text("探索で捕獲するか、召喚で仲間を入手してください。")
-        } else {
-            Row(Modifier.horizontalScroll(rememberScrollState()),
-                horizontalArrangement=Arrangement.spacedBy(10.dp)) {
-                state.captures.forEach { monster ->
-                    val selected=monster.id in state.partyIds
-                    ElevatedCard(Modifier.width(124.dp).clickable { onSelectParty(monster.id) }) {
-                        Column(Modifier.padding(8.dp),horizontalAlignment=Alignment.CenterHorizontally) {
-                            MonsterArtworkView(monster,store,revision,Modifier.size(90.dp))
-                            Text(monster.species,maxLines=1,
-                                style=MaterialTheme.typography.labelLarge)
-                            Text("進化"+monster.stage+" / ATK "+monster.attack,
-                                style=MaterialTheme.typography.labelSmall)
-                            Text(if(selected)"✓ 出撃中" else "＋ 編成する",
-                                color=if(selected)Gold else Blue,
-                                style=MaterialTheme.typography.labelSmall)
+        val shortcuts=listOf(
+            "♟" to "パーティ", "⚔" to "装備", "◈" to "アイテム",
+            "▤" to "図鑑", "✦" to "進化", "☰" to "プロフィール"
+        )
+        repeat(2) { row ->
+            Row(Modifier.fillMaxWidth(),horizontalArrangement=Arrangement.spacedBy(7.dp)) {
+                repeat(3) { col ->
+                    val id=row*3+col
+                    val (symbol,title)=shortcuts[id]
+                    OutlinedButton(
+                        onClick={currentPanel=id},
+                        modifier=Modifier.weight(1f).height(75.dp),
+                        contentPadding=PaddingValues(3.dp),
+                        shape=RoundedCornerShape(7.dp),
+                        border=androidx.compose.foundation.BorderStroke(
+                            if(currentPanel==id)2.dp else 1.dp,
+                            if(currentPanel==id)Gold else Color(0xFF526B91)),
+                        colors=ButtonDefaults.outlinedButtonColors(
+                            containerColor=if(currentPanel==id)Color(0xFF344569)
+                                else Color(0xFF1A2945))
+                    ) {
+                        Column(horizontalAlignment=Alignment.CenterHorizontally,
+                            verticalArrangement=Arrangement.spacedBy(1.dp)) {
+                            Text(symbol,color=if(currentPanel==id)Gold else Blue,
+                                style=MaterialTheme.typography.headlineSmall)
+                            Text(title,color=Color.White,
+                                style=MaterialTheme.typography.labelMedium)
                         }
                     }
                 }
             }
         }
-        SectionTitle("図鑑")
-        Text("発見 "+state.catalog.size+"種 / 仲間 "+state.captures.size+"匹。" +
-            " AI召喚で登録した種族は、探索中に低確率で出現します。",
-            style=MaterialTheme.typography.bodyMedium)
-        if(state.catalog.isNotEmpty()) {
-            Row(Modifier.horizontalScroll(rememberScrollState()),
-                horizontalArrangement=Arrangement.spacedBy(8.dp)) {
-                state.catalog.takeLast(16).asReversed().forEach { monster ->
-                    Column(Modifier.width(96.dp),horizontalAlignment=Alignment.CenterHorizontally) {
-                        MonsterArtworkView(monster,store,revision,Modifier.size(86.dp))
-                        Text(monster.species,maxLines=1,
-                            style=MaterialTheme.typography.labelSmall)
-                        if(monster.lineage=="ai-summoned")
-                            Text("AI登録",color=Gold,
-                                style=MaterialTheme.typography.labelSmall)
+        when(currentPanel) {
+            0 -> {
+                SectionTitle("パーティ詳細　"+state.partyIds.size+"/3")
+                Text("仲間をタップして編成を変更。戦闘時は選んだ仲間が援護します。",
+                    color=Blue,style=MaterialTheme.typography.labelMedium)
+                if(state.captures.isEmpty())
+                    Text("まだ仲間がいません。探索で捕獲するか、召喚してください。")
+                else state.captures.forEach { monster ->
+                    val selected=monster.id in state.partyIds
+                    Card(Modifier.fillMaxWidth().clickable {onSelectParty(monster.id)},
+                        colors=CardDefaults.cardColors(containerColor=Color(0xFF1A2944))) {
+                        Row(Modifier.padding(9.dp),
+                            verticalAlignment=Alignment.CenterVertically) {
+                            MonsterArtworkView(monster,store,revision,Modifier.size(86.dp))
+                            Spacer(Modifier.width(8.dp))
+                            Column(Modifier.weight(1f)) {
+                                Text(monster.species,style=MaterialTheme.typography.titleMedium)
+                                Text("進化"+monster.stage+"   ATK "+monster.attack+
+                                    "   "+monster.element,
+                                    style=MaterialTheme.typography.bodySmall)
+                                Text(if(selected)"✓ 出撃中" else "＋ タップで編成",
+                                    color=if(selected)Gold else Blue)
+                            }
+                        }
                     }
                 }
             }
+            1,4 -> {
+                SectionTitle(if(currentPanel==1)"装備・素材工房" else "進化・合成")
+                Text("仲間の装備や進化を編集できます。原画は64×64ドットの全身素材。",
+                    color=Blue,style=MaterialTheme.typography.bodySmall)
+                management()
+            }
+            2 -> {
+                SectionTitle("所持アイテム")
+                Row(horizontalArrangement=Arrangement.spacedBy(7.dp)) {
+                    ItemPlate("◆","召喚結晶",state.summonStones,Modifier.weight(1f))
+                    ItemPlate("◉","捕獲玉",state.captureOrbs,Modifier.weight(1f))
+                    ItemPlate("✚","回復薬",state.potions,Modifier.weight(1f))
+                }
+                Text("所持金 "+state.tapRun.gold+" G",
+                    color=Gold,style=MaterialTheme.typography.titleMedium)
+                Text("召喚結晶は宝箱・稀な戦利品・ボス撃破で獲得できます。",
+                    color=Blue,style=MaterialTheme.typography.bodySmall)
+            }
+            3 -> {
+                SectionTitle("モンスター図鑑　発見"+state.catalog.size+"種")
+                Text("AI生成で登録した種族も、以後の探索に出現します。",
+                    color=Blue,style=MaterialTheme.typography.bodySmall)
+                val all=state.catalog.takeLast(150)
+                if(all.isEmpty()) Text("まだ発見したモンスターがいません。")
+                else all.chunked(3).forEach { group ->
+                    Row(horizontalArrangement=Arrangement.spacedBy(7.dp)) {
+                        group.forEach { monster ->
+                            Card(Modifier.weight(1f),
+                                colors=CardDefaults.cardColors(
+                                    containerColor=Color(0xFF19243D))) {
+                                Column(Modifier.fillMaxWidth().padding(5.dp),
+                                    horizontalAlignment=Alignment.CenterHorizontally) {
+                                    MonsterArtworkView(monster,store,revision,
+                                        Modifier.size(88.dp))
+                                    Text(monster.species,maxLines=1,
+                                        style=MaterialTheme.typography.labelSmall)
+                                    Text(monster.element+" / 進化"+monster.stage,
+                                        style=MaterialTheme.typography.labelSmall,
+                                        color=Blue)
+                                }
+                            }
+                        }
+                        repeat(3-group.size){Spacer(Modifier.weight(1f))}
+                    }
+                }
+            }
+            5 -> {
+                SectionTitle("冒険記録")
+                Text("相棒： "+state.companion.name+
+                    " / "+state.companion.species+" / "+state.companion.element)
+                Text("レベル："+state.companion.level+
+                    "　撃破："+state.defeated+"　捕獲："+state.captures.size)
+                Text("最高到達階："+state.tapRun.bestFloor+"F")
+                Text("踏破歩数："+state.tapRun.distance+
+                    "　リトライ："+state.tapRun.deaths)
+                Text("所持金："+state.tapRun.gold+" G",
+                    color=Gold)
+            }
         }
-        SectionTitle("装備・進化・合成")
-        Text("仲間を選んで、頭・肩・背中・尾・翼の装備パーツを編集できます。",
-            style=MaterialTheme.typography.bodySmall)
-        management()
-        Spacer(Modifier.height(12.dp))
+        Spacer(Modifier.height(6.dp))
     }
 }
 
@@ -177,120 +260,138 @@ private fun SectionTitle(title:String) {
 @Composable
 fun PixelDungeonBackdrop(floor:Int,boss:Boolean,steps:Int=0,modifier:Modifier=Modifier) {
     Canvas(modifier) {
-        val scaleX=size.width/160f
-        val scaleY=size.height/104f
-        fun px(x:Int,y:Int,w:Int,h:Int,color:Color) {
-            drawRect(color,Offset(x*scaleX,y*scaleY),
-                Size(w*scaleX,h*scaleY))
+        val sx=size.width/160f
+        val sy=size.height/104f
+        fun px(x:Int,y:Int,w:Int,h:Int,c:Color) {
+            if(w>0 && h>0)drawRect(
+                c,Offset(x*sx,y*sy),Size(w*sx,h*sy))
         }
-        val mode=((floor-1)/5)%3
-        val sky=when(mode) {
-            0 -> Color(0xFF24395B)
-            1 -> Color(0xFF332F56)
-            else -> Color(0xFF182E4C)
+        fun tree(anchor:Int,shade:Int) {
+            val x=((anchor-steps*2)%200+200)%200-20
+            px(x+12,24,7,65,Color(0xFF493F46))
+            px(x+14,37,3,50,Color(0xFF896B52))
+            val greens=if(shade==0)listOf(
+                Color(0xFF205B48),Color(0xFF397D55),Color(0xFF6CAF62),
+                Color(0xFFB8DC75)) else listOf(
+                Color(0xFF1B423B),Color(0xFF346E4D),Color(0xFF579D64),
+                Color(0xFF9CC96B))
+            for(row in 0..4) for(col in 0..4) {
+                val sizePx=9+((row*5+col*7)%7)
+                val dx=x+col*9-(if(row%2==0)8 else 12)
+                val dy=5+row*9+((col*3)%5)
+                px(dx,dy,sizePx,sizePx,greens[(row+col)%4])
+                px(dx+2,dy+1,3,2,Color(0xFFB0E889))
+            }
         }
-        px(0,0,160,104,sky)
-        for(y in 0..56 step 8) px(0,y,160,4,
-            when(mode){0->Color(0xFF2D4F69);1->Color(0xFF3D3B61);else->Color(0xFF254468)})
-        // Far parallax mountains: deterministic steps rather than smooth paths.
-        for(x in 0..159 step 4) {
-            val rise=((x+steps*5)*7+floor*11)%24
-            px(x,31+rise,4,62-rise,
-                if(mode==0)Color(0xFF1C3A4C) else Color(0xFF272F4D))
-        }
-        if(mode==0) {
-            // Forest: silhouettes of angular pines and moss-covered trunks.
-            for(baseX in 4..156 step 31) {
-                val x=(baseX-steps*5+160)%160
-                px(x,25,5,65,Color(0xFF1A2E36))
-                for(k in 0..3) {
-                    val w=16-k*3
-                    px(x+2-w/2,18+k*9,w,8,
-                        if(k%2==0)Color(0xFF264D3B) else Color(0xFF315943))
+        when(((floor-1)/5)%3) {
+            0 -> { // Bright enchanted forest, distant castle and waterfall.
+                px(0,0,160,104,Color(0xFF92CFF3))
+                px(0,0,160,11,Color(0xFF6CA6DA))
+                for(x in 0..160 step 40) {
+                    val dx=(x-steps+160)%160
+                    px(dx,12,23,4,Color(0xFFE5F4F7))
+                    px(dx+5,8,14,4,Color(0xFFF6FFF6))
+                    px(dx+3,16,30,3,Color(0xFFC4E6EE))
+                }
+                // Blue mountain ranges and sunny distant fortress.
+                for(x in 0..156 step 4) {
+                    val ridge=24+((x*11+13)%15)
+                    px(x,ridge,4,48-ridge,Color(0xFF7DB4C4))
+                    px(x,ridge+10,4,36,Color(0xFF668FA9))
+                }
+                px(99,20,31,36,Color(0xFFCDD9C8))
+                px(100,17,8,39,Color(0xFF7B9BAC))
+                px(112,10,8,46,Color(0xFF89A8BA))
+                px(124,24,8,32,Color(0xFF89A8BA))
+                px(112,7,8,4,Color(0xFFE6EAD2))
+                px(107,25,2,4,Color(0xFF2B587F))
+                px(117,19,2,4,Color(0xFF2B587F))
+                px(127,29,2,4,Color(0xFF2B587F))
+                px(78,52,78,21,Color(0xFF4D9B97))
+                px(83,50,28,24,Color(0xFFB2D6C9))
+                for(i in 0..4) {
+                    px(89+i*4,50,2,36,if(i%2==0)
+                        Color(0xFFEBF6F1) else Color(0xFF80CFDF))
+                }
+                px(0,59,160,25,Color(0xFF75B75F))
+                px(0,63,160,5,Color(0xFF3D8E64))
+                tree(-8,0); tree(143,1)
+                for(i in 0..30) {
+                    val x=(i*29+steps*2)%160
+                    px(x,69+(i*13)%10,5+(i%3),2,
+                        if(i%3==0)Color(0xFFE4E692)
+                        else Color(0xFF307D55))
+                }
+                // Golden walkable path with dotted stones and grass edges.
+                px(0,82,160,22,Color(0xFFC4B37B))
+                px(0,79,160,4,Color(0xFF79A861))
+                for(y in 85..102 step 6) for(x in 0..159 step 17) {
+                    px((x+steps*4)%160,y,11,2,Color(0xFF9F936E))
+                    px((x+steps*4+4)%160,y-1,5,1,Color(0xFFE0D39A))
                 }
             }
-            px(13,8,9,9,Color(0xFFE3CF8E))
-        } else if(mode==1) {
-            // Ruins: crenellations, columns, and broken arches.
-            for(baseX in 2..155 step 35) {
-                val x=(baseX-steps*3+160)%160
-                px(x,29,9,62,Color(0xFF46445B))
-                px(x-3,27,15,6,Color(0xFF6D657A))
-                for(y in 35..81 step 9)px(x+2,y,5,1,Color(0xFF777083))
+            1 -> { // Purple moonlit castle ruins.
+                px(0,0,160,104,Color(0xFF353960))
+                px(0,0,160,26,Color(0xFF26294C))
+                px(116,9,20,20,Color(0xFFC1C7D9))
+                px(122,8,20,18,Color(0xFF353960))
+                for(x in 0..156 step 4) {
+                    val h=32+(x*5)%14
+                    px(x,h,4,84-h,Color(0xFF444A69))
+                }
+                for(i in 0..5) {
+                    val x=(9+i*35-steps*2+210)%190-15
+                    px(x,31,11,54,Color(0xFF77718A))
+                    px(x-4,28,19,6,Color(0xFF988DA0))
+                    px(x+2,36,6,42,Color(0xFF514865))
+                    for(k in 0..5)px(x+2,38+k*7,5,2,Color(0xFF8E8293))
+                    px(x,24,3,7,Color(0xFFB9A4C3))
+                }
+                px(0,78,160,26,Color(0xFF594B63))
+                for(y in 82..103 step 7)for(x in 0..156 step 16) {
+                    px((x+steps*3)%160,y,12,2,Color(0xFF827487))
+                    px((x+steps*3)%160,y+4,5,1,Color(0xFF443F57))
+                }
+                for(i in 0..8) px((i*27+steps*3)%160,16+(i*17)%57,2,2,
+                    Color(0xFFBBA2F3))
             }
-            px(94,7,13,13,Color(0xFFB5A9CF))
-        } else {
-            // Crystal cavern: large clustered polygonal stalactites.
-            for(baseX in 8..150 step 27) {
-                val x=(baseX-steps*4+160)%160
-                px(x,0,10,18+(x%17),Color(0xFF385E81))
-                px(x+3,12,4,17+(x%9),Color(0xFF6CB5D8))
-                px(x+6,63,7,23,Color(0xFF306680))
-                px(x+8,68,3,13,Color(0xFF8BE1EB))
+            else -> { // Luminous blue crystal cave.
+                px(0,0,160,104,Color(0xFF182B52))
+                for(x in 0..156 step 4) {
+                    val ridge=18+(x*7)%16
+                    px(x,ridge,4,82-ridge,Color(0xFF24436A))
+                }
+                for(i in 0..9) {
+                    val x=(i*23-steps*3+210)%180-10
+                    val length=13+i%5*5
+                    px(x,0,12,length,Color(0xFF2E6484))
+                    px(x+3,5,6,length+9,Color(0xFF549DBE))
+                    px(x+5,6,2,length-3,Color(0xFF9AE4EC))
+                    px(x+4,61+i%4*3,9,29,Color(0xFF35749B))
+                    px(x+5,62+i%4*3,3,22,Color(0xFF86DBE8))
+                }
+                px(0,82,160,22,Color(0xFF3E5A72))
+                for(x in 0..159 step 11)px((x+steps*2)%160,87+(x%9),7,2,
+                    Color(0xFF4E8A9D))
             }
-        }
-        // Walkable foreground, stone path, alternating low-resolution highlights.
-        px(0,83,160,21,if(boss)Color(0xFF443148) else Color(0xFF374C48))
-        px(0,82,160,3,if(boss)Color(0xFF89637B) else Color(0xFF789080))
-        for(y in 87..102 step 6)for(x in 0..158 step 14) {
-            px((x+(if(y%2==0)0 else 7)+steps*3)%160,y,12,1,
-                if(boss)Color(0xFF675066) else Color(0xFF597367))
         }
         if(boss) {
-            for(y in 10..77 step 7)for(x in 4..150 step 23) {
-                if((x+y)%4==0)px(x,y,2,3,Color(0xFFC15C88))
-            }
-        } else {
-            for(y in 12..70 step 13)for(x in 5..152 step 17) {
-                if((x+y+floor)%3==0)px(x,y,2,2,Color(0xFFB9D99A))
-            }
-        }
-    }
-}
-
-/** Pure square-pixel 24x24 adventurer silhouette; never mistaken for monster art. */
-@Composable
-private fun PixelAdventurer(modifier:Modifier=Modifier) {
-    val rows=listOf(
-        "..........dddd..........",
-        ".........dhhhhd.........",
-        "........dhhhhhd.........",
-        "........hhhhhhhh........",
-        "........hssssssh........",
-        ".......hhskkskkhh.......",
-        ".......ddssssssdd.......",
-        "........dssssssd........",
-        "........drrrbrd.........",
-        ".......ddrrrrrdd........",
-        "......ddrrbbbrdd........",
-        ".....ddrrrbbrrrdd.......",
-        "....ddrrrrbbrrrrddd.....",
-        "....drrrrrbbrrrrrdd.....",
-        "....drrrrrbbrrrrrdd.....",
-        "......ddrdbbdrrdd.......",
-        ".......dddbbddd.........",
-        ".......dddbbdd..........",
-        "........dd..dd..........",
-        "........dd..dd..........",
-        ".......ddd..ddd.........",
-        ".......ddd..ddd.........",
-        "......dddd..dddd........",
-        "........................")
-    val colors=mapOf('d' to Color(0xFF202033),'h' to Color(0xFFCEAC6F),
-        's' to Color(0xFFF6D2A6),'k' to Color(0xFF181C2A),
-        'r' to Color(0xFF31477A),'b' to Color(0xFFD3C6A9))
-    Canvas(modifier) {
-        val p=size.minDimension/24f
-        rows.forEachIndexed { y,row ->
-            row.forEachIndexed { x,ch ->
-                colors[ch]?.let { c ->
-                    drawRect(c,Offset(x*p,y*p),Size(p,p))
-                }
+            // Boss arena adds violet warning pillars, without obscuring players.
+            px(0,81,160,3,Color(0xFF9B5B9D))
+            for(i in 0..5) {
+                val x=(i*37+11)%154
+                px(x,13+(i*17)%39,3,7,Color(0xFFDB76C0))
+                px(x+1,9+(i*17)%39,1,4,Color(0xFFF5C9F0))
             }
         }
     }
 }
 
+/**
+ * Companion-to-enemy battle composition: the player's selected main monster is
+ * always on the LEFT facing RIGHT, while the enemy is RIGHT facing LEFT.
+ * No human-avatar fallback is drawn.
+ */
 @Composable
 fun TapExplorationScreen(
     state:QuestState,store:MonsterArtworkStore,revision:Int,
@@ -299,130 +400,279 @@ fun TapExplorationScreen(
 ) {
     val run=state.tapRun
     val boss=run.phase==TapPhase.BOSS
+    val fighting=run.phase==TapPhase.BOSS || run.phase==TapPhase.FIGHT
+    val companion=remember(state.companion) {
+        WildMonster(
+            id=state.companion.id,species=state.companion.species,
+            element=state.companion.element,
+            artFamily=state.companion.gameArtFamily(),
+            bodyType=if(state.companion.species=="精霊") "SPIRIT" else "",
+            maxHp=100,attack=10+state.companion.level,
+            stage=when {
+                state.companion.level>=12 -> 3
+                state.companion.level>=5 -> 2
+                else -> 1
+            }
+        )
+    }
     Column(
-        Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(12.dp),
-        verticalArrangement=Arrangement.spacedBy(10.dp)
+        Modifier.fillMaxSize().background(Color(0xFF090F24))
+            .verticalScroll(rememberScrollState())
+            .padding(horizontal=10.dp,vertical=7.dp),
+        verticalArrangement=Arrangement.spacedBy(8.dp)
     ) {
-        Row(verticalAlignment=Alignment.CenterVertically,
-            horizontalArrangement=Arrangement.SpaceBetween,
-            modifier=Modifier.fillMaxWidth()) {
-            Column {
-                Text("探索  "+run.floor+"F",style=MaterialTheme.typography.headlineSmall,
-                    color=Gold,fontWeight=FontWeight.Bold)
-                Text(if(boss)"★ BOSS BATTLE"
-                    else "タップで前進・敵が来たら連打で攻撃",
-                    style=MaterialTheme.typography.labelSmall)
-            }
-            Text("最高 "+run.bestFloor+"F",color=Blue)
-        }
-        LinearProgressIndicator(
-            progress={state.playerHp/100f},modifier=Modifier.fillMaxWidth(),
-            color=Color(0xFF7ED9A3))
-        Text("HP "+state.playerHp+"/100　捕獲玉 ×"+state.captureOrbs+
-            "　結晶 ×"+state.summonStones)
-        Box(Modifier.fillMaxWidth().height(315.dp)
-            .background(Ink,RoundedCornerShape(12.dp))
-            .clickable(enabled=run.phase!=TapPhase.BRANCH,onClick=onTap)
+        // GBA RPG style: compact counters and a framed battle vista.
+        Row(
+            modifier=Modifier.fillMaxWidth(),
+            verticalAlignment=Alignment.CenterVertically,
+            horizontalArrangement=Arrangement.SpaceBetween
         ) {
-            PixelDungeonBackdrop(run.floor,boss,run.steps,Modifier.fillMaxSize())
-            PixelAdventurer(Modifier.size(110.dp).align(Alignment.BottomStart)
-                .offset(x=(if(run.phase==TapPhase.FIGHT||boss)run.combo%2*8 else run.steps%3*3).dp,
-                    y=(if(run.steps%2==0)0 else -3).dp)
-                .padding(start=8.dp,bottom=27.dp))
-            run.enemy?.let { foe ->
-                MonsterArtworkView(foe,store,revision,
-                    Modifier.size(if(boss)208.dp else 156.dp)
-                        .align(Alignment.BottomEnd).padding(end=8.dp,bottom=12.dp))
+            Text(
+                "✧ 探検  "+run.floor+"F",
+                style=MaterialTheme.typography.titleLarge,
+                fontWeight=FontWeight.ExtraBold,color=Gold
+            )
+            Text("◆ "+state.summonStones+"  ◉ "+state.captureOrbs+
+                "   BEST "+run.bestFloor+"F",
+                color=Blue,style=MaterialTheme.typography.labelMedium)
+        }
+        Box(
+            Modifier.fillMaxWidth()
+                .border(
+                    2.dp,Color(0xFFBDA66D),RoundedCornerShape(10.dp))
+                .background(Color(0xFF101C34),RoundedCornerShape(10.dp))
+                .padding(4.dp)
+        ) {
+            Column(verticalArrangement=Arrangement.spacedBy(5.dp)) {
+                Row(
+                    Modifier.fillMaxWidth().padding(horizontal=4.dp,vertical=3.dp),
+                    horizontalArrangement=Arrangement.SpaceBetween
+                ) {
+                    Text("⚔ "+companion.species+"  Lv."+state.companion.level,
+                        style=MaterialTheme.typography.labelMedium,color=Gold)
+                    Text(if(fighting)"ENCOUNTER" else "歩数 "+
+                        run.steps+"/"+TapAdventure.STEPS_PER_FLOOR,
+                        style=MaterialTheme.typography.labelMedium,color=Color.White)
+                }
+                Row(Modifier.fillMaxWidth(),
+                    horizontalArrangement=Arrangement.spacedBy(8.dp),
+                    verticalAlignment=Alignment.CenterVertically) {
+                    Column(Modifier.weight(1f)) {
+                        LinearProgressIndicator(
+                            progress={state.playerHp/100f},
+                            modifier=Modifier.fillMaxWidth().height(8.dp),
+                            color=Color(0xFF67D49C),
+                            trackColor=Color(0xFF283953))
+                        Text("HP "+state.playerHp+"/100",
+                            color=Color.White,style=MaterialTheme.typography.labelSmall)
+                    }
+                    if(run.enemy!=null) {
+                        Column(Modifier.weight(1f),
+                            horizontalAlignment=Alignment.End) {
+                            LinearProgressIndicator(
+                                progress={run.enemyHp.toFloat()/
+                                    run.enemy.maxHp.coerceAtLeast(1)},
+                                modifier=Modifier.fillMaxWidth().height(8.dp),
+                                color=Color(0xFFF58596),
+                                trackColor=Color(0xFF283953))
+                            Text(run.enemy.species+"  "+
+                                run.enemyHp+"/"+run.enemy.maxHp,
+                                maxLines=1,color=Color.White,
+                                style=MaterialTheme.typography.labelSmall)
+                        }
+                    }
+                }
+                Box(
+                    Modifier.fillMaxWidth().height(346.dp)
+                        .background(Color(0xFF132742),RoundedCornerShape(6.dp))
+                        .clickable(enabled=run.phase!=TapPhase.BRANCH,onClick=onTap)
+                ) {
+                    PixelDungeonBackdrop(run.floor,boss,run.steps,Modifier.fillMaxSize())
+                    // Stage characters are big, full-body 64x64 pixel sprites.
+                    MonsterArtworkView(
+                        monster=companion,store=store,revision=revision,
+                        modifier=Modifier.size(169.dp)
+                            .align(Alignment.BottomStart)
+                            .offset(
+                                x=(if(fighting)run.combo%2*9 else run.steps%2*4).dp,
+                                y=(if(run.steps%2==0)0 else -3).dp
+                            )
+                            .padding(start=4.dp,bottom=19.dp),
+                        facingRight=true
+                    )
+                    run.enemy?.let { foe ->
+                        MonsterArtworkView(
+                            monster=foe,store=store,revision=revision,
+                            modifier=Modifier.size(if(boss)199.dp else 161.dp)
+                                .align(Alignment.BottomEnd)
+                                .offset(x=(if(run.combo%2==0)0 else -3).dp)
+                                .padding(end=4.dp,bottom=18.dp),
+                            facingRight=false
+                        )
+                    }
+                    if(!fighting) {
+                        Box(Modifier.align(Alignment.TopCenter)
+                            .padding(top=9.dp)
+                            .background(Color(0xB9142342),RoundedCornerShape(6.dp))
+                            .padding(horizontal=10.dp,vertical=4.dp)) {
+                            Text("タップで前進 ▶",
+                                color=Gold,style=MaterialTheme.typography.labelLarge)
+                        }
+                    } else if(boss) {
+                        Box(Modifier.align(Alignment.TopCenter).padding(top=8.dp)
+                            .background(Color(0xE2201C35),RoundedCornerShape(5.dp))
+                            .padding(horizontal=8.dp,vertical=5.dp)) {
+                            Text(
+                                if(run.weakpointTaps>0)
+                                    "WEAK POINT ×"+run.weakpointTaps+"  攻撃3倍"
+                                else (if(run.bossTarget<0)"左に攻撃！ 右へ回避 →"
+                                      else "← 左へ回避！ 右に攻撃")+
+                                    "  "+String.format("%.1f",run.attackTimerMs/1000f)+"秒",
+                                color=Gold,style=MaterialTheme.typography.labelMedium
+                            )
+                        }
+                    } else {
+                        Box(Modifier.align(Alignment.TopCenter).padding(top=8.dp)
+                            .background(Color(0xD51A2340),RoundedCornerShape(5.dp))
+                            .padding(horizontal=10.dp,vertical=5.dp)) {
+                            Text("敵の次の攻撃まで "+
+                                String.format("%.1f",run.attackTimerMs/1000f)+"秒",
+                                color=Color.White,
+                                style=MaterialTheme.typography.labelMedium)
+                        }
+                    }
+                    if(fighting) {
+                        Text(run.combo.toString()+" HIT",
+                            Modifier.align(Alignment.Center)
+                                .offset(y=(-85).dp)
+                                .background(Color(0xB7141A2D),RoundedCornerShape(6.dp))
+                                .padding(horizontal=9.dp,vertical=3.dp),
+                            color=Gold,fontWeight=FontWeight.Black,
+                            style=MaterialTheme.typography.titleLarge)
+                    }
+                }
             }
-            Surface(color=Color(0xCC101827),shape=RoundedCornerShape(8.dp),
-                modifier=Modifier.align(Alignment.TopCenter).padding(10.dp)) {
-                Text(when(run.phase) {
-                    TapPhase.WALK -> "前進 "+run.steps+"/"+TapAdventure.STEPS_PER_FLOOR
-                    TapPhase.FIGHT -> "連打 "+run.combo+" HIT"
-                    TapPhase.BOSS -> "BOSS  "+run.combo+" HIT"
-                    TapPhase.BRANCH -> "フロア分岐"
-                },modifier=Modifier.padding(horizontal=12.dp,vertical=6.dp),
-                    color=Color.White)
+        }
+        // Compact battle log. Actions remain above the fixed bottom navigation.
+        Box(Modifier.fillMaxWidth()
+            .border(
+                1.dp,Color(0xFF4E638A),RoundedCornerShape(7.dp))
+            .background(Color(0xFF182541),RoundedCornerShape(7.dp))
+            .padding(horizontal=12.dp,vertical=9.dp)) {
+            Text(run.message,color=Color(0xFFF6E8CB),
+                style=MaterialTheme.typography.bodyMedium,
+                maxLines=2)
+        }
+        if(run.phase==TapPhase.BRANCH) {
+            Text("◇ 分かれ道：進むルートを選択",
+                color=Gold,style=MaterialTheme.typography.titleMedium)
+            listOf(
+                "✚ 精霊の泉　HP回復",
+                "◆ 宝箱の小道　アイテム・結晶",
+                "⚔ 危険な近道　強敵・レア報酬"
+            ).forEachIndexed { index,title ->
+                Button(
+                    modifier=Modifier.fillMaxWidth().height(52.dp),
+                    onClick={onBranch(index)},
+                    colors=ButtonDefaults.buttonColors(containerColor=Color(0xFF283659))
+                ) { Text(title,color=Color.White) }
             }
-            if(run.phase==TapPhase.WALK)
-                Text("TAP TO WALK",Modifier.align(Alignment.BottomCenter)
-                    .padding(bottom=12.dp),color=Gold,
-                    style=MaterialTheme.typography.titleMedium)
-            if(boss)
+        } else {
+            Button(
+                onClick=onTap,
+                modifier=Modifier.fillMaxWidth().height(68.dp),
+                shape=RoundedCornerShape(14.dp),
+                colors=ButtonDefaults.buttonColors(
+                    containerColor=Color(0xFFBA883A),
+                    contentColor=Color(0xFF11182B))
+            ) {
                 Text(
-                    if(run.weakpointTaps>0)"弱点露出！ 3倍攻撃 ×"+run.weakpointTaps
-                    else "予告："+(if(run.bossTarget<0)"左に大技！ →右へ"
-                                  else "右に大技！ ←左へ")+
-                        "　残り"+run.bossCountdown,
-                    modifier=Modifier.align(Alignment.TopCenter).padding(top=47.dp)
-                        .background(Color(0xD9221D35),RoundedCornerShape(7.dp))
-                        .padding(6.dp),color=Gold,
-                    style=MaterialTheme.typography.labelMedium)
-        }
-        if(run.enemy!=null) {
-            Text((if(boss)"★ " else "")+run.enemy.species+" / "+run.enemy.element,
-                style=MaterialTheme.typography.titleMedium)
-            LinearProgressIndicator(
-                progress={
-                    run.enemyHp.toFloat()/run.enemy.maxHp.coerceAtLeast(1)
-                },modifier=Modifier.fillMaxWidth(),color=Color(0xFFFF7F86))
-            Text("敵 HP "+run.enemyHp+"/"+run.enemy.maxHp,
-                style=MaterialTheme.typography.labelSmall)
-        }
-        Card(Modifier.fillMaxWidth()) {
-            Text(run.message,Modifier.padding(12.dp),
-                style=MaterialTheme.typography.bodyMedium)
-        }
-        when(run.phase) {
-            TapPhase.WALK,TapPhase.FIGHT,TapPhase.BOSS -> {
-                Button(onClick=onTap,modifier=Modifier.fillMaxWidth().height(65.dp)) {
-                    Text(if(run.phase==TapPhase.WALK)"タップして前進"
-                         else "⚔ タップ連打で攻撃",
-                        style=MaterialTheme.typography.titleMedium)
-                }
-                if(boss) {
-                    Text("ボス専用：赤い予告方向の反対側へ移動。回避成功で弱点が露出！",
-                        style=MaterialTheme.typography.bodySmall)
-                    Row(horizontalArrangement=Arrangement.spacedBy(8.dp)) {
-                        OutlinedButton(onClick={onDodge(-1)},modifier=Modifier.weight(1f)) {
-                            Text(if(run.lane==-1)"✓ 左へ移動" else "← 左へ回避")
-                        }
-                        OutlinedButton(onClick={onDodge(1)},modifier=Modifier.weight(1f)) {
-                            Text(if(run.lane==1)"✓ 右へ移動" else "右へ回避 →")
-                        }
-                    }
-                }
+                    if(fighting)"⚔  連打して攻撃  ⚔" else "▶  タップして前進",
+                    style=MaterialTheme.typography.titleLarge,fontWeight=FontWeight.Black
+                )
+            }
+            if(boss) {
                 Row(horizontalArrangement=Arrangement.spacedBy(8.dp)) {
-                    OutlinedButton(onClick=onCapture,
-                        enabled=run.phase==TapPhase.FIGHT && state.captureOrbs>0,
-                        modifier=Modifier.weight(1f)) {
-                        Text("◉ 捕獲（"+state.captureOrbs+"）")
+                    OutlinedButton(onClick={onDodge(-1)},modifier=Modifier.weight(1f)) {
+                        Text(if(run.lane==-1)"◀ 左：選択中" else "◀ 左へ回避")
                     }
-                    OutlinedButton(onClick=onHeal,
-                        enabled=state.potions>0 && state.playerHp<100,
-                        modifier=Modifier.weight(1f)) {
-                        Text("✚ 回復（"+state.potions+"）")
+                    OutlinedButton(onClick={onDodge(1)},modifier=Modifier.weight(1f)) {
+                        Text(if(run.lane==1)"右：選択中 ▶" else "右へ回避 ▶")
                     }
                 }
             }
-            TapPhase.BRANCH -> {
-                Text("ランダムイベント：どの道を選ぶ？",
-                    style=MaterialTheme.typography.titleMedium)
-                listOf(
-                    "精霊の泉 — HPを28回復",
-                    "宝箱の道 — コイン、捕獲玉、時々召喚結晶",
-                    "危険な道 — 強敵か召喚結晶"
-                ).forEachIndexed { i,label ->
-                    OutlinedButton(
-                        modifier=Modifier.fillMaxWidth(),onClick={onBranch(i)}
-                    ) { Text(label) }
+            Row(horizontalArrangement=Arrangement.spacedBy(8.dp)) {
+                OutlinedButton(onClick=onHeal,
+                    enabled=state.potions>0 && state.playerHp<100,
+                    modifier=Modifier.weight(1f)) {
+                    Text("✚ 回復 "+state.potions)
                 }
+                OutlinedButton(onClick=onCapture,
+                    enabled=run.phase==TapPhase.FIGHT && state.captureOrbs>0,
+                    modifier=Modifier.weight(1f)) {
+                    Text("◉ 捕獲 "+state.captureOrbs)
+                }
+            }
+            if(fighting) {
+                Text(
+                    if(boss)"BOSS：攻撃は時間経過。予告方向の逆に回避して弱点を狙おう"
+                    else "タップだけで連続攻撃！ 敵は時間経過で反撃します",
+                    style=MaterialTheme.typography.labelMedium,color=Blue
+                )
             }
         }
-        Text("5Fごとに強敵BOSS / 3Fごとに分岐。戦闘不能では1Fから再開。" +
-            " 仲間・図鑑・アイテムは失いません。",
-            style=MaterialTheme.typography.bodySmall)
-        Spacer(Modifier.height(18.dp))
+        Spacer(Modifier.height(6.dp))
+    }
+}
+
+/** Small offline pixel shrine art for the summon tab; no bundled stock image. */
+@Composable
+private fun SummonPortalScene(modifier:Modifier=Modifier) {
+    Canvas(modifier) {
+        val sx=size.width/160f
+        val sy=size.height/95f
+        fun p(x:Int,y:Int,w:Int,h:Int,c:Color) {
+            if(w>0&&h>0)drawRect(c,Offset(x*sx,y*sy),Size(w*sx,h*sy))
+        }
+        p(0,0,160,95,Color(0xFF191832))
+        p(0,0,160,15,Color(0xFF29274F))
+        for(y in 10..84 step 12)for(x in 0..159 step 21) {
+            p((x+if(y%24==0)10 else 0)%160,y,18,9,Color(0xFF29264B))
+            p((x+if(y%24==0)10 else 0)%160,y,17,1,Color(0xFF3E3963))
+        }
+        for(x in listOf(10,136)) {
+            p(x,13,14,67,Color(0xFF3A3A65))
+            p(x-4,11,22,6,Color(0xFF67638B))
+            p(x-5,76,24,6,Color(0xFF656384))
+            p(x+4,20,4,49,Color(0xFF171F48))
+            p(x+5,26,2,21,Color(0xFF9974D0))
+        }
+        p(0,81,160,14,Color(0xFF303055))
+        for(x in 20..130 step 9) {
+            p(x,83,7,2,Color(0xFF7468A4))
+            p(x+3,87,2,3,Color(0xFFAD88F5))
+        }
+        // Concentric rune circle formed with square segments.
+        p(41,74,78,3,Color(0xFF8C64EC))
+        p(48,70,64,2,Color(0xFFB390FF))
+        p(56,67,48,2,Color(0xFF544FDD))
+        p(64,64,32,2,Color(0xFFAF9CFF))
+        p(52,79,56,2,Color(0xFFD0A9FF))
+        // Central levitating diamond, true pixel-aligned stepped geometry.
+        for(y in 0..42) {
+            val width=if(y<20)1+y/3 else 1+(42-y)/3
+            val px0=80-width
+            val py0=16+y
+            p(px0-2,py0,2+width*2+2,1,Color(0xFF6A38C6))
+            p(px0,py0,width*2+1,1,
+                if(y%5<2)Color(0xFFD9B7FF) else Color(0xFF9A6AF0))
+            p(79,py0,2,1,Color(0xFFE5FBFF))
+        }
+        for(i in 0..15) {
+            val x=(i*29+13)%150+5
+            val y=(i*17+7)%58+5
+            p(x,y,2,2,if(i%3==0)Color(0xFFE8C6FF) else Color(0xFF7958C6))
+        }
     }
 }
 
@@ -439,15 +689,20 @@ fun QuestSummon(
         .padding(14.dp),verticalArrangement=Arrangement.spacedBy(12.dp)) {
         Text("召喚の祭壇",style=MaterialTheme.typography.headlineSmall,
             color=Gold,fontWeight=FontWeight.Bold)
-        Box(Modifier.fillMaxWidth().height(160.dp)
-            .background(Color(0xFF1D1D47),RoundedCornerShape(12.dp)),
-            contentAlignment=Alignment.Center) {
-            Column(horizontalAlignment=Alignment.CenterHorizontally) {
-                Text("✧",color=Color(0xFFBBA3FF),
-                    style=MaterialTheme.typography.displayLarge)
-                Text("召喚結晶 ×"+state.summonStones,
-                    style=MaterialTheme.typography.titleLarge)
-            }
+        Box(Modifier.fillMaxWidth().height(228.dp)
+            .border(2.dp,Color(0xFFAA8EDB),RoundedCornerShape(10.dp))
+            .background(Color(0xFF181733),RoundedCornerShape(10.dp))) {
+            SummonPortalScene(Modifier.fillMaxSize().padding(4.dp))
+            Text("◆ 召喚結晶 ×"+state.summonStones,
+                modifier=Modifier.align(Alignment.TopCenter).padding(top=12.dp)
+                    .background(Color(0xCA141530),RoundedCornerShape(6.dp))
+                    .padding(horizontal=12.dp,vertical=4.dp),
+                color=Gold,style=MaterialTheme.typography.titleMedium)
+            Text("クリスタルの祭壇",
+                modifier=Modifier.align(Alignment.BottomCenter).padding(bottom=10.dp)
+                    .background(Color(0xCA131428),RoundedCornerShape(6.dp))
+                    .padding(horizontal=9.dp,vertical=4.dp),
+                color=Color.White,style=MaterialTheme.typography.labelMedium)
         }
         Text("探索でまれに、ボス撃破で必ず召喚結晶を獲得。" +
             " 召喚成功時だけ結晶を1個消費します。",

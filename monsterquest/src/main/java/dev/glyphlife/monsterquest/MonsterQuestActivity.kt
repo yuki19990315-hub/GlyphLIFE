@@ -104,8 +104,16 @@ class MonsterQuestActivity : ComponentActivity() {
                     inBattle=next.tapRun.phase in listOf(TapPhase.FIGHT,TapPhase.BOSS),
                     roomCleared=false,completed=false
                 )
+                val rapidStrike =
+                    state.tapRun.phase in listOf(TapPhase.FIGHT,TapPhase.BOSS) &&
+                    fixed.tapRun.phase==state.tapRun.phase &&
+                    fixed.tapRun.enemy?.id==state.tapRun.enemy?.id &&
+                    fixed.playerHp==state.playerHp &&
+                    fixed.tapRun.combo!=state.tapRun.combo
                 state = fixed
-                storage.save(fixed)
+                // Serializing the full bestiary for every finger tap causes
+                // dropped input on mid-range phones; checkpoint every 5 hits.
+                if(!rapidStrike || fixed.tapRun.combo%5==0) storage.save(fixed)
             }
             fun notify(text: String) {
                 status = text
@@ -414,6 +422,27 @@ class MonsterQuestActivity : ComponentActivity() {
                 }.onFailure { notify("ペットデータを取り込めません：${it.message}") }
             }
 
+            // Battle time advances independently from taps. Pausing Explore
+            // pauses the clock; one 100-ms tick can trigger at most one strike.
+            LaunchedEffect(selectedTab,state.tapRun.phase,state.tapRun.enemy?.id) {
+                if(selectedTab==QuestTab.EXPLORE &&
+                    state.tapRun.phase in listOf(TapPhase.FIGHT,TapPhase.BOSS)) {
+                    while(true) {
+                        kotlinx.coroutines.delay(100L)
+                        val before=state
+                        val next=TapAdventure.tick(before,100)
+                        if(next!=before) {
+                            state=next.copy(inBattle=next.tapRun.phase in
+                                listOf(TapPhase.FIGHT,TapPhase.BOSS))
+                            // Persist hits and important changes, not every frame.
+                            if(next.playerHp!=before.playerHp ||
+                                next.tapRun.phase!=before.tapRun.phase)
+                                storage.save(state)
+                        }
+                    }
+                }
+            }
+
             MaterialTheme(
                 colorScheme = darkColorScheme(
                     primary = Color(0xFFFFDFA7), background = Color(0xFF111923),
@@ -422,7 +451,7 @@ class MonsterQuestActivity : ComponentActivity() {
                 Scaffold(
                     topBar={
                         Surface(tonalElevation=2.dp,color=Color(0xFF121B30)) {
-                            Text("MONSTER QUEST / v4.0",Modifier.padding(14.dp),
+                            Text("MONSTER QUEST / v4.1",Modifier.padding(14.dp),
                                 style=MaterialTheme.typography.titleMedium,
                                 color=Color(0xFFFFD990))
                         }
