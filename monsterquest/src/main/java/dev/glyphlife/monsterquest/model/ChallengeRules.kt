@@ -116,6 +116,7 @@ object ChallengeRules {
             mode=ChallengeMode.TOWER,towerFloor=1,opponent=foe,
             opponentHp=foe.maxHp,playerHp=100,attackTimerMs=towerTimer(1),
             guardCooldownMs=0,guardActive=false,combo=0,
+            skillCooldowns=emptyMap(),guardHits=0,venomCharges=0,
             message="試練の塔に入った！ 第1階層から20階までの連戦"
         ))
     }
@@ -144,16 +145,30 @@ object ChallengeRules {
         }
         val support=(team.sumOf { it.attack.coerceIn(0,300)/10+
             it.stage*2 }).coerceAtMost(90)
-        val crit=rng.nextInt(100)<12
+        val relic=RelicRules.stats(state)
+        val crit=rng.nextInt(100)<12+relic.critical
+        val poison=if(c.venomCharges>0)8 else 0
         val damage=(7+state.companion.level.coerceIn(1,50)/3+
-            state.attackUpgrade*2+support/3+rng.nextInt(5))*
-            (if(crit)2 else 1)
+            state.attackUpgrade*2+support/3+relic.attack+rng.nextInt(5))*
+            (if(crit)2 else 1)+poison
         val remaining=(c.opponentHp-damage).coerceAtLeast(0)
         val now=state.copy(challenge=c.copy(
             opponentHp=remaining,combo=c.combo+1,
+            venomCharges=(c.venomCharges-1).coerceAtLeast(0),
+            skillCooldowns=SkillRules.countdown(c.skillCooldowns,relic.charge),
             message=(if(crit)"会心！ " else "")+damage+
                 "ダメージ！ "+(c.combo+1)+" HIT"))
-        return if(remaining==0) win(now,enemy) else now
+        return if(remaining==0) win(now,enemy,rng) else now
+    }
+
+    fun useSkill(state:QuestState,ownerId:String,
+                 rng:Random=Random.Default):QuestState {
+        val c=state.challenge
+        val foe=c.opponent ?: return state
+        val updated=SkillRules.useChallenge(state,ownerId)
+        if(updated==state)return state
+        return if(c.opponentHp>0 && updated.challenge.opponentHp==0)
+            win(updated,foe,rng) else updated
     }
 
     fun defend(state:QuestState):QuestState {
@@ -178,8 +193,11 @@ object ChallengeRules {
         val opponent=c.opponent
         val boss=opponent.isBoss
         val raw=opponent.attack+(if(boss)7 else 0)
-        val damage=if(c.guardActive) (raw/4).coerceAtLeast(1)
-            else (raw-state.defenseUpgrade).coerceAtLeast(1)
+        val reduced=(raw-state.defenseUpgrade-
+            RelicRules.stats(state).defense).coerceAtLeast(1)
+        val damage=if(c.guardActive)(reduced/4).coerceAtLeast(1)
+            else if(c.guardHits>0)(reduced*3/10).coerceAtLeast(1)
+            else reduced
         val hp=(c.playerHp-damage).coerceAtLeast(0)
         if(hp==0)return lose(state.copy(challenge=c.copy(playerHp=0)),
             retreat=false)
@@ -187,6 +205,7 @@ object ChallengeRules {
             towerTimer(c.towerFloor) else arenaTimer(c.arenaWave)
         return state.copy(challenge=c.copy(
             playerHp=hp,guardActive=false,guardCooldownMs=cd,
+            guardHits=(c.guardHits-1).coerceAtLeast(0),
             attackTimerMs=newTimer,
             message=(if(c.guardActive)"障壁で軽減！ " else "敵の反撃！ ")+
                 "HP-"+damage+"　あと"+hp))
@@ -214,7 +233,8 @@ object ChallengeRules {
         ))
     }
 
-    private fun win(state:QuestState,foe:WildMonster):QuestState {
+    private fun win(state:QuestState,foe:WildMonster,
+                    rng:Random=Random.Default):QuestState {
         val c=state.challenge
         val tower=c.mode==ChallengeMode.TOWER
         val floor=if(tower)c.towerFloor else c.arenaWave
@@ -226,7 +246,12 @@ object ChallengeRules {
             // Challenge log is separate from the exploration log.
             tapRun=state.tapRun
         )
-        return if(tower) winTower(base,c,floor) else winArena(base,c,floor)
+        val result=if(tower) winTower(base,c,floor)
+            else winArena(base,c,floor)
+        return RelicRules.afterVictory(
+            if(tower && foe.isBoss)
+                RelicRules.reward(result,foe,floor,rng,challenge=true)
+            else result,challenge=true)
     }
 
     private fun winTower(base:QuestState,c:ChallengeState,floor:Int):QuestState {
@@ -261,6 +286,7 @@ object ChallengeRules {
             opponent=next,opponentHp=next.maxHp,
             attackTimerMs=towerTimer(nextFloor),
             guardActive=false,guardCooldownMs=0,combo=0,
+            skillCooldowns=emptyMap(),guardHits=0,venomCharges=0,
             message=floor.toString()+"F突破！ "+
                 (if(reward>0)"初回報酬 結晶+"+reward+"。 " else "")+
                 "HPを16回復。次は"+nextFloor+"F"
@@ -278,6 +304,7 @@ object ChallengeRules {
                 opponent=next,opponentHp=next.maxHp,
                 playerHp=(c.playerHp+12).coerceAtMost(100),
                 guardCooldownMs=0,guardActive=false,combo=0,
+                skillCooldowns=emptyMap(),guardHits=0,venomCharges=0,
                 attackTimerMs=arenaTimer(wave+1),
                 message=wave.toString()+"体撃破！ HP+12。次は"+(wave+1)+"体目"
             ))
