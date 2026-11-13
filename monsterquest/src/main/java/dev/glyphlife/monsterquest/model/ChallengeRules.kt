@@ -258,7 +258,7 @@ object ChallengeRules {
             opponent=next,opponentHp=next.maxHp,
             attackTimerMs=towerTimer(nextFloor),
             guardActive=false,guardCooldownMs=0,combo=0,
-            message=floor+"F突破！ "+
+            message=floor.toString()+"F突破！ "+
                 (if(reward>0)"初回報酬 結晶+"+reward+"。 " else "")+
                 "HPを16回復。次は"+nextFloor+"F"
         ))
@@ -276,7 +276,7 @@ object ChallengeRules {
                 playerHp=(c.playerHp+12).coerceAtMost(100),
                 guardCooldownMs=0,guardActive=false,combo=0,
                 attackTimerMs=arenaTimer(wave+1),
-                message=wave+"体撃破！ HP+12。次は"+(wave+1)+"体目"
+                message=wave.toString()+"体撃破！ HP+12。次は"+(wave+1)+"体目"
             ))
         }
         val streak=(c.arenaStreak+1).coerceAtMost(999999)
