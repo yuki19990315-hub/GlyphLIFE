@@ -32,6 +32,12 @@ import dev.glyphlife.monsterquest.ui.MonsterPortrait
 import dev.glyphlife.monsterquest.ui.MonsterBrightnessPreview
 import dev.glyphlife.monsterquest.ui.MonsterArtworkView
 import dev.glyphlife.monsterquest.ui.CaptureLab
+import dev.glyphlife.monsterquest.ui.QuestTab
+import dev.glyphlife.monsterquest.ui.QuestBottomNavigation
+import dev.glyphlife.monsterquest.ui.QuestHome
+import dev.glyphlife.monsterquest.ui.TapExplorationScreen
+import dev.glyphlife.monsterquest.ui.QuestSummon
+import dev.glyphlife.monsterquest.ui.QuestFuture
 import dev.glyphlife.monsterquest.ui.MonsterDesignerPanel
 import dev.glyphlife.monsterquest.ui.MonsterStaticSprite
 import dev.glyphlife.monsterquest.ui.ArmorPlacementControls
@@ -69,7 +75,16 @@ class MonsterQuestActivity : ComponentActivity() {
         val storage = QuestStorage(this)
         val artworkStore = MonsterArtworkStore(this)
         setContent {
-            var state by remember { mutableStateOf(storage.load()) }
+            var state by remember {
+                mutableStateOf(storage.load().let { saved ->
+                    saved.copy(
+                        inBattle=saved.tapRun.phase in listOf(TapPhase.FIGHT,TapPhase.BOSS),
+                        roomCleared=false,completed=false
+                    )
+                })
+            }
+            var selectedTab by remember { mutableStateOf(QuestTab.HOME) }
+            var aiArtEnabled by remember { mutableStateOf(false) }
             var status by remember { mutableStateOf("オフラインで遊べます") }
             var aiKey by remember { mutableStateOf("") }
             var aiDescription by remember { mutableStateOf("") }
@@ -85,24 +100,40 @@ class MonsterQuestActivity : ComponentActivity() {
             val scope = rememberCoroutineScope()
 
             fun update(next: QuestState) {
-                state = next
-                storage.save(next)
+                val fixed=next.copy(
+                    inBattle=next.tapRun.phase in listOf(TapPhase.FIGHT,TapPhase.BOSS),
+                    roomCleared=false,completed=false
+                )
+                state = fixed
+                storage.save(fixed)
             }
             fun notify(text: String) {
                 status = text
                 Toast.makeText(this@MonsterQuestActivity, text, Toast.LENGTH_SHORT).show()
             }
-            fun applyIdea(idea: MonsterIdea) {
-                val next = QuestRules.summon(state, idea.asWildMonster(state.room))
-                if (next === state || next == state) notify("冒険中のこの状態では召喚できません")
-                else {
-                    update(next)
-                    notify("AIモンスター「${idea.name}」を召喚しました")
+            suspend fun applyIdea(idea: MonsterIdea) {
+                if (state.summonStones<1 || state.captures.size>=100 ||
+                    state.tapRun.phase in listOf(TapPhase.FIGHT,TapPhase.BOSS)) {
+                    notify("召喚結晶不足、満員、または戦闘中です")
+                    return
                 }
+                val candidate=idea.asWildMonster(1)
+                val next=TapAdventure.registerSummon(state,candidate,generatedByAi=true)
+                if(next==state)return
+                if(aiArtEnabled) {
+                    // The user chose the separate external image API explicitly.
+                    val sprite=next.captures.last()
+                    val image=MonsterConceptArt.generate(aiKey,sprite,ConceptStyle.GBA_PIXEL)
+                    artworkStore.store(sprite.id,image,1)
+                    artworkRevision++
+                }
+                update(next)
+                notify("AI召喚：「"+idea.name+"」を仲間と図鑑に登録しました")
             }
             fun createMonster(image: ByteArray?) {
-                if (aiBusy || aiKey.isBlank() || state.inBattle || state.completed ||
-                    state.room == QuestRules.ROOM_COUNT) return
+                if (aiBusy || aiKey.isBlank() || state.summonStones<=0 ||
+                    state.captures.size>=100 ||
+                    state.tapRun.phase in listOf(TapPhase.FIGHT,TapPhase.BOSS)) return
                 val key = aiKey
                 val instruction = aiDescription.ifBlank { "不思議な生き物" }
                 aiBusy = true
@@ -119,7 +150,9 @@ class MonsterQuestActivity : ComponentActivity() {
             val photoPicker = rememberLauncherForActivityResult(
                 ActivityResultContracts.GetContent()
             ) { uri ->
-                if (uri != null && !aiBusy && aiKey.isNotBlank()) {
+                if (uri != null && !aiBusy && aiKey.isNotBlank() &&
+                    state.summonStones>0 && state.captures.size<100 &&
+                    state.tapRun.phase !in listOf(TapPhase.FIGHT,TapPhase.BOSS)) {
                     val key = aiKey
                     val description = aiDescription.ifBlank { "この写真をもとに独自のモンスターを作って" }
                     aiBusy = true
@@ -374,7 +407,7 @@ class MonsterQuestActivity : ComponentActivity() {
                 incoming = null
                 runCatching {
                     val pet = QuestProtocol.parseGlyphPet(raw)
-                    update(QuestRules.start(pet).copy(captures = state.captures))
+                    update(state.copy(companion=pet))
                     notify("Glyph Lifeの${pet.name}を受け取りました")
                 }.onFailure { notify("ペットデータを取り込めません：${it.message}") }
             }
