@@ -58,6 +58,34 @@ class GbaMonsterArtStandardTest {
         assertTrue(art.pixels().contentEquals(clean.pixels()))
     }
 
+    @Test fun allTenBodyTypesAndThreeStagesMeetGbaPaletteRules() {
+        val elements=listOf("火","水","草","雷","光","闇","無")
+        for (type in MonsterBodyType.entries) for (stage in 1..3) for (element in elements) {
+            val wild=WildMonster(
+                id="00000000-0000-4000-8000-000000000888",
+                species="試作-${type.name}",element=element,
+                maxHp=40,attack=8,stage=stage,bodyType=type.name
+            )
+            val master=MonsterDesign.sprite(wild)
+            val audit=GbaMonsterArtStandard.audit(master)
+            assertTrue("${type.name}/$element/stage$stage: $audit",audit.compliant)
+            assertTrue(master.opaqueCount()>80)
+        }
+    }
+
+    @Test fun edgeTouchingSpriteIsFittedWithoutCroppingOrChangingStoredSource() {
+        val p=IntArray(4096)
+        for(x in 0..63) p[27*64+x]=0xff89b9e7.toInt()
+        val saved=PixelSprite.fromArgb(64,64,p)
+        val normalized=GbaMonsterArtStandard.canonical(saved)
+        assertTrue(GbaMonsterArtStandard.audit(normalized).compliant)
+        assertEquals(64,normalized.width)
+        assertEquals(64,normalized.height)
+        assertEquals(0xff89b9e7.toInt(),saved.pixel(0,27))
+        assertEquals(0,normalized.pixel(0,27))
+        assertTrue(normalized.opaqueCount()>40)
+    }
+
     @Test fun auditReportsOpaqueBackgroundRatherThanPretendingItIsTransparent() {
         val full=PixelSprite.fromArgb(64,64,IntArray(4096) { 0xffaa7733.toInt() })
         val report=GbaMonsterArtStandard.audit(full)
