@@ -71,19 +71,50 @@ object GbaMonsterArtStandard {
     }
 
     /**
+     * Keep the complete existing alpha silhouette inside a one-pixel safety
+     * border. Nearest-neighbor sampling writes only real 64x64 grid pixels.
+     * An entirely opaque bitmap is not touched: guessing where its background
+     * ends would destroy user content; the audit reports it instead.
+     */
+    fun fitInside(sprite: PixelSprite): PixelSprite {
+        require(sprite.width == SIZE && sprite.height == SIZE)
+        val b = bounds(sprite) ?: return sprite
+        if (b.left >= 1 && b.top >= 1 &&
+            b.right <= SIZE - 2 && b.bottom <= SIZE - 2) return sprite
+        if (b.width == SIZE && b.height == SIZE &&
+            sprite.pixels().none { (it ushr 24) == 0 }) return sprite
+        val scale = minOf(1.0,
+            (SIZE - 2).toDouble() / b.width,
+            (SIZE - 2).toDouble() / b.height)
+        val dw = (b.width * scale).toInt().coerceIn(1, SIZE-2)
+        val dh = (b.height * scale).toInt().coerceIn(1, SIZE-2)
+        val x0 = (SIZE - dw) / 2
+        val y0 = (SIZE - dh) / 2
+        val out = IntArray(SIZE * SIZE)
+        for (y in 0 until dh) for (x in 0 until dw) {
+            val sx = b.left + ((x + 0.5) * b.width / dw).toInt()
+                .coerceIn(0, b.width - 1)
+            val sy = b.top + ((y + 0.5) * b.height / dh).toInt()
+                .coerceIn(0, b.height - 1)
+            out[(y+y0)*SIZE+(x+x0)] = sprite.pixel(sx,sy)
+        }
+        return PixelSprite.fromArgb(SIZE,SIZE,out)
+    }
+
+    /**
      * Normalize imported/overlaid artwork on display/export without rewriting
      * its original saved PNG; preserve exact colors when already compliant.
      * Cannot safely guess where an opaque photo background ends.
      */
     fun canonical(sprite: PixelSprite): PixelSprite {
         require(sprite.width == SIZE && sprite.height == SIZE)
-        val p = sprite.pixels()
-        val transparent = p.any { (it ushr 24) == 0 }
+        val fitted = fitInside(sprite)
+        val p = fitted.pixels()
         val opaqueColors = p.filter { (it ushr 24) != 0 }.toSet().size
         val hasPartialAlpha = p.any { val a = it ushr 24; a != 0 && a != 255 }
         if (opaqueColors <= MAX_OPAQUE_COLORS && !hasPartialAlpha &&
-            p.all { it == 0 || (it ushr 24) == 255 }) return sprite
-        // Do not erase or crop user artwork here. Conversion is palette-only.
+            p.all { it == 0 || (it ushr 24) == 255 }) return fitted
+        // Never modify the source PNG on disk; only this rendering copy.
         return PixelSprite.fromArgb(SIZE, SIZE, PixelAssetPipeline.paletteReduce(p))
     }
 }
