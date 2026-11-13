@@ -162,7 +162,7 @@ fun QuestHome(
                 SectionTitle("パーティ詳細　"+state.partyIds.size+"/3")
                 Text("相棒："+state.companion.name+"（Lv"+state.companion.level+"）",
                     color=Gold,style=MaterialTheme.typography.titleSmall)
-                MonsterPotentialPanel(companion)
+                MonsterPotentialPanel(SkillRules.party(state).first())
                 Text("仲間をタップして編成を変更。戦闘時は選んだ仲間が援護します。",
                     color=Blue,style=MaterialTheme.typography.labelMedium)
                 if(state.captures.isEmpty())
