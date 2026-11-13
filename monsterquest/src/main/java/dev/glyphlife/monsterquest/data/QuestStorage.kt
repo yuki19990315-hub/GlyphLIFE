@@ -85,7 +85,10 @@ class QuestStorage(context: Context) {
             .put("partyIds", JSONArray().apply { s.partyIds.take(3).forEach { put(it) } })
             .put("message", s.message)
             .put("captures", JSONArray().apply { s.captures.takeLast(100).forEach { put(wildToJson(it)) } })
-        check(prefs.edit().putString("session", data.toString()).commit()) { "ゲームを保存できませんでした" }
+        // apply() makes the new state available immediately and writes it
+        // asynchronously; synchronous commit on EVERY rapid combat tap caused
+        // frame stalls and missed input on slower Android flash storage.
+        prefs.edit().putString("session", data.toString()).apply()
     }
 
     private fun writeTapRun(r:TapRun):JSONObject=JSONObject()
