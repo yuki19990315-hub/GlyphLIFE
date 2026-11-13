@@ -33,7 +33,7 @@ class QuestStorage(context: Context) {
                 enemy = obj.optJSONObject("enemy")?.let(::wildFromJson),
                 enemyHp = obj.optInt("enemyHp", 0).coerceAtLeast(0),
                 playerHp = obj.getInt("playerHp").coerceIn(0, 100),
-                potions = obj.optInt("potions", 2).coerceIn(0, 2),
+                potions = obj.optInt("potions", 2).coerceIn(0, 99),
                 supportUsedInBattle = obj.optBoolean("supportUsedInBattle", false),
                 inBattle = obj.optBoolean("inBattle", false),
                 roomCleared = obj.optBoolean("roomCleared", false),
@@ -43,6 +43,17 @@ class QuestStorage(context: Context) {
                 earnedXp = obj.optInt("earnedXp", 0).coerceIn(0, 100),
                 earnedHappiness = obj.optInt("earnedHappiness", 0).coerceIn(0, 20),
                 rewardEventId = obj.optString("rewardEventId").ifBlank { null },
+                tapRun = obj.optJSONObject("tapRun")?.let(::readTapRun) ?: TapRun(),
+                summonStones = obj.optInt("summonStones", 0).coerceIn(0, 999),
+                captureOrbs = obj.optInt("captureOrbs", 3).coerceIn(0, 99),
+                catalog = obj.optJSONArray("catalog")?.let { known ->
+                    (0 until known.length()).mapNotNull { index ->
+                        runCatching { wildFromJson(known.getJSONObject(index)) }.getOrNull()
+                    }.takeLast(150)
+                } ?: emptyList(),
+                partyIds = obj.optJSONArray("partyIds")?.let { party ->
+                    (0 until party.length()).map { party.getString(it) }.distinct().take(3)
+                }?.filter { id -> captures.any { it.id == id } } ?: emptyList(),
                 message = obj.optString("message", "冒険しよう").take(200)
             )
         }.getOrElse { QuestRules.start(Companion()) }
@@ -65,9 +76,51 @@ class QuestStorage(context: Context) {
             .put("completed", s.completed).put("defeated", s.defeated)
             .put("earnedXp", s.earnedXp).put("earnedHappiness", s.earnedHappiness)
             .put("rewardEventId", s.rewardEventId ?: "")
+            .put("tapRun", writeTapRun(s.tapRun))
+            .put("summonStones", s.summonStones)
+            .put("captureOrbs", s.captureOrbs)
+            .put("catalog", JSONArray().apply {
+                s.catalog.takeLast(150).forEach { put(wildToJson(it)) }
+            })
+            .put("partyIds", JSONArray().apply { s.partyIds.take(3).forEach { put(it) } })
             .put("message", s.message)
             .put("captures", JSONArray().apply { s.captures.takeLast(100).forEach { put(wildToJson(it)) } })
-        check(prefs.edit().putString("session", data.toString()).commit()) { "ゲームを保存できませんでした" }
+        // apply() makes the new state available immediately and writes it
+        // asynchronously; synchronous commit on EVERY rapid combat tap caused
+        // frame stalls and missed input on slower Android flash storage.
+        prefs.edit().putString("session", data.toString()).apply()
+    }
+
+    private fun writeTapRun(r:TapRun):JSONObject=JSONObject()
+        .put("floor",r.floor).put("steps",r.steps).put("phase",r.phase.name)
+        .put("enemy",r.enemy?.let(::wildToJson)).put("enemyHp",r.enemyHp)
+        .put("combo",r.combo).put("bossCountdown",r.bossCountdown)
+        .put("bossTarget",r.bossTarget).put("lane",r.lane)
+        .put("weakpointTaps",r.weakpointTaps)
+        .put("bestFloor",r.bestFloor).put("deaths",r.deaths)
+        .put("distance",r.distance).put("gold",r.gold).put("message",r.message)
+
+    private fun readTapRun(o:JSONObject):TapRun {
+        val phase=runCatching { TapPhase.valueOf(o.optString("phase","WALK")) }
+            .getOrDefault(TapPhase.WALK)
+        val foe=o.optJSONObject("enemy")?.let { runCatching { wildFromJson(it) }.getOrNull() }
+        val safePhase=if(phase in listOf(TapPhase.FIGHT,TapPhase.BOSS) && foe==null)
+            TapPhase.WALK else phase
+        return TapRun(
+            floor=o.optInt("floor",1).coerceIn(1,TapAdventure.MAX_FLOOR),
+            steps=o.optInt("steps",0).coerceIn(0,TapAdventure.STEPS_PER_FLOOR),
+            phase=safePhase,enemy=foe,enemyHp=o.optInt("enemyHp",0).coerceIn(0,20000),
+            combo=o.optInt("combo",0).coerceIn(0,100000),
+            bossCountdown=o.optInt("bossCountdown",3).coerceIn(1,3),
+            bossTarget=if(o.optInt("bossTarget",-1)==1)1 else -1,
+            lane=o.optInt("lane",0).coerceIn(-1,1),
+            weakpointTaps=o.optInt("weakpointTaps",0).coerceIn(0,3),
+            bestFloor=o.optInt("bestFloor",1).coerceIn(1,TapAdventure.MAX_FLOOR),
+            deaths=o.optInt("deaths",0).coerceIn(0,99999),
+            distance=o.optInt("distance",0).coerceIn(0,1_000_000),
+            gold=o.optInt("gold",0).coerceIn(0,999999),
+            message=o.optString("message","タップで前進！").take(180)
+        )
     }
 
     private fun wildToJson(w: WildMonster) = JSONObject()
@@ -80,6 +133,7 @@ class QuestStorage(context: Context) {
         .put("motifPrimary", w.motifPrimary).put("motifSecondary", w.motifSecondary)
         .put("designSeed", w.designSeed)
         .put("artFamily", w.artFamily)
+        .put("artSourceId", w.artSourceId)
         .put("armorParts", JSONObject(w.armorParts))
         .put("customArmorParts", JSONObject(w.customArmorParts))
         .put("customArmorOffsets", JSONObject().apply {
@@ -108,7 +162,11 @@ class QuestStorage(context: Context) {
                 it == MonsterArtFamilies.LUNA }.orEmpty(),
         armorParts = readArmorParts(o.optJSONObject("armorParts")),
         customArmorParts = readCustomLayers(o.optJSONObject("customArmorParts")),
-        customArmorOffsets = readCustomOffsets(o.optJSONObject("customArmorOffsets"))
+        customArmorOffsets = readCustomOffsets(o.optJSONObject("customArmorOffsets")),
+        artSourceId = o.optString("artSourceId","").take(64)
+            .takeIf { id -> id.isBlank() || runCatching {
+                java.util.UUID.fromString(id)
+            }.isSuccess }.orEmpty()
     )
 
     private fun readArmorParts(value: JSONObject?): Map<String, String> {

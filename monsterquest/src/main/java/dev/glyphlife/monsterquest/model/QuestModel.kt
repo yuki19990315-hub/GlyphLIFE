@@ -39,7 +39,9 @@ data class WildMonster(
     val customArmorParts: Map<String, String> = emptyMap(),
     /** Per-slot alignment of imported AI PNG modules, in native 64px coordinates. */
     val customArmorOffsets:
-        Map<String, dev.glyphlife.monsterquest.pixel.ArmorOffset> = emptyMap()
+        Map<String, dev.glyphlife.monsterquest.pixel.ArmorOffset> = emptyMap(),
+    /** Shared artwork owner UUID for AI-generated enemies; never a network URL. */
+    val artSourceId: String = ""
 )
 
 /** Only explicit, opt-in featured art families use authored sprites. Blank keeps legacy procedural art. */
@@ -74,6 +76,12 @@ data class QuestState(
     val earnedXp: Int = 0,
     val earnedHappiness: Int = 0,
     val rewardEventId: String? = null,
+    /** New tap adventure state; legacy 5-room game fields remain valid. */
+    val tapRun: TapRun = TapRun(),
+    val summonStones: Int = 0,
+    val captureOrbs: Int = 3,
+    val catalog: List<WildMonster> = emptyList(),
+    val partyIds: List<String> = emptyList(),
     val message: String = "冒険を始めよう！"
 )
 

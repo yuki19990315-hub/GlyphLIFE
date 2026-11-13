@@ -32,6 +32,12 @@ import dev.glyphlife.monsterquest.ui.MonsterPortrait
 import dev.glyphlife.monsterquest.ui.MonsterBrightnessPreview
 import dev.glyphlife.monsterquest.ui.MonsterArtworkView
 import dev.glyphlife.monsterquest.ui.CaptureLab
+import dev.glyphlife.monsterquest.ui.QuestTab
+import dev.glyphlife.monsterquest.ui.QuestBottomNavigation
+import dev.glyphlife.monsterquest.ui.QuestHome
+import dev.glyphlife.monsterquest.ui.TapExplorationScreen
+import dev.glyphlife.monsterquest.ui.QuestSummon
+import dev.glyphlife.monsterquest.ui.QuestFuture
 import dev.glyphlife.monsterquest.ui.MonsterDesignerPanel
 import dev.glyphlife.monsterquest.ui.MonsterStaticSprite
 import dev.glyphlife.monsterquest.ui.ArmorPlacementControls
@@ -69,7 +75,16 @@ class MonsterQuestActivity : ComponentActivity() {
         val storage = QuestStorage(this)
         val artworkStore = MonsterArtworkStore(this)
         setContent {
-            var state by remember { mutableStateOf(storage.load()) }
+            var state by remember {
+                mutableStateOf(storage.load().let { saved ->
+                    saved.copy(
+                        inBattle=saved.tapRun.phase in listOf(TapPhase.FIGHT,TapPhase.BOSS),
+                        roomCleared=false,completed=false
+                    )
+                })
+            }
+            var selectedTab by remember { mutableStateOf(QuestTab.HOME) }
+            var aiArtEnabled by remember { mutableStateOf(false) }
             var status by remember { mutableStateOf("オフラインで遊べます") }
             var aiKey by remember { mutableStateOf("") }
             var aiDescription by remember { mutableStateOf("") }
@@ -85,30 +100,47 @@ class MonsterQuestActivity : ComponentActivity() {
             val scope = rememberCoroutineScope()
 
             fun update(next: QuestState) {
-                state = next
-                storage.save(next)
+                val fixed=next.copy(
+                    inBattle=next.tapRun.phase in listOf(TapPhase.FIGHT,TapPhase.BOSS),
+                    roomCleared=false,completed=false
+                )
+                state = fixed
+                storage.save(fixed)
             }
             fun notify(text: String) {
                 status = text
                 Toast.makeText(this@MonsterQuestActivity, text, Toast.LENGTH_SHORT).show()
             }
-            fun applyIdea(idea: MonsterIdea) {
-                val next = QuestRules.summon(state, idea.asWildMonster(state.room))
-                if (next === state || next == state) notify("冒険中のこの状態では召喚できません")
-                else {
-                    update(next)
-                    notify("AIモンスター「${idea.name}」を召喚しました")
+            suspend fun applyIdea(idea: MonsterIdea, withArt:Boolean, key:String) {
+                if (state.summonStones<1 || state.captures.size>=100 ||
+                    state.tapRun.phase in listOf(TapPhase.FIGHT,TapPhase.BOSS)) {
+                    notify("召喚結晶不足、満員、または戦闘中です")
+                    return
                 }
+                val candidate=idea.asWildMonster(1)
+                val next=TapAdventure.registerSummon(state,candidate,generatedByAi=true)
+                if(next==state)return
+                if(withArt) {
+                    // The user chose the separate external image API explicitly.
+                    val sprite=next.captures.last()
+                    val image=MonsterConceptArt.generate(key,sprite,ConceptStyle.GBA_PIXEL)
+                    artworkStore.store(sprite.id,image,1)
+                    artworkRevision++
+                }
+                update(next)
+                notify("AI召喚：「"+idea.name+"」を仲間と図鑑に登録しました")
             }
             fun createMonster(image: ByteArray?) {
-                if (aiBusy || aiKey.isBlank() || state.inBattle || state.completed ||
-                    state.room == QuestRules.ROOM_COUNT) return
+                if (aiBusy || aiKey.isBlank() || state.summonStones<=0 ||
+                    state.captures.size>=100 ||
+                    state.tapRun.phase in listOf(TapPhase.FIGHT,TapPhase.BOSS)) return
                 val key = aiKey
+                val withArt=aiArtEnabled
                 val instruction = aiDescription.ifBlank { "不思議な生き物" }
                 aiBusy = true
                 scope.launch {
                     try {
-                        applyIdea(MonsterAi.generate(key, instruction, image))
+                        applyIdea(MonsterAi.generate(key, instruction, image),withArt,key)
                     } catch (e: Exception) {
                         notify("AI生成に失敗：${e.message}")
                     } finally {
@@ -119,14 +151,17 @@ class MonsterQuestActivity : ComponentActivity() {
             val photoPicker = rememberLauncherForActivityResult(
                 ActivityResultContracts.GetContent()
             ) { uri ->
-                if (uri != null && !aiBusy && aiKey.isNotBlank()) {
+                if (uri != null && !aiBusy && aiKey.isNotBlank() &&
+                    state.summonStones>0 && state.captures.size<100 &&
+                    state.tapRun.phase !in listOf(TapPhase.FIGHT,TapPhase.BOSS)) {
                     val key = aiKey
+                    val withArt=aiArtEnabled
                     val description = aiDescription.ifBlank { "この写真をもとに独自のモンスターを作って" }
                     aiBusy = true
                     scope.launch {
                         try {
                             val jpeg = MonsterAi.preparePhoto(this@MonsterQuestActivity, uri)
-                            applyIdea(MonsterAi.generate(key, description, jpeg))
+                            applyIdea(MonsterAi.generate(key, description, jpeg),withArt,key)
                         } catch (e: Exception) {
                             notify("写真AI生成に失敗：${e.message}")
                         } finally {
@@ -374,7 +409,7 @@ class MonsterQuestActivity : ComponentActivity() {
                 incoming = null
                 runCatching {
                     val pet = QuestProtocol.parseGlyphPet(raw)
-                    update(QuestRules.start(pet).copy(captures = state.captures))
+                    update(state.copy(companion=pet))
                     notify("Glyph Lifeの${pet.name}を受け取りました")
                 }.onFailure { notify("ペットデータを取り込めません：${it.message}") }
             }
@@ -384,119 +419,136 @@ class MonsterQuestActivity : ComponentActivity() {
                     primary = Color(0xFFFFDFA7), background = Color(0xFF111923),
                     surface = Color(0xFF222A34))
             ) {
-                Scaffold(topBar = {
-                    Surface(tonalElevation = 2.dp) {
-                        Text("MONSTER QUEST  /  v3.6",
-                            modifier = Modifier.padding(18.dp),
-                            style = MaterialTheme.typography.titleMedium)
-                    }
-                }) { padding ->
-                    QuestScreen(
-                        state = state, status = status,
-                        artworkStore = artworkStore, artworkRevision = artworkRevision,
-                        onSendGlyph = ::sendGlyphToLife,
-                        onOfflineSummon = { prototype ->
-                            runCatching {
-                                val spawned=MonsterPrototypeFactory.summon(prototype,state.room)
-                                val next=QuestRules.summon(state,spawned)
-                                if(next==state) notify("この場面では召喚できません")
-                                else {
-                                    update(next)
-                                    notify("無料ドット絵モンスター「${spawned.species}」を召喚")
-                                }
-                            }.onFailure { notify("試作召喚失敗：${it.message}") }
-                        },
-                        onExportPng = ::exportPixelPng,
-                        onExportSpriteSheet = ::exportSpriteSheet,
-                        onEquip = ::equipCaptured,
-                        onAiEquip = ::suggestCapturedArmor,
-                        onGeneratePart = ::generatePartImage,
-                        onReusePart = ::reuseSavedPart,
-                        onImportPart = { wild, slot ->
-                            if (!aiBusy && !state.inBattle) {
-                                partImportTarget = wild to slot
-                                partPicker.launch("image/png")
-                            }
-                        },
-                        onRemovePart = ::removeCustomPart,
-                        onSetPlacement = ::setCustomPlacement,
-                        onEvolve = { id ->
-                            runCatching {
-                                val evolved = EvolutionRules.evolve(state,id)
-                                val members = evolved.captures.map { member ->
-                                    if(member.id == id) member.copy(
-                                        pixels = artworkStore.glyphFor(member))
-                                    else member
-                                }
-                                update(evolved.copy(captures = members))
-                                artworkRevision += 1
-                                notify("モンスターが進化しました。64×64の外見が変化します")
-                            }.onFailure { notify("進化できません：${it.message}") }
-                        },
-                        onGenerateArt = ::generatePortrait,
-                        onImportArt = { wild ->
-                            artImportId = wild.id
-                            artImportStage = wild.stage
-                            artworkPicker.launch("image/*")
-                        },
-                        aiKey = aiKey, aiDescription = aiDescription,
-                        aiBusy = aiBusy,
-                        onAiKeyChange = { aiKey = it.take(256) },
-                        onAiDescriptionChange = { aiDescription = it.take(250) },
-                        onAiText = { createMonster(null) },
-                        onAiPhoto = { photoPicker.launch("image/*") },
-                        modifier = Modifier.padding(padding),
-                        onMove = { x, y ->
-                            if (aiBusy) return@QuestScreen
-                            val nextX = state.position % 4 + x
-                            val nextY = state.position / 4 + y
-                            if (nextX in 0..3 && nextY in 0..3) {
-                                update(QuestRules.move(state, nextY * 4 + nextX))
-                            }
-                        },
-                        onAttack = { magic -> if (!aiBusy) update(QuestRules.attack(state, magic)) },
-                        onCapture = { if (!aiBusy) update(QuestRules.capture(state)) },
-                        onPotion = { if (!aiBusy) update(QuestRules.usePotion(state)) },
-                        onSupport = {
-                            if (!aiBusy) update(QuestRules.supportAttack(state))
-                        },
-                        onFuse = { a, b ->
-                            runCatching {
-                                val result = FusionRules.fuse(state, a, b)
-                                val combined = result.captures.last()
-                                val corrected = combined.copy(
-                                    pixels = artworkStore.glyphFor(combined))
-                                update(result.copy(captures = result.captures.dropLast(1) +
-                                    corrected))
-                                artworkRevision++
-                            }.onFailure { notify("合成に失敗：${it.message}") }
-                        },
-                        onDefend = { if (!aiBusy) update(QuestRules.defend(state)) },
-                        onNextRoom = { update(QuestRules.nextRoom(state)) },
-                        onEnd = { update(QuestRules.endRun(state)) },
-                        onNewRun = {
-                            update(QuestRules.start(state.companion).copy(captures = state.captures))
-                        },
-                        onSendResult = {
-                            runCatching {
-                                val payload = QuestProtocol.rewardJson(state)
-                                val share = Intent(Intent.ACTION_SEND).apply {
-                                    type = "application/json"
-                                    putExtra(Intent.EXTRA_TEXT, payload)
-                                }
-                                val direct = Intent(share).apply {
-                                    setClassName("dev.glyphlife.app",
-                                        "dev.glyphlife.app.MainActivity")
-                                }
-                                try {
-                                    startActivity(direct)
-                                } catch (_: ActivityNotFoundException) {
-                                    startActivity(Intent.createChooser(share,
-                                        "Glyph Lifeに冒険結果を渡す"))
-                                }
-                            }.onFailure { notify("共有できません：${it.message}") }
+                Scaffold(
+                    topBar={
+                        Surface(tonalElevation=2.dp,color=Color(0xFF121B30)) {
+                            Text("MONSTER QUEST / v4.0",Modifier.padding(14.dp),
+                                style=MaterialTheme.typography.titleMedium,
+                                color=Color(0xFFFFD990))
                         }
-                    )
+                    },
+                    bottomBar={
+                        QuestBottomNavigation(selectedTab) { selectedTab=it }
+                    }
+                ) { padding ->
+                    Box(Modifier.fillMaxSize().padding(padding)) {
+                        when(selectedTab) {
+                            QuestTab.HOME -> QuestHome(
+                                state=state,store=artworkStore,revision=artworkRevision,
+                                onSelectParty={ memberId ->
+                                    if(!state.inBattle) update(TapAdventure.selectParty(state,memberId))
+                                    else notify("戦闘中は編成を変更できません")
+                                }
+                            ) {
+                                CaptureLab(
+                                    captured=state.captures,inBattle=state.inBattle,
+                                    aiBusy=aiBusy,defeated=state.defeated,
+                                    artworkStore=artworkStore,artworkRevision=artworkRevision,
+                                    onEvolve={ id ->
+                                        runCatching {
+                                            val result=EvolutionRules.evolve(state,id)
+                                            val changed=result.captures.map { member ->
+                                                if(member.id==id)member.copy(
+                                                    pixels=artworkStore.glyphFor(member))
+                                                else member
+                                            }
+                                            update(result.copy(captures=changed))
+                                            artworkRevision++
+                                            notify("進化しました！")
+                                        }.onFailure { notify("進化失敗："+it.message) }
+                                    },
+                                    onEquip=::equipCaptured,
+                                    onAiEquip=::suggestCapturedArmor,
+                                    allowAiEquip=aiKey.isNotBlank()&&!aiBusy,
+                                    onGeneratePart=::generatePartImage,
+                                    onImportPart={ monster,slot ->
+                                        if(!aiBusy && !state.inBattle) {
+                                            partImportTarget=monster to slot
+                                            partPicker.launch("image/png")
+                                        }
+                                    },
+                                    onReusePart=::reuseSavedPart,
+                                    onRemovePart=::removeCustomPart,
+                                    onSetPlacement=::setCustomPlacement,
+                                    onSendGlyph=::sendGlyphToLife,
+                                    onExportPng=::exportPixelPng,
+                                    onExportSpriteSheet=::exportSpriteSheet,
+                                    onGenerateArt={ wild ->
+                                        generatePortrait(wild,ConceptStyle.GBA_PIXEL)
+                                    },
+                                    onImportArt={ wild ->
+                                        if(!state.inBattle) {
+                                            artImportId=wild.id
+                                            artImportStage=wild.stage
+                                            artworkPicker.launch("image/*")
+                                        }
+                                    },
+                                    onFuse={ a,b ->
+                                        runCatching {
+                                            val merged=FusionRules.fuse(state,a,b)
+                                            val last=merged.captures.last()
+                                            val adjusted=last.copy(
+                                                pixels=artworkStore.glyphFor(last))
+                                            val owned=merged.captures.dropLast(1)+adjusted
+                                            update(merged.copy(
+                                                captures=owned,
+                                                partyIds=state.partyIds.filter { id ->
+                                                    owned.any { it.id==id }
+                                                }
+                                            ))
+                                            artworkRevision++
+                                            notify("2匹を合成しました")
+                                        }.onFailure { notify("合成失敗："+it.message) }
+                                    }
+                                )
+                            }
+                            QuestTab.EXPLORE -> TapExplorationScreen(
+                                state=state,store=artworkStore,revision=artworkRevision,
+                                onTap={
+                                    if(!aiBusy)update(TapAdventure.tap(state))
+                                },
+                                onDodge={ side -> update(TapAdventure.dodge(state,side)) },
+                                onCapture={ update(TapAdventure.capture(state)) },
+                                onHeal={ update(TapAdventure.heal(state)) },
+                                onBranch={ route ->
+                                    update(TapAdventure.branch(state,route))
+                                }
+                            )
+                            QuestTab.SUMMON -> QuestSummon(
+                                state=state,aiKey=aiKey,
+                                aiDescription=aiDescription,aiBusy=aiBusy,
+                                aiArtEnabled=aiArtEnabled,
+                                onAiArtEnabled={ aiArtEnabled=it },
+                                onAiKey={ aiKey=it.take(256) },
+                                onDescription={ aiDescription=it.take(250) },
+                                onAiText={ createMonster(null) },
+                                onAiPhoto={ photoPicker.launch("image/*") },
+                                onOffline={
+                                    if(!aiBusy && !state.inBattle && state.summonStones>0) {
+                                        update(TapAdventure.offlineSummon(state))
+                                        notify("オフライン召喚！ ホームに仲間が追加されました")
+                                    }
+                                }
+                            ) {
+                                MonsterDesignerPanel(
+                                    enabled=!state.inBattle && !aiBusy &&
+                                        state.summonStones>0 && state.captures.size<100,
+                                    store=artworkStore,revision=artworkRevision,
+                                    onSummon={ prototype ->
+                                        runCatching {
+                                            check(!state.inBattle && state.summonStones>0)
+                                            val monster=MonsterPrototypeFactory.summon(
+                                                prototype,1)
+                                            update(TapAdventure.registerSummon(state,monster))
+                                            notify("ドット絵モンスターを召喚しました")
+                                        }.onFailure { notify("召喚失敗："+it.message) }
+                                    },
+                                    onExportPng=::exportPixelPng
+                                )
+                            }
+                            QuestTab.FUTURE -> QuestFuture()
+                        }
+                    }
                 }
                 val styles = pendingArmorStyles
                 if (styles != null && pendingPartImage == null) {

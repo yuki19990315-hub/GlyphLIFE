@@ -151,7 +151,15 @@ class MonsterArtworkStore(private val context: Context) {
 
     /** Resolve the same layered art for UI, export, animation and Glyph. */
     fun spriteFor(monster: WildMonster): PixelSprite {
-        val saved = loadNative(monster.id, monster.stage)
+        val ownStage=loadNative(monster.id,monster.stage)
+        // When the user only generated stage 1 art, retain that identity at
+        // higher stages until custom stage-specific artwork is supplied.
+        val ownArt=ownStage ?: if(monster.stage>1)loadNative(monster.id,1) else null
+        val saved = ownArt ?:
+            monster.artSourceId.takeIf { it.isNotBlank() && it != monster.id }
+                ?.let { sourceId ->
+                    loadNative(sourceId,monster.stage) ?: loadNative(sourceId,1)
+                }
         val base = if (saved != null) MonsterArmor.compose(saved, monster)
             else MonsterDesign.sprite(monster)
         // Normalize the *resolved* sprite so UI, export, animation and Glyph

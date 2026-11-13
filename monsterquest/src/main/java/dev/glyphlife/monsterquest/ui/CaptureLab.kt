@@ -40,7 +40,9 @@ fun CaptureLab(
     onSendGlyph: (WildMonster) -> Unit,
     onExportPng: (WildMonster, Int) -> Unit,
     onExportSpriteSheet: (WildMonster) -> Unit,
-    onFuse: (String, String) -> Unit
+    onFuse: (String, String) -> Unit,
+    onGenerateArt: ((WildMonster) -> Unit)? = null,
+    onImportArt: ((WildMonster) -> Unit)? = null
 ) {
     var expanded by remember { mutableStateOf(false) }
     var showAll by remember { mutableStateOf(false) }
@@ -65,8 +67,9 @@ fun CaptureLab(
 
     HorizontalDivider()
     Text("モンスター研究所", style = MaterialTheme.typography.titleMedium)
-    Text("捕獲した仲間は冒険で1戦につき1回援護でき、2匹を合成して新しい仲間も作れます。" +
-        "合成時は選んだ2匹が消費されます。",
+    Text("編成した最大3匹の仲間は、探索での連打攻撃を強化します。" +
+        " 捕獲した2匹を合成して新しい仲間を作ることもできます。" +
+        " 合成時は元の2匹が消費されます。",
         style = MaterialTheme.typography.bodySmall)
     OutlinedButton(onClick = { expanded = !expanded }) {
         Text(if (expanded) "研究所を閉じる" else "捕獲図鑑・合成を開く（${captured.size}/100）")
@@ -122,6 +125,21 @@ fun CaptureLab(
             }
             first?.let { monster ->
                 Text("素体＋装備パーツ",style=MaterialTheme.typography.titleMedium)
+                Text("個体画像：64×64を基準にした全身ドット絵。" +
+                    " ここで取り込んだ画像は、同じ仲間が図鑑から敵として出現するときも利用できます。",
+                    style=MaterialTheme.typography.bodySmall)
+                Row(horizontalArrangement=Arrangement.spacedBy(8.dp)) {
+                    OutlinedButton(
+                        enabled=!inBattle,
+                        onClick={ onImportArt?.invoke(monster) },
+                    ) { Text("全身画像を取り込む") }
+                    OutlinedButton(
+                        enabled=!inBattle && allowAiEquip && onGenerateArt!=null,
+                        onClick={ onGenerateArt?.invoke(monster) }
+                    ) { Text("AI画像生成") }
+                }
+                Text("AI画像生成は外部APIを利用し、料金が発生する場合があります。",
+                    style=MaterialTheme.typography.bodySmall)
                 OutlinedButton(onClick={armorEditing=!armorEditing}) {
                     Text(if(armorEditing) "装備編集を閉じる" else "選んだ仲間の装備を編集")
                 }
@@ -243,7 +261,7 @@ fun CaptureLab(
                 }
                 Text(
                     if (monster.stage >= 3) "最終進化に到達済み"
-                    else "次の進化条件：この冒険で${EvolutionRules.requiredVictories(monster.stage)}体撃破（現在${defeated}体）",
+                    else "次の進化条件：累計${EvolutionRules.requiredVictories(monster.stage)}体撃破（現在${defeated}体）",
                     style = MaterialTheme.typography.bodySmall
                 )
                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
