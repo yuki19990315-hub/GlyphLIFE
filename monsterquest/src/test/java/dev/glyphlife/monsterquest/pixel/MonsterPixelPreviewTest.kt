@@ -96,11 +96,37 @@ class MonsterPixelPreviewTest {
         return file
     }
 
+    /** Exact 64px monster art beside the 13x13 0..255 LED preview.
+     * The image is produced by the very same projector used at runtime.
+     */
+    @Test fun tenBodyTypesGrayscaleProjectionReview() {
+        val w=5*512;val h=2*256
+        val data=IntArray(w*h) { 0xff19222f.toInt() }
+        MonsterBodyType.entries.forEachIndexed { index,type ->
+            val wild=monster(type,"雷",2)
+            val sprite=MonsterDesign.sprite(wild)
+            val row=index/5; val col=index%5
+            drawCell(data,w,sprite,col*2,row)
+            val levels=FullBodyGlyphProjector.project(sprite)
+            val ox=col*512+280;val oy=row*256+24
+            for(y in 0..12)for(x in 0..12) {
+                val i=y*13+x
+                val v=levels[i]
+                val c=if(GlyphProjector.isPhysical(i))v else 0
+                val value=0xff000000.toInt() or (c shl 16) or (c shl 8) or c
+                for(dy in 0..12)for(dx in 0..12) {
+                    data[(oy+y*16+dy)*w + ox+x*16+dx]=value
+                }
+            }
+        }
+        save(w,h,data,"13-full-body-10-types-grayscale.png")
+    }
+
     /** Exact game renderer output: compare the authored lightning and moonlight
      * creature families side-by-side at every evolution stage.
      */
-    /** Side-by-side real 64px full-body art and dedicated 13x13 face badge.
-     * Review the whole creature at left, the physical round-matrix icon at right.
+    /** Side-by-side real 64px full-body art and same silhouette's
+     * full-body grayscale projection, NOT a face icon.
      */
     @Test fun featuredFullBodyVersusGlyphBadgeVisualReview() {
         val width=512; val height=512
@@ -115,17 +141,17 @@ class MonsterPixelPreviewTest {
         ).forEachIndexed { row,wild ->
             val sprite=MonsterDesign.sprite(wild)
             drawCell(data,width,sprite,0,row)
-            val glyph=GlyphProjector.projectFor(wild,sprite)
+            val glyph=FullBodyGlyphProjector.project(sprite)
             for (y in 0..12)for (x in 0..12) {
-                val lit=glyph[y*13+x]=='1'
-                val color=if(lit)0xfff5da78.toInt() else 0xff293340.toInt()
+                val value=glyph[y*13+x]
+                val color=0xff000000.toInt() or (value shl 16) or (value shl 8) or value
                 val cellX=280+x*16; val cellY=row*256+24+y*16
                 for(dy in 0..13)for(dx in 0..13) {
                     data[(cellY+dy)*width+cellX+dx]=color
                 }
             }
         }
-        save(width,height,data,"11-full-body-and-glyph-icon.png")
+        save(width,height,data,"11-full-body-grayscale.png")
     }
 
     @Test fun featuredArtFamilyVisualReview() {

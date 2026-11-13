@@ -28,9 +28,12 @@ import dev.glyphlife.app.model.PixelArt
 fun PixelGrid(
     pixels: List<Boolean>,
     modifier: Modifier = Modifier,
-    onClick: ((Int) -> Unit)? = null
+    onClick: ((Int) -> Unit)? = null,
+    /** Optional imported per-LED brightness; editing a dot clears this overlay. */
+    levels: List<Int>? = null
 ) {
     require(pixels.size == PixelArt.COUNT)
+    require(levels == null || (levels.size == PixelArt.COUNT && levels.all { it in 0..255 }))
 
     fun hit(position: Offset, width: Float, height: Float): Int? {
         val cellWidth = width / 13f
@@ -87,6 +90,11 @@ fun PixelGrid(
             val y = index / 13
             val color = when {
                 !GlyphMask.isPhysical(index) -> Color(0xFF111414)
+                levels != null -> {
+                    val intensity = (levels[index] / 255f).coerceIn(0f, 1f)
+                    val gray = 0.06f + 0.94f * intensity
+                    Color(gray, gray, gray, 1f)
+                }
                 pixels[index] -> Color(0xFFF6F6F0)
                 else -> Color(0xFF303737)
             }

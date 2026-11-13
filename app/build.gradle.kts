@@ -15,8 +15,8 @@ android {
         // Keep the SDK-free build compatible with older Android versions.
         minSdk = if (nothingSdk.exists()) 33 else 29
         targetSdk = 35
-        versionCode = 14
-        versionName = "0.14.0"
+        versionCode = 15
+        versionName = "0.15.0"
         // AOD Toy is only offered in explicit Nothing SDK builds.
         resValue("bool", "glyph_aod_enabled", nothingSdk.exists().toString())
     }

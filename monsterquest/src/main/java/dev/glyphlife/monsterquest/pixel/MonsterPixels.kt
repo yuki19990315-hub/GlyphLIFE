@@ -475,40 +475,23 @@ object MonsterDesign {
 /** Conversion contract: derive from native pixels only when displaying on Glyph. */
 object GlyphProjector {
     private val left = intArrayOf(4,2,1,1,0,0,0,0,0,1,1,2,4)
+
     fun isPhysical(index:Int):Boolean {
-        if(index !in 0..168)return false
-        val y=index/13;val x=index%13
+        if(index !in 0..168) return false
+        val y=index/13
+        val x=index%13
         return x in left[y]..(12-left[y])
     }
-    /** Prefer a distinct readable glyph insignia when an authored family supplies one.
-     * Other monsters keep the normal silhouette projection. This cannot be used
-     * in place of the full-resolution in-game picture.
-     */
-    fun projectFor(monster: WildMonster, sprite: PixelSprite, pose: Int = 0): String =
-        FeaturedGlyphIcon.find(monster, pose) ?: project(sprite)
 
+    /** All species are projected from their full 64px artwork.
+     * The legacy 1-bit string is derived from brightness, never a face icon.
+     */
     fun project(sprite: PixelSprite): String {
-        require(sprite.width>=13 && sprite.height>=13)
-        val result=CharArray(169) { '0' }
-        for(y in 0..12) for(x in 0..12) {
-            val i=y*13+x
-            if(!isPhysical(i))continue
-            val x0=x*sprite.width/13;val x1=max(x0+1,(x+1)*sprite.width/13)
-            val y0=y*sprite.height/13;val y1=max(y0+1,(y+1)*sprite.height/13)
-            var coverage=0;var detail=0;var count=0
-            for(sy in y0 until y1) for(sx in x0 until x1) {
-                val c=sprite.pixel(sx,sy)
-                if(c ushr 24 >= 96) {
-                    coverage++
-                    // High-contrast highlights and eyes remain visible after reduction.
-                    val light=((c shr 16) and 255)*30 + ((c shr 8) and 255)*59 + (c and 255)*11
-                    if(light>=16000)detail++
-                }
-                count++
-            }
-            if(coverage*100>=count*33 || (detail>=2 && coverage*100>=count*13))
-                result[i]='1'
-        }
-        return String(result)
+        require(sprite.width >= 13 && sprite.height >= 13)
+        return FullBodyGlyphProjector.asBinary(FullBodyGlyphProjector.project(sprite))
     }
+
+    @Suppress("UNUSED_PARAMETER")
+    fun projectFor(monster: WildMonster, sprite: PixelSprite, pose: Int = 0): String =
+        project(sprite)
 }

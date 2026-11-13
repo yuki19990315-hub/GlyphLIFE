@@ -3,11 +3,19 @@ package dev.glyphlife.app.model
 /** A frame is a row-major 13 × 13 monochrome image. */
 data class GlyphFrame(
     val pixels: List<Boolean>,
-    val durationMs: Int = 350
+    val durationMs: Int = 350,
+    /** Optional per-LED luminance from 64px monster art, absent in legacy frames. */
+    val levels: List<Int>? = null
 ) {
     init {
         require(pixels.size == PixelArt.COUNT) { "A Glyph frame must contain 169 pixels" }
         require(durationMs in 100..2000) { "Duration must be between 100 and 2000 ms" }
+        levels?.let { brightness ->
+            require(brightness.size == 169 && brightness.all { it in 0..255 })
+            require(brightness.withIndex().all { (i, v) ->
+                v == 0 || GlyphMask.isPhysical(i)
+            })
+        }
     }
 }
 
@@ -27,7 +35,7 @@ data class GlyphAnimation(
 
     fun replace(pixels: List<Boolean>): GlyphAnimation = copy(
         frames = frames.toMutableList().apply {
-            set(selected, current.copy(pixels = GlyphMask.normalize(pixels)))
+            set(selected, current.copy(pixels = GlyphMask.normalize(pixels), levels = null))
         }
     )
 

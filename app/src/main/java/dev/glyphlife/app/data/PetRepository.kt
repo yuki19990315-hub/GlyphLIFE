@@ -135,8 +135,10 @@ class PetRepository(context: Context) {
     fun encodeAnimation(a: GlyphAnimation): String {
         val frames = JSONArray()
         a.frames.forEach { frame ->
-            frames.put(JSONObject().put("pixels", GlyphOps.encode(frame.pixels))
-                .put("durationMs", frame.durationMs))
+            val obj = JSONObject().put("pixels", GlyphOps.encode(frame.pixels))
+                .put("durationMs", frame.durationMs)
+            frame.levels?.let { obj.put("levelsHex", GlyphBrightnessCodec.encode(it)) }
+            frames.put(obj)
         }
         return JSONObject().put("schemaVersion", 1)
             .put("type", "glyph-life-animation")
@@ -154,7 +156,12 @@ class PetRepository(context: Context) {
         require(arr.length() in 1..64)
         val frames = (0 until arr.length()).map { i ->
             val f = arr.getJSONObject(i)
-            GlyphFrame(GlyphOps.decode(f.getString("pixels")), f.getInt("durationMs"))
+            GlyphFrame(
+                GlyphOps.decode(f.getString("pixels")),
+                f.getInt("durationMs"),
+                if (f.has("levelsHex")) GlyphBrightnessCodec.decode(f.getString("levelsHex"))
+                else null
+            )
         }
         return GlyphAnimation(frames, o.optInt("selected", 0).coerceIn(0, frames.lastIndex))
     }
