@@ -7,6 +7,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.FilterQuality
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.graphics.graphicsLayer
 import dev.glyphlife.monsterquest.data.MonsterArtworkStore
 import dev.glyphlife.monsterquest.model.WildMonster
 import dev.glyphlife.monsterquest.pixel.MonsterAnimation
@@ -23,7 +24,9 @@ fun MonsterArtworkView(
     monster: WildMonster,
     store: MonsterArtworkStore,
     revision: Int,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    /** Authored assets face right; enemies are mirrored to face left. */
+    facingRight: Boolean = true
 ) {
     val frames=remember(monster,store,revision) {
         val master=store.spriteFor(monster)
@@ -42,7 +45,7 @@ fun MonsterArtworkView(
     Image(
         bitmap=frames[index.coerceIn(frames.indices)].second,
         contentDescription="${monster.species}：64×64カラードット絵の待機アニメーション",
-        modifier=modifier, // Keep the whole authored silhouette; never round-clip the image.
+        modifier=modifier.graphicsLayer { scaleX = if(facingRight) 1f else -1f },
         contentScale=ContentScale.Fit,
         filterQuality=FilterQuality.None
     )
