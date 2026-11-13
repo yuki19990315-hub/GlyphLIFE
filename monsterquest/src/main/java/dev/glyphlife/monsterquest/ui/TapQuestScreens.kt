@@ -178,72 +178,128 @@ private fun SectionTitle(title:String) {
 @Composable
 fun PixelDungeonBackdrop(floor:Int,boss:Boolean,steps:Int=0,modifier:Modifier=Modifier) {
     Canvas(modifier) {
-        val scaleX=size.width/160f
-        val scaleY=size.height/104f
-        fun px(x:Int,y:Int,w:Int,h:Int,color:Color) {
-            drawRect(color,Offset(x*scaleX,y*scaleY),
-                Size(w*scaleX,h*scaleY))
+        val sx=size.width/160f
+        val sy=size.height/104f
+        fun px(x:Int,y:Int,w:Int,h:Int,c:Color) {
+            if(w>0 && h>0)drawRect(
+                c,Offset(x*sx,y*sy),Size(w*sx,h*sy))
         }
-        val mode=((floor-1)/5)%3
-        val sky=when(mode) {
-            0 -> Color(0xFF24395B)
-            1 -> Color(0xFF332F56)
-            else -> Color(0xFF182E4C)
+        fun tree(anchor:Int,shade:Int) {
+            val x=((anchor-steps*2)%200+200)%200-20
+            px(x+12,24,7,65,Color(0xFF493F46))
+            px(x+14,37,3,50,Color(0xFF896B52))
+            val greens=if(shade==0)listOf(
+                Color(0xFF205B48),Color(0xFF397D55),Color(0xFF6CAF62),
+                Color(0xFFB8DC75)) else listOf(
+                Color(0xFF1B423B),Color(0xFF346E4D),Color(0xFF579D64),
+                Color(0xFF9CC96B))
+            for(row in 0..4) for(col in 0..4) {
+                val sizePx=9+((row*5+col*7)%7)
+                val dx=x+col*9-(if(row%2==0)8 else 12)
+                val dy=5+row*9+((col*3)%5)
+                px(dx,dy,sizePx,sizePx,greens[(row+col)%4])
+                px(dx+2,dy+1,3,2,Color(0xFFB0E889))
+            }
         }
-        px(0,0,160,104,sky)
-        for(y in 0..56 step 8) px(0,y,160,4,
-            when(mode){0->Color(0xFF2D4F69);1->Color(0xFF3D3B61);else->Color(0xFF254468)})
-        // Far parallax mountains: deterministic steps rather than smooth paths.
-        for(x in 0..159 step 4) {
-            val rise=((x+steps*5)*7+floor*11)%24
-            px(x,31+rise,4,62-rise,
-                if(mode==0)Color(0xFF1C3A4C) else Color(0xFF272F4D))
-        }
-        if(mode==0) {
-            // Forest: silhouettes of angular pines and moss-covered trunks.
-            for(baseX in 4..156 step 31) {
-                val x=(baseX-steps*5+160)%160
-                px(x,25,5,65,Color(0xFF1A2E36))
-                for(k in 0..3) {
-                    val w=16-k*3
-                    px(x+2-w/2,18+k*9,w,8,
-                        if(k%2==0)Color(0xFF264D3B) else Color(0xFF315943))
+        when(((floor-1)/5)%3) {
+            0 -> { // Bright enchanted forest, distant castle and waterfall.
+                px(0,0,160,104,Color(0xFF92CFF3))
+                px(0,0,160,11,Color(0xFF6CA6DA))
+                for(x in 0..160 step 40) {
+                    val dx=(x-steps+160)%160
+                    px(dx,12,23,4,Color(0xFFE5F4F7))
+                    px(dx+5,8,14,4,Color(0xFFF6FFF6))
+                    px(dx+3,16,30,3,Color(0xFFC4E6EE))
+                }
+                // Blue mountain ranges and sunny distant fortress.
+                for(x in 0..156 step 4) {
+                    val ridge=24+((x*11+13)%15)
+                    px(x,ridge,4,48-ridge,Color(0xFF7DB4C4))
+                    px(x,ridge+10,4,36,Color(0xFF668FA9))
+                }
+                px(99,20,31,36,Color(0xFFCDD9C8))
+                px(100,17,8,39,Color(0xFF7B9BAC))
+                px(112,10,8,46,Color(0xFF89A8BA))
+                px(124,24,8,32,Color(0xFF89A8BA))
+                px(112,7,8,4,Color(0xFFE6EAD2))
+                px(107,25,2,4,Color(0xFF2B587F))
+                px(117,19,2,4,Color(0xFF2B587F))
+                px(127,29,2,4,Color(0xFF2B587F))
+                px(78,52,78,21,Color(0xFF4D9B97))
+                px(83,50,28,24,Color(0xFFB2D6C9))
+                for(i in 0..4) {
+                    px(89+i*4,50,2,36,if(i%2==0)
+                        Color(0xFFEBF6F1) else Color(0xFF80CFDF))
+                }
+                px(0,59,160,25,Color(0xFF75B75F))
+                px(0,63,160,5,Color(0xFF3D8E64))
+                tree(-8,0); tree(143,1)
+                for(i in 0..30) {
+                    val x=(i*29+steps*2)%160
+                    px(x,69+(i*13)%10,5+(i%3),2,
+                        if(i%3==0)Color(0xFFE4E692)
+                        else Color(0xFF307D55))
+                }
+                // Golden walkable path with dotted stones and grass edges.
+                px(0,82,160,22,Color(0xFFC4B37B))
+                px(0,79,160,4,Color(0xFF79A861))
+                for(y in 85..102 step 6) for(x in 0..159 step 17) {
+                    px((x+steps*4)%160,y,11,2,Color(0xFF9F936E))
+                    px((x+steps*4+4)%160,y-1,5,1,Color(0xFFE0D39A))
                 }
             }
-            px(13,8,9,9,Color(0xFFE3CF8E))
-        } else if(mode==1) {
-            // Ruins: crenellations, columns, and broken arches.
-            for(baseX in 2..155 step 35) {
-                val x=(baseX-steps*3+160)%160
-                px(x,29,9,62,Color(0xFF46445B))
-                px(x-3,27,15,6,Color(0xFF6D657A))
-                for(y in 35..81 step 9)px(x+2,y,5,1,Color(0xFF777083))
+            1 -> { // Purple moonlit castle ruins.
+                px(0,0,160,104,Color(0xFF353960))
+                px(0,0,160,26,Color(0xFF26294C))
+                px(116,9,20,20,Color(0xFFC1C7D9))
+                px(122,8,20,18,Color(0xFF353960))
+                for(x in 0..156 step 4) {
+                    val h=32+(x*5)%14
+                    px(x,h,4,84-h,Color(0xFF444A69))
+                }
+                for(i in 0..5) {
+                    val x=(9+i*35-steps*2+210)%190-15
+                    px(x,31,11,54,Color(0xFF77718A))
+                    px(x-4,28,19,6,Color(0xFF988DA0))
+                    px(x+2,36,6,42,Color(0xFF514865))
+                    for(k in 0..5)px(x+2,38+k*7,5,2,Color(0xFF8E8293))
+                    px(x,24,3,7,Color(0xFFB9A4C3))
+                }
+                px(0,78,160,26,Color(0xFF594B63))
+                for(y in 82..103 step 7)for(x in 0..156 step 16) {
+                    px((x+steps*3)%160,y,12,2,Color(0xFF827487))
+                    px((x+steps*3)%160,y+4,5,1,Color(0xFF443F57))
+                }
+                for(i in 0..8) px((i*27+steps*3)%160,16+(i*17)%57,2,2,
+                    Color(0xFFBBA2F3))
             }
-            px(94,7,13,13,Color(0xFFB5A9CF))
-        } else {
-            // Crystal cavern: large clustered polygonal stalactites.
-            for(baseX in 8..150 step 27) {
-                val x=(baseX-steps*4+160)%160
-                px(x,0,10,18+(x%17),Color(0xFF385E81))
-                px(x+3,12,4,17+(x%9),Color(0xFF6CB5D8))
-                px(x+6,63,7,23,Color(0xFF306680))
-                px(x+8,68,3,13,Color(0xFF8BE1EB))
+            else -> { // Luminous blue crystal cave.
+                px(0,0,160,104,Color(0xFF182B52))
+                for(x in 0..156 step 4) {
+                    val ridge=18+(x*7)%16
+                    px(x,ridge,4,82-ridge,Color(0xFF24436A))
+                }
+                for(i in 0..9) {
+                    val x=(i*23-steps*3+210)%180-10
+                    val length=13+i%5*5
+                    px(x,0,12,length,Color(0xFF2E6484))
+                    px(x+3,5,6,length+9,Color(0xFF549DBE))
+                    px(x+5,6,2,length-3,Color(0xFF9AE4EC))
+                    px(x+4,61+i%4*3,9,29,Color(0xFF35749B))
+                    px(x+5,62+i%4*3,3,22,Color(0xFF86DBE8))
+                }
+                px(0,82,160,22,Color(0xFF3E5A72))
+                for(x in 0..159 step 11)px((x+steps*2)%160,87+(x%9),7,2,
+                    Color(0xFF4E8A9D))
             }
-        }
-        // Walkable foreground, stone path, alternating low-resolution highlights.
-        px(0,83,160,21,if(boss)Color(0xFF443148) else Color(0xFF374C48))
-        px(0,82,160,3,if(boss)Color(0xFF89637B) else Color(0xFF789080))
-        for(y in 87..102 step 6)for(x in 0..158 step 14) {
-            px((x+(if(y%2==0)0 else 7)+steps*3)%160,y,12,1,
-                if(boss)Color(0xFF675066) else Color(0xFF597367))
         }
         if(boss) {
-            for(y in 10..77 step 7)for(x in 4..150 step 23) {
-                if((x+y)%4==0)px(x,y,2,3,Color(0xFFC15C88))
-            }
-        } else {
-            for(y in 12..70 step 13)for(x in 5..152 step 17) {
-                if((x+y+floor)%3==0)px(x,y,2,2,Color(0xFFB9D99A))
+            // Boss arena adds violet warning pillars, without obscuring players.
+            px(0,81,160,3,Color(0xFF9B5B9D))
+            for(i in 0..5) {
+                val x=(i*37+11)%154
+                px(x,13+(i*17)%39,3,7,Color(0xFFDB76C0))
+                px(x+1,9+(i*17)%39,1,4,Color(0xFFF5C9F0))
             }
         }
     }
