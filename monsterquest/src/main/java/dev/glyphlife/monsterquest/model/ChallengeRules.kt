@@ -167,8 +167,8 @@ object ChallengeRules {
         return if(remaining==0) win(now,enemy,rng) else now
     }
 
-    fun useSkill(state:QuestState,ownerId:String,bonus:Boolean=false,
-                 rng:Random=Random.Default):QuestState {
+    fun useSkill(state:QuestState,ownerId:String,
+                 rng:Random=Random.Default,bonus:Boolean=false):QuestState {
         val c=state.challenge
         val foe=c.opponent ?: return state
         val updated=SkillRules.useChallenge(state,ownerId,bonus)
