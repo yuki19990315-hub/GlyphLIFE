@@ -468,7 +468,9 @@ object MonsterDesign {
         val markY=35+Math.floorMod(seed ushr 5,10)
         for(n in 0..2) if(data.getOrElse(markY*w+markX+n){0} != 0)
             set(markX+n,markY,p[4])
-        return MonsterArmor.compose(PixelSprite.fromArgb(w,h,data), wild)
+        return GbaMonsterArtStandard.canonical(
+            MonsterArmor.compose(PixelSprite.fromArgb(w,h,data), wild)
+        )
     }
 }
 
