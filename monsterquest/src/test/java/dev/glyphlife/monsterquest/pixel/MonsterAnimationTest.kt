@@ -24,10 +24,12 @@ class MonsterAnimationTest {
     @Test fun attackChangesPoseAndColorsStayLimited() {
         val master=MonsterDesign.sprite(monster)
         val attack=MonsterAnimation.attack(master,monster)
-        assertEquals(3,attack.size)
+        assertEquals(4,attack.size)
         assertTrue(attack[1].sprite.opaqueCount()>0)
         assertFalse(attack[0].sprite.pixels().contentEquals(attack[1].sprite.pixels()))
         assertEquals(master.pixels().toList(),attack.last().sprite.pixels().toList())
+        assertTrue(attack.all { it.sprite.colors().size <= 15 })
+        assertTrue(attack.all { it.sprite.pixel(0,0)==0 })
     }
 
     @Test fun spriteSheetIsARealFourFramePixelAsset() {
