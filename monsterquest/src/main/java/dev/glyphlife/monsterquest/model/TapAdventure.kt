@@ -13,6 +13,9 @@ data class TapRun(
     val combo:Int=0, val bossCountdown:Int=3,
     /** Wall-clock combat timing in milliseconds, independent of tapping. */
     val attackTimerMs:Int=2800,
+    val skillCooldowns:Map<String,Int> = emptyMap(),
+    val guardHits:Int=0,
+    val venomCharges:Int=0,
     val bossTarget:Int=-1, val lane:Int=0, val weakpointTaps:Int=0,
     val bestFloor:Int=1, val deaths:Int=0, val distance:Int=0, val gold:Int=0,
     val message:String="画面をタップして冒険を始めよう！"
