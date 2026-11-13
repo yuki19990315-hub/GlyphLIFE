@@ -11,17 +11,22 @@ data class TapRun(
     val floor:Int=1, val steps:Int=0, val phase:TapPhase=TapPhase.WALK,
     val enemy:WildMonster?=null, val enemyHp:Int=0,
     val combo:Int=0, val bossCountdown:Int=3,
+    /** Wall-clock combat timing in milliseconds, independent of tapping. */
+    val attackTimerMs:Int=2800,
     val bossTarget:Int=-1, val lane:Int=0, val weakpointTaps:Int=0,
     val bestFloor:Int=1, val deaths:Int=0, val distance:Int=0, val gold:Int=0,
     val message:String="画面をタップして冒険を始めよう！"
 )
 
-/** Hima-tsubushi-style one-button adventure. No timers or background actions. */
+/** One-button dungeon: taps deal damage, periodic enemy attacks use a separate clock. */
 object TapAdventure {
     const val BOSS_INTERVAL=5
     const val BRANCH_INTERVAL=3
     const val STEPS_PER_FLOOR=7
     const val MAX_FLOOR=999
+    const val NORMAL_ATTACK_INTERVAL_MS=2700
+    const val BOSS_ATTACK_INTERVAL_MS=3800
+    const val ENRAGED_ATTACK_INTERVAL_MS=2600
     private val mobs=listOf(
         Triple("モコ","草",MonsterBodyType.BEAST),
         Triple("フレア","火",MonsterBodyType.DRAGON),
@@ -87,7 +92,9 @@ object TapAdventure {
             tapRun=run.copy(
                 enemy=monster,enemyHp=hp,combo=0,lane=0,
                 phase=if(boss)TapPhase.BOSS else TapPhase.FIGHT,
-                bossCountdown=3,bossTarget=if(rng.nextBoolean())1 else -1,
+                bossCountdown=3,
+                attackTimerMs=if(boss)BOSS_ATTACK_INTERVAL_MS else NORMAL_ATTACK_INTERVAL_MS,
+                bossTarget=if(rng.nextBoolean())1 else -1,
                 weakpointTaps=0,
                 message=if(boss)"★ BOSS「"+monster.species+"」！ 大技の予告を見て回避"
                         else monster.species+"が出現！ タップ連打で攻撃！"
@@ -109,28 +116,44 @@ object TapAdventure {
             weakpointTaps=(run.weakpointTaps-1).coerceAtLeast(0),
             message=(if(critical)"会心！ " else "")+amount+"ダメージ / "+(run.combo+1)+"HIT")
         if(hp==0)return win(state.copy(tapRun=hit),foe,rng)
-        if(run.phase==TapPhase.BOSS) {
-            val count=run.bossCountdown-1
-            if(count>0)return state.copy(tapRun=hit.copy(bossCountdown=count,
-                message=amount.toString()+"ダメージ！ ボスの大技まであと"+count+"タップ"))
-            val dodged=run.lane!=0 && run.lane!=run.bossTarget
-            val phase2=hp<=foe.maxHp/2
-            val damage=if(dodged)0 else foe.attack+(if(phase2)11 else 0)+rng.nextInt(6)
-            val after=(state.playerHp-damage).coerceAtLeast(0)
-            if(after==0)return death(state.copy(playerHp=0,tapRun=hit))
-            return state.copy(playerHp=after,tapRun=hit.copy(
-                bossCountdown=if(phase2)2 else 3,
-                bossTarget=if(rng.nextBoolean())1 else -1,lane=0,
-                weakpointTaps=if(dodged)3 else 0,
-                message=if(dodged)"回避成功！ 弱点が露出！ 次の3タップは3倍威力"
-                         else "大技を受けた！ HP-"+damage+"。予告と逆方向へ移動！"))
+        // Attacking has NO enemy counterattack. The enemy moves on its own
+        // periodic clock, even if the player does not touch the screen.
+        return state.copy(tapRun=hit)
+    }
+
+    /**
+     * Called by the exploration screen's running timer; not by button taps.
+     * The UI pauses this clock while outside the Explore tab.
+     * Large elapsed intervals are clamped to avoid catch-up damage after sleep.
+     */
+    fun tick(state:QuestState,elapsedMs:Int, rng:Random=Random.Default):QuestState {
+        val run=state.tapRun
+        if(run.phase !in listOf(TapPhase.FIGHT,TapPhase.BOSS) || run.enemy==null ||
+            elapsedMs<=0) return state
+        val remaining=run.attackTimerMs-elapsedMs.coerceIn(1,250)
+        if(remaining>0)return state.copy(tapRun=run.copy(attackTimerMs=remaining))
+        val foe=run.enemy
+        if(run.phase==TapPhase.FIGHT) {
+            val harm=foe.attack+rng.nextInt(3)
+            val hp=(state.playerHp-harm).coerceAtLeast(0)
+            if(hp==0)return death(state.copy(playerHp=0))
+            return state.copy(playerHp=hp,tapRun=run.copy(
+                attackTimerMs=NORMAL_ATTACK_INTERVAL_MS,
+                message="敵が時間経過で攻撃！ HP-"+harm+"。連打で反撃しよう"))
         }
-        if((run.combo+1)%3!=0)return state.copy(tapRun=hit)
-        val harm=foe.attack+rng.nextInt(3)
-        val after=(state.playerHp-harm).coerceAtLeast(0)
-        return if(after==0)death(state.copy(playerHp=0,tapRun=hit))
-        else state.copy(playerHp=after,tapRun=hit.copy(
-            message=amount.toString()+"ダメージ！ 敵の反撃 HP-"+harm))
+        val avoided=run.lane!=0 && run.lane!=run.bossTarget
+        val enraged=run.enemyHp<=foe.maxHp/2
+        val harm=if(avoided)0 else foe.attack+(if(enraged)11 else 0)+rng.nextInt(6)
+        val hp=(state.playerHp-harm).coerceAtLeast(0)
+        if(hp==0)return death(state.copy(playerHp=0))
+        return state.copy(playerHp=hp,tapRun=run.copy(
+            attackTimerMs=if(enraged)ENRAGED_ATTACK_INTERVAL_MS
+                else BOSS_ATTACK_INTERVAL_MS,
+            bossTarget=if(rng.nextBoolean())1 else -1,
+            bossCountdown=if(enraged)2 else 3,
+            lane=0,weakpointTaps=if(avoided)3 else 0,
+            message=if(avoided)"ジャスト回避！ 弱点露出、次の3タップが3倍！"
+                else "ボスの大技！ HP-"+harm+"。次は逆方向へ回避"))
     }
 
     fun dodge(state:QuestState,side:Int):QuestState {
