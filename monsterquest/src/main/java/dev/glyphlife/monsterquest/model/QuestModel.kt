@@ -26,6 +26,10 @@ data class WildMonster(
     /** Native game art metadata; legacy saves get default values. */
     val bodyType: String = "",
     val stage: Int = 1,
+    /** Personal growth; no longer unlocked by another monster's victories. */
+    val level: Int = 1,
+    val xp: Int = 0,
+    val victories: Int = 0,
     val lineage: String = "",
     val motifPrimary: String = "",
     val motifSecondary: String = "",
@@ -60,6 +64,11 @@ fun Companion.gameArtFamily(): String =
 
 data class QuestState(
     val companion: Companion = Companion(),
+    val companionXp: Int = 0,
+    val attackUpgrade: Int = 0,
+    val defenseUpgrade: Int = 0,
+    val bossWins: Int = 0,
+    val achievementsClaimed: Set<String> = emptySet(),
     val room: Int = 1,
     val position: Int = 0,
     val walls: Set<Int> = emptySet(),
