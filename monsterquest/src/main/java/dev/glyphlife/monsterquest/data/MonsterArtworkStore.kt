@@ -9,6 +9,7 @@ import android.graphics.BitmapFactory
 import android.net.Uri
 import dev.glyphlife.monsterquest.model.WildMonster
 import dev.glyphlife.monsterquest.pixel.GlyphProjector
+import dev.glyphlife.monsterquest.pixel.GbaMonsterArtStandard
 import dev.glyphlife.monsterquest.pixel.FullBodyGlyphProjector
 import dev.glyphlife.monsterquest.pixel.MonsterDesign
 import dev.glyphlife.monsterquest.pixel.MonsterAnimation
@@ -153,7 +154,12 @@ class MonsterArtworkStore(private val context: Context) {
         val saved = loadNative(monster.id, monster.stage)
         val base = if (saved != null) MonsterArmor.compose(saved, monster)
             else MonsterDesign.sprite(monster)
-        return CustomArmorLayers.compose(base, monster, ::loadArmorLayer)
+        // Normalize the *resolved* sprite so UI, export, animation and Glyph
+        // all share a <=16-color asset including transparent background.
+        // The original imported image is retained on disk unchanged.
+        return GbaMonsterArtStandard.canonical(
+            CustomArmorLayers.compose(base, monster, ::loadArmorLayer)
+        )
     }
 
     /**
