@@ -60,8 +60,8 @@ class RelicRulesTest {
         // Same artifact is never counted more than once.
         s=s.copy(relicEquipment=mapOf("hero" to first.id,"ally" to first.id))
         assertEquals(6,RelicRules.stats(s).attack)
-        assertEquals(s,RelicRules.equip(
-            s.copy(inBattle=true),"hero",second.id))
+        val busy=s.copy(inBattle=true)
+        assertEquals(busy,RelicRules.equip(busy,"hero",second.id))
     }
 
     @Test fun capAndNegativeOperationsDoNotDuplicateRelics() {
