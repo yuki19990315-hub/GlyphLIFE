@@ -175,7 +175,7 @@ private fun SectionTitle(title:String) {
  * Canvas rectangles intentionally snap to a GBA-like low-resolution grid.
  */
 @Composable
-fun PixelDungeonBackdrop(floor:Int,boss:Boolean,modifier:Modifier=Modifier) {
+fun PixelDungeonBackdrop(floor:Int,boss:Boolean,steps:Int=0,modifier:Modifier=Modifier) {
     Canvas(modifier) {
         val scaleX=size.width/160f
         val scaleY=size.height/104f
@@ -194,13 +194,14 @@ fun PixelDungeonBackdrop(floor:Int,boss:Boolean,modifier:Modifier=Modifier) {
             when(mode){0->Color(0xFF2D4F69);1->Color(0xFF3D3B61);else->Color(0xFF254468)})
         // Far parallax mountains: deterministic steps rather than smooth paths.
         for(x in 0..159 step 4) {
-            val rise=(x*7+floor*11)%24
+            val rise=((x+steps*5)*7+floor*11)%24
             px(x,31+rise,4,62-rise,
                 if(mode==0)Color(0xFF1C3A4C) else Color(0xFF272F4D))
         }
         if(mode==0) {
             // Forest: silhouettes of angular pines and moss-covered trunks.
-            for(x in 4..156 step 31) {
+            for(baseX in 4..156 step 31) {
+                val x=(baseX-steps*5+160)%160
                 px(x,25,5,65,Color(0xFF1A2E36))
                 for(k in 0..3) {
                     val w=16-k*3
@@ -211,7 +212,8 @@ fun PixelDungeonBackdrop(floor:Int,boss:Boolean,modifier:Modifier=Modifier) {
             px(13,8,9,9,Color(0xFFE3CF8E))
         } else if(mode==1) {
             // Ruins: crenellations, columns, and broken arches.
-            for(x in 2..155 step 35) {
+            for(baseX in 2..155 step 35) {
+                val x=(baseX-steps*3+160)%160
                 px(x,29,9,62,Color(0xFF46445B))
                 px(x-3,27,15,6,Color(0xFF6D657A))
                 for(y in 35..81 step 9)px(x+2,y,5,1,Color(0xFF777083))
@@ -219,7 +221,8 @@ fun PixelDungeonBackdrop(floor:Int,boss:Boolean,modifier:Modifier=Modifier) {
             px(94,7,13,13,Color(0xFFB5A9CF))
         } else {
             // Crystal cavern: large clustered polygonal stalactites.
-            for(x in 8..150 step 27) {
+            for(baseX in 8..150 step 27) {
+                val x=(baseX-steps*4+160)%160
                 px(x,0,10,18+(x%17),Color(0xFF385E81))
                 px(x+3,12,4,17+(x%9),Color(0xFF6CB5D8))
                 px(x+6,63,7,23,Color(0xFF306680))
@@ -230,7 +233,7 @@ fun PixelDungeonBackdrop(floor:Int,boss:Boolean,modifier:Modifier=Modifier) {
         px(0,83,160,21,if(boss)Color(0xFF443148) else Color(0xFF374C48))
         px(0,82,160,3,if(boss)Color(0xFF89637B) else Color(0xFF789080))
         for(y in 87..102 step 6)for(x in 0..158 step 14) {
-            px(x+(if(y%2==0)0 else 7),y,12,1,
+            px((x+(if(y%2==0)0 else 7)+steps*3)%160,y,12,1,
                 if(boss)Color(0xFF675066) else Color(0xFF597367))
         }
         if(boss) {
@@ -321,8 +324,10 @@ fun TapExplorationScreen(
             .background(Ink,RoundedCornerShape(12.dp))
             .clickable(enabled=run.phase!=TapPhase.BRANCH,onClick=onTap)
         ) {
-            PixelDungeonBackdrop(run.floor,boss,Modifier.fillMaxSize())
+            PixelDungeonBackdrop(run.floor,boss,run.steps,Modifier.fillMaxSize())
             PixelAdventurer(Modifier.size(110.dp).align(Alignment.BottomStart)
+                .offset(x=(if(run.phase==TapPhase.FIGHT||boss)run.combo%2*8 else run.steps%3*3).dp,
+                    y=(if(run.steps%2==0)0 else -3).dp)
                 .padding(start=8.dp,bottom=27.dp))
             run.enemy?.let { foe ->
                 MonsterArtworkView(foe,store,revision,
