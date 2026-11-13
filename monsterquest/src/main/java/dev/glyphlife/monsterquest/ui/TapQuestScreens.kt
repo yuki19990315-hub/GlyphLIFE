@@ -417,7 +417,7 @@ fun TapExplorationScreen(
         }
         // Compact battle log. Actions remain above the fixed bottom navigation.
         Box(Modifier.fillMaxWidth()
-            .androidx.compose.foundation.border(
+            .border(
                 1.dp,Color(0xFF4E638A),RoundedCornerShape(7.dp))
             .background(Color(0xFF182541),RoundedCornerShape(7.dp))
             .padding(horizontal=12.dp,vertical=9.dp)) {
