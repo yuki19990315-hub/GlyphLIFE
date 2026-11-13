@@ -443,6 +443,20 @@ class MonsterQuestActivity : ComponentActivity() {
                 }
             }
 
+            fun evolveCaptured(id:String) {
+                runCatching {
+                    val result=EvolutionRules.evolve(state,id)
+                    val changed=result.captures.map { member ->
+                        if(member.id==id)member.copy(
+                            pixels=artworkStore.glyphFor(member))
+                        else member
+                    }
+                    update(result.copy(captures=changed))
+                    artworkRevision++
+                    notify("進化しました！")
+                }.onFailure { notify("進化失敗："+it.message) }
+            }
+
             MaterialTheme(
                 colorScheme = darkColorScheme(
                     primary = Color(0xFFFFDFA7), background = Color(0xFF111923),
@@ -468,6 +482,7 @@ class MonsterQuestActivity : ComponentActivity() {
                                     if(!state.inBattle) update(TapAdventure.selectParty(state,memberId))
                                     else notify("戦闘中は編成を変更できません")
                                 },
+                                onEvolve=::evolveCaptured,
                                 onBuyUpgrade={ kind ->
                                     if(!state.inBattle)update(GrowthRules.buy(state,kind))
                                 },
@@ -482,19 +497,7 @@ class MonsterQuestActivity : ComponentActivity() {
                                     captured=state.captures,inBattle=state.inBattle,
                                     aiBusy=aiBusy,defeated=state.defeated,
                                     artworkStore=artworkStore,artworkRevision=artworkRevision,
-                                    onEvolve={ id ->
-                                        runCatching {
-                                            val result=EvolutionRules.evolve(state,id)
-                                            val changed=result.captures.map { member ->
-                                                if(member.id==id)member.copy(
-                                                    pixels=artworkStore.glyphFor(member))
-                                                else member
-                                            }
-                                            update(result.copy(captures=changed))
-                                            artworkRevision++
-                                            notify("進化しました！")
-                                        }.onFailure { notify("進化失敗："+it.message) }
-                                    },
+                                    onEvolve=::evolveCaptured,
                                     onEquip=::equipCaptured,
                                     onAiEquip=::suggestCapturedArmor,
                                     allowAiEquip=aiKey.isNotBlank()&&!aiBusy,
