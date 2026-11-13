@@ -190,3 +190,34 @@ fun PartySkillButtons(
         }
     }
 }
+
+/** The 3 independent roll slots are always visible, even when locked. */
+@Composable
+fun MonsterPotentialPanel(monster:WildMonster) {
+    val bonus=SkillRules.extraFor(monster)
+    Column(verticalArrangement=Arrangement.spacedBy(5.dp)) {
+        Text("ランダム追加スキル：◆ "+bonus.name+
+            "　"+bonus.detail,
+            color=RelicGold,style=MaterialTheme.typography.bodySmall)
+        Row(Modifier.fillMaxWidth(),horizontalArrangement=Arrangement.spacedBy(4.dp)) {
+            TalentRules.levels.forEachIndexed { index,level ->
+                val slot=monster.statSlots.getOrNull(index)
+                Card(Modifier.weight(1f),colors=CardDefaults.cardColors(
+                    containerColor=if(slot==null)Color(0xFF242B3D)
+                    else Color(0xFF344268))) {
+                    Column(
+                        Modifier.padding(horizontal=3.dp,vertical=6.dp),
+                        horizontalAlignment=Alignment.CenterHorizontally
+                    ) {
+                        Text("SLOT "+(index+1),
+                            color=RelicBlue,style=MaterialTheme.typography.labelSmall)
+                        Text(if(slot==null)"Lv"+level+"で解放" else TalentRules.label(slot),
+                            color=if(slot==null)Color(0xFF97A6BA) else RelicGold,
+                            style=MaterialTheme.typography.labelSmall,
+                            maxLines=2)
+                    }
+                }
+            }
+        }
+    }
+}
