@@ -471,6 +471,16 @@ class MonsterQuestActivity : ComponentActivity() {
                                     onSendGlyph=::sendGlyphToLife,
                                     onExportPng=::exportPixelPng,
                                     onExportSpriteSheet=::exportSpriteSheet,
+                                    onGenerateArt={ wild ->
+                                        generatePortrait(wild,ConceptStyle.GBA_PIXEL)
+                                    },
+                                    onImportArt={ wild ->
+                                        if(!state.inBattle) {
+                                            artImportId=wild.id
+                                            artImportStage=wild.stage
+                                            artworkPicker.launch("image/*")
+                                        }
+                                    },
                                     onFuse={ a,b ->
                                         runCatching {
                                             val merged=FusionRules.fuse(state,a,b)
