@@ -58,97 +58,179 @@ fun QuestHome(
     onSelectParty:(String)->Unit,
     management:@Composable ()->Unit
 ) {
+    var currentPanel by remember { mutableIntStateOf(0) }
+    val companion=remember(state.companion) {
+        WildMonster(
+            id=state.companion.id,species=state.companion.species,
+            element=state.companion.element,maxHp=100,
+            attack=10+state.companion.level,
+            artFamily=state.companion.gameArtFamily(),
+            stage=when {
+                state.companion.level>=12 -> 3
+                state.companion.level>=5 -> 2
+                else -> 1
+            }
+        )
+    }
     Column(
-        Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(14.dp),
-        verticalArrangement=Arrangement.spacedBy(12.dp)
+        Modifier.fillMaxSize().background(Color(0xFF091126))
+            .verticalScroll(rememberScrollState())
+            .padding(horizontal=10.dp,vertical=8.dp),
+        verticalArrangement=Arrangement.spacedBy(10.dp)
     ) {
-        Text("冒険者の拠点",style=MaterialTheme.typography.headlineSmall,
-            color=Gold,fontWeight=FontWeight.Bold)
-        val companion=remember(state.companion) {
-            WildMonster(
-                id=state.companion.id,species=state.companion.species,
-                element=state.companion.element,maxHp=100,
-                attack=10+state.companion.level,
-                artFamily=state.companion.gameArtFamily(),
-                stage=when {
-                    state.companion.level>=12 -> 3
-                    state.companion.level>=5 -> 2
-                    else -> 1
-                }
-            )
-        }
-        ElevatedCard(Modifier.fillMaxWidth()) {
-            Row(Modifier.padding(12.dp),verticalAlignment=Alignment.CenterVertically) {
-                MonsterArtworkView(companion,store,revision,Modifier.size(118.dp))
-                Spacer(Modifier.width(10.dp))
-                Column(verticalArrangement=Arrangement.spacedBy(6.dp)) {
-                    Text(state.companion.name,style=MaterialTheme.typography.titleLarge)
-                    Text(state.companion.species+" / "+state.companion.element+
-                        "　Lv."+state.companion.level)
-                    Text("HP "+state.playerHp+"/100　最高 "+state.tapRun.bestFloor+"F")
-                    Text("総撃破 "+state.defeated+" / 捕獲 "+state.captures.size,
-                        style=MaterialTheme.typography.bodySmall)
-                }
+        Box(Modifier.fillMaxWidth().height(253.dp)
+            .border(2.dp,Color(0xFFBBA16E),RoundedCornerShape(10.dp))
+            .background(Color(0xFF14253C),RoundedCornerShape(10.dp))) {
+            PixelDungeonBackdrop(1,false,0,Modifier.fillMaxSize().padding(3.dp))
+            MonsterArtworkView(companion,store,revision,
+                Modifier.size(174.dp).align(Alignment.BottomStart)
+                    .padding(start=12.dp,bottom=10.dp),facingRight=true)
+            Column(
+                modifier=Modifier.align(Alignment.TopCenter)
+                    .background(Color(0xC90B1830),RoundedCornerShape(6.dp))
+                    .padding(horizontal=10.dp,vertical=5.dp),
+                horizontalAlignment=Alignment.CenterHorizontally
+            ) {
+                Text("GLYPH LIFE",color=Color(0xFFB2E6F6),
+                    style=MaterialTheme.typography.labelMedium)
+                Text("MONSTER QUEST",color=Gold,
+                    fontWeight=FontWeight.Black,
+                    style=MaterialTheme.typography.titleLarge)
+            }
+            Column(
+                modifier=Modifier.align(Alignment.BottomEnd)
+                    .padding(end=8.dp,bottom=11.dp)
+                    .background(Color(0xCB101C32),RoundedCornerShape(7.dp))
+                    .padding(horizontal=9.dp,vertical=7.dp),
+                horizontalAlignment=Alignment.End
+            ) {
+                Text(state.companion.name,color=Gold,
+                    fontWeight=FontWeight.Bold)
+                Text("LV "+state.companion.level+"  HP "+state.playerHp+"/100",
+                    color=Color.White,style=MaterialTheme.typography.labelMedium)
+                Text("最高 "+state.tapRun.bestFloor+"F",
+                    color=Blue,style=MaterialTheme.typography.labelSmall)
             }
         }
-        SectionTitle("アイテム・所持品")
-        Row(horizontalArrangement=Arrangement.spacedBy(8.dp)) {
-            ItemPlate("✦", "召喚結晶",state.summonStones,Modifier.weight(1f))
-            ItemPlate("◉", "捕獲玉",state.captureOrbs,Modifier.weight(1f))
-            ItemPlate("✚", "回復薬",state.potions,Modifier.weight(1f))
-        }
-        Text("所持金： "+state.tapRun.gold+" G　｜　探索総歩数："+
-            state.tapRun.distance+"　｜　リトライ："+state.tapRun.deaths,
-            style=MaterialTheme.typography.bodySmall)
-        SectionTitle("パーティ（最大3匹）")
-        Text("選んだ仲間は探索中のタップ攻撃を強化します。もう一度押すと解除できます。",
-            style=MaterialTheme.typography.bodySmall)
-        if(state.captures.isEmpty()) {
-            Text("探索で捕獲するか、召喚で仲間を入手してください。")
-        } else {
-            Row(Modifier.horizontalScroll(rememberScrollState()),
-                horizontalArrangement=Arrangement.spacedBy(10.dp)) {
-                state.captures.forEach { monster ->
-                    val selected=monster.id in state.partyIds
-                    ElevatedCard(Modifier.width(124.dp).clickable { onSelectParty(monster.id) }) {
-                        Column(Modifier.padding(8.dp),horizontalAlignment=Alignment.CenterHorizontally) {
-                            MonsterArtworkView(monster,store,revision,Modifier.size(90.dp))
-                            Text(monster.species,maxLines=1,
-                                style=MaterialTheme.typography.labelLarge)
-                            Text("進化"+monster.stage+" / ATK "+monster.attack,
-                                style=MaterialTheme.typography.labelSmall)
-                            Text(if(selected)"✓ 出撃中" else "＋ 編成する",
-                                color=if(selected)Gold else Blue,
-                                style=MaterialTheme.typography.labelSmall)
+        val shortcuts=listOf(
+            "♟" to "パーティ", "⚔" to "装備", "◈" to "アイテム",
+            "▤" to "図鑑", "✦" to "進化", "☰" to "プロフィール"
+        )
+        repeat(2) { row ->
+            Row(Modifier.fillMaxWidth(),horizontalArrangement=Arrangement.spacedBy(7.dp)) {
+                repeat(3) { col ->
+                    val id=row*3+col
+                    val (symbol,title)=shortcuts[id]
+                    OutlinedButton(
+                        onClick={currentPanel=id},
+                        modifier=Modifier.weight(1f).height(75.dp),
+                        contentPadding=PaddingValues(3.dp),
+                        shape=RoundedCornerShape(7.dp),
+                        border=androidx.compose.foundation.BorderStroke(
+                            if(currentPanel==id)2.dp else 1.dp,
+                            if(currentPanel==id)Gold else Color(0xFF526B91)),
+                        colors=ButtonDefaults.outlinedButtonColors(
+                            containerColor=if(currentPanel==id)Color(0xFF344569)
+                                else Color(0xFF1A2945))
+                    ) {
+                        Column(horizontalAlignment=Alignment.CenterHorizontally,
+                            verticalArrangement=Arrangement.spacedBy(1.dp)) {
+                            Text(symbol,color=if(currentPanel==id)Gold else Blue,
+                                style=MaterialTheme.typography.headlineSmall)
+                            Text(title,color=Color.White,
+                                style=MaterialTheme.typography.labelMedium)
                         }
                     }
                 }
             }
         }
-        SectionTitle("図鑑")
-        Text("発見 "+state.catalog.size+"種 / 仲間 "+state.captures.size+"匹。" +
-            " AI召喚で登録した種族は、探索中に低確率で出現します。",
-            style=MaterialTheme.typography.bodyMedium)
-        if(state.catalog.isNotEmpty()) {
-            Row(Modifier.horizontalScroll(rememberScrollState()),
-                horizontalArrangement=Arrangement.spacedBy(8.dp)) {
-                state.catalog.takeLast(16).asReversed().forEach { monster ->
-                    Column(Modifier.width(96.dp),horizontalAlignment=Alignment.CenterHorizontally) {
-                        MonsterArtworkView(monster,store,revision,Modifier.size(86.dp))
-                        Text(monster.species,maxLines=1,
-                            style=MaterialTheme.typography.labelSmall)
-                        if(monster.lineage=="ai-summoned")
-                            Text("AI登録",color=Gold,
-                                style=MaterialTheme.typography.labelSmall)
+        when(currentPanel) {
+            0 -> {
+                SectionTitle("パーティ詳細　"+state.partyIds.size+"/3")
+                Text("仲間をタップして編成を変更。戦闘時は選んだ仲間が援護します。",
+                    color=Blue,style=MaterialTheme.typography.labelMedium)
+                if(state.captures.isEmpty())
+                    Text("まだ仲間がいません。探索で捕獲するか、召喚してください。")
+                else state.captures.forEach { monster ->
+                    val selected=monster.id in state.partyIds
+                    Card(Modifier.fillMaxWidth().clickable {onSelectParty(monster.id)},
+                        colors=CardDefaults.cardColors(containerColor=Color(0xFF1A2944))) {
+                        Row(Modifier.padding(9.dp),
+                            verticalAlignment=Alignment.CenterVertically) {
+                            MonsterArtworkView(monster,store,revision,Modifier.size(86.dp))
+                            Spacer(Modifier.width(8.dp))
+                            Column(Modifier.weight(1f)) {
+                                Text(monster.species,style=MaterialTheme.typography.titleMedium)
+                                Text("進化"+monster.stage+"   ATK "+monster.attack+
+                                    "   "+monster.element,
+                                    style=MaterialTheme.typography.bodySmall)
+                                Text(if(selected)"✓ 出撃中" else "＋ タップで編成",
+                                    color=if(selected)Gold else Blue)
+                            }
+                        }
                     }
                 }
             }
+            1,4 -> {
+                SectionTitle(if(currentPanel==1)"装備・素材工房" else "進化・合成")
+                Text("仲間の装備や進化を編集できます。原画は64×64ドットの全身素材。",
+                    color=Blue,style=MaterialTheme.typography.bodySmall)
+                management()
+            }
+            2 -> {
+                SectionTitle("所持アイテム")
+                Row(horizontalArrangement=Arrangement.spacedBy(7.dp)) {
+                    ItemPlate("◆","召喚結晶",state.summonStones,Modifier.weight(1f))
+                    ItemPlate("◉","捕獲玉",state.captureOrbs,Modifier.weight(1f))
+                    ItemPlate("✚","回復薬",state.potions,Modifier.weight(1f))
+                }
+                Text("所持金 "+state.tapRun.gold+" G",
+                    color=Gold,style=MaterialTheme.typography.titleMedium)
+                Text("召喚結晶は宝箱・稀な戦利品・ボス撃破で獲得できます。",
+                    color=Blue,style=MaterialTheme.typography.bodySmall)
+            }
+            3 -> {
+                SectionTitle("モンスター図鑑　発見"+state.catalog.size+"種")
+                Text("AI生成で登録した種族も、以後の探索に出現します。",
+                    color=Blue,style=MaterialTheme.typography.bodySmall)
+                val all=state.catalog.takeLast(150)
+                if(all.isEmpty()) Text("まだ発見したモンスターがいません。")
+                else all.chunked(3).forEach { group ->
+                    Row(horizontalArrangement=Arrangement.spacedBy(7.dp)) {
+                        group.forEach { monster ->
+                            Card(Modifier.weight(1f),
+                                colors=CardDefaults.cardColors(
+                                    containerColor=Color(0xFF19243D))) {
+                                Column(Modifier.fillMaxWidth().padding(5.dp),
+                                    horizontalAlignment=Alignment.CenterHorizontally) {
+                                    MonsterArtworkView(monster,store,revision,
+                                        Modifier.size(88.dp))
+                                    Text(monster.species,maxLines=1,
+                                        style=MaterialTheme.typography.labelSmall)
+                                    Text(monster.element+" / 進化"+monster.stage,
+                                        style=MaterialTheme.typography.labelSmall,
+                                        color=Blue)
+                                }
+                            }
+                        }
+                        repeat(3-group.size){Spacer(Modifier.weight(1f))}
+                    }
+                }
+            }
+            5 -> {
+                SectionTitle("冒険記録")
+                Text("相棒： "+state.companion.name+
+                    " / "+state.companion.species+" / "+state.companion.element)
+                Text("レベル："+state.companion.level+
+                    "　撃破："+state.defeated+"　捕獲："+state.captures.size)
+                Text("最高到達階："+state.tapRun.bestFloor+"F")
+                Text("踏破歩数："+state.tapRun.distance+
+                    "　リトライ："+state.tapRun.deaths)
+                Text("所持金："+state.tapRun.gold+" G",
+                    color=Gold)
+            }
         }
-        SectionTitle("装備・進化・合成")
-        Text("仲間を選んで、頭・肩・背中・尾・翼の装備パーツを編集できます。",
-            style=MaterialTheme.typography.bodySmall)
-        management()
-        Spacer(Modifier.height(12.dp))
+        Spacer(Modifier.height(6.dp))
     }
 }
 
