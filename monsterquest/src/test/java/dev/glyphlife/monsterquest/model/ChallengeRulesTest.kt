@@ -68,7 +68,7 @@ class ChallengeRulesTest {
         s=ChallengeRules.startTower(s)
         repeat(5){s=defeatCurrent(s)}
         assertEquals(once,s.summonStones)
-        assertEquals(5,s.challenge.towerFloor)
+        assertEquals(6,s.challenge.towerFloor)
     }
 
     @Test fun guardAbsorbsTimedStrikeIndependentOfTaps() {
