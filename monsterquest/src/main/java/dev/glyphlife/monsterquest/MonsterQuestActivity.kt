@@ -39,6 +39,7 @@ import dev.glyphlife.monsterquest.ui.TapExplorationScreen
 import dev.glyphlife.monsterquest.ui.QuestSummon
 import dev.glyphlife.monsterquest.ui.QuestFuture
 import dev.glyphlife.monsterquest.ui.MonsterDesignerPanel
+import dev.glyphlife.monsterquest.ui.QuestChallenge
 import dev.glyphlife.monsterquest.ui.MonsterStaticSprite
 import dev.glyphlife.monsterquest.ui.ArmorPlacementControls
 import dev.glyphlife.monsterquest.pixel.GlyphProjector
@@ -78,7 +79,8 @@ class MonsterQuestActivity : ComponentActivity() {
             var state by remember {
                 mutableStateOf(storage.load().let { saved ->
                     saved.copy(
-                        inBattle=saved.tapRun.phase in listOf(TapPhase.FIGHT,TapPhase.BOSS),
+                        inBattle=saved.tapRun.phase in listOf(TapPhase.FIGHT,TapPhase.BOSS) ||
+                            ChallengeRules.active(saved),
                         roomCleared=false,completed=false
                     )
                 })
@@ -101,7 +103,8 @@ class MonsterQuestActivity : ComponentActivity() {
 
             fun update(next: QuestState) {
                 val fixed=next.copy(
-                    inBattle=next.tapRun.phase in listOf(TapPhase.FIGHT,TapPhase.BOSS),
+                    inBattle=next.tapRun.phase in listOf(TapPhase.FIGHT,TapPhase.BOSS) ||
+                        ChallengeRules.active(next),
                     roomCleared=false,completed=false
                 )
                 val rapidStrike =
@@ -110,10 +113,17 @@ class MonsterQuestActivity : ComponentActivity() {
                     fixed.tapRun.enemy?.id==state.tapRun.enemy?.id &&
                     fixed.playerHp==state.playerHp &&
                     fixed.tapRun.combo!=state.tapRun.combo
+                val fastChallengeStrike=state.challenge.mode!=ChallengeMode.NONE &&
+                    fixed.challenge.mode==state.challenge.mode &&
+                    fixed.challenge.opponent?.id==state.challenge.opponent?.id &&
+                    fixed.challenge.playerHp==state.challenge.playerHp &&
+                    fixed.challenge.combo!=state.challenge.combo
                 state = fixed
                 // Serializing the full bestiary for every finger tap causes
                 // dropped input on mid-range phones; checkpoint every 5 hits.
-                if(!rapidStrike || fixed.tapRun.combo%5==0) storage.save(fixed)
+                if((!rapidStrike || fixed.tapRun.combo%5==0) &&
+                    (!fastChallengeStrike || fixed.challenge.combo%5==0))
+                    storage.save(fixed)
             }
             fun notify(text: String) {
                 status = text
@@ -121,7 +131,7 @@ class MonsterQuestActivity : ComponentActivity() {
             }
             suspend fun applyIdea(idea: MonsterIdea, withArt:Boolean, key:String) {
                 if (state.summonStones<1 || state.captures.size>=100 ||
-                    state.tapRun.phase in listOf(TapPhase.FIGHT,TapPhase.BOSS)) {
+                    (state.inBattle || ChallengeRules.active(state))) {
                     notify("召喚結晶不足、満員、または戦闘中です")
                     return
                 }
@@ -141,7 +151,7 @@ class MonsterQuestActivity : ComponentActivity() {
             fun createMonster(image: ByteArray?) {
                 if (aiBusy || aiKey.isBlank() || state.summonStones<=0 ||
                     state.captures.size>=100 ||
-                    state.tapRun.phase in listOf(TapPhase.FIGHT,TapPhase.BOSS)) return
+                    state.inBattle || ChallengeRules.active(state)) return
                 val key = aiKey
                 val withArt=aiArtEnabled
                 val instruction = aiDescription.ifBlank { "不思議な生き物" }
@@ -161,7 +171,7 @@ class MonsterQuestActivity : ComponentActivity() {
             ) { uri ->
                 if (uri != null && !aiBusy && aiKey.isNotBlank() &&
                     state.summonStones>0 && state.captures.size<100 &&
-                    state.tapRun.phase !in listOf(TapPhase.FIGHT,TapPhase.BOSS)) {
+                    !state.inBattle && !ChallengeRules.active(state)) {
                     val key = aiKey
                     val withArt=aiArtEnabled
                     val description = aiDescription.ifBlank { "この写真をもとに独自のモンスターを作って" }
@@ -443,6 +453,30 @@ class MonsterQuestActivity : ComponentActivity() {
                 }
             }
 
+            // Challenge battles have their own HP and enemy clock.
+            // Only the visible challenge screen advances time; backgrounding
+            // or switching tabs pauses both modes without catch-up damage.
+            LaunchedEffect(
+                selectedTab,state.challenge.mode,state.challenge.opponent?.id
+            ) {
+                if(selectedTab==QuestTab.CHALLENGE &&
+                    ChallengeRules.active(state)) {
+                    while(true) {
+                        kotlinx.coroutines.delay(100L)
+                        val before=state
+                        val next=ChallengeRules.tick(before,100)
+                        if(next!=before) {
+                            state=next.copy(inBattle=
+                                next.tapRun.phase in listOf(TapPhase.FIGHT,TapPhase.BOSS) ||
+                                    ChallengeRules.active(next))
+                            if(next.challenge.playerHp!=before.challenge.playerHp ||
+                                next.challenge.mode!=before.challenge.mode)
+                                storage.save(state)
+                        }
+                    }
+                }
+            }
+
             fun evolveCaptured(id:String) {
                 runCatching {
                     val result=EvolutionRules.evolve(state,id)
@@ -465,7 +499,7 @@ class MonsterQuestActivity : ComponentActivity() {
                 Scaffold(
                     topBar={
                         Surface(tonalElevation=2.dp,color=Color(0xFF121B30)) {
-                            Text("MONSTER QUEST / v4.2.1",Modifier.padding(14.dp),
+                            Text("MONSTER QUEST / v4.3.0",Modifier.padding(14.dp),
                                 style=MaterialTheme.typography.titleMedium,
                                 color=Color(0xFFFFD990))
                         }
@@ -546,13 +580,24 @@ class MonsterQuestActivity : ComponentActivity() {
                             QuestTab.EXPLORE -> TapExplorationScreen(
                                 state=state,store=artworkStore,revision=artworkRevision,
                                 onTap={
-                                    if(!aiBusy)update(TapAdventure.tap(state))
+                                    if(!aiBusy && !ChallengeRules.active(state))
+                                        update(TapAdventure.tap(state))
                                 },
-                                onDodge={ side -> update(TapAdventure.dodge(state,side)) },
-                                onCapture={ update(TapAdventure.capture(state)) },
-                                onHeal={ update(TapAdventure.heal(state)) },
+                                onDodge={ side ->
+                                    if(!ChallengeRules.active(state))
+                                        update(TapAdventure.dodge(state,side))
+                                },
+                                onCapture={
+                                    if(!ChallengeRules.active(state))
+                                        update(TapAdventure.capture(state))
+                                },
+                                onHeal={
+                                    if(!ChallengeRules.active(state))
+                                        update(TapAdventure.heal(state))
+                                },
                                 onBranch={ route ->
-                                    update(TapAdventure.branch(state,route))
+                                    if(!ChallengeRules.active(state))
+                                        update(TapAdventure.branch(state,route))
                                 }
                             )
                             QuestTab.SUMMON -> QuestSummon(
@@ -587,7 +632,14 @@ class MonsterQuestActivity : ComponentActivity() {
                                     onExportPng=::exportPixelPng
                                 )
                             }
-                            QuestTab.FUTURE -> QuestFuture()
+                            QuestTab.CHALLENGE -> QuestChallenge(
+                                state=state,store=artworkStore,revision=artworkRevision,
+                                onStartTower={update(ChallengeRules.startTower(state))},
+                                onStartArena={update(ChallengeRules.startArena(state))},
+                                onAttack={update(ChallengeRules.attack(state))},
+                                onGuard={update(ChallengeRules.defend(state))},
+                                onRetreat={update(ChallengeRules.retreat(state))}
+                            )
                         }
                     }
                 }
