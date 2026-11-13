@@ -625,6 +625,57 @@ fun TapExplorationScreen(
     }
 }
 
+/** Small offline pixel shrine art for the summon tab; no bundled stock image. */
+@Composable
+private fun SummonPortalScene(modifier:Modifier=Modifier) {
+    Canvas(modifier) {
+        val sx=size.width/160f
+        val sy=size.height/95f
+        fun p(x:Int,y:Int,w:Int,h:Int,c:Color) {
+            if(w>0&&h>0)drawRect(c,Offset(x*sx,y*sy),Size(w*sx,h*sy))
+        }
+        p(0,0,160,95,Color(0xFF191832))
+        p(0,0,160,15,Color(0xFF29274F))
+        for(y in 10..84 step 12)for(x in 0..159 step 21) {
+            p((x+if(y%24==0)10 else 0)%160,y,18,9,Color(0xFF29264B))
+            p((x+if(y%24==0)10 else 0)%160,y,17,1,Color(0xFF3E3963))
+        }
+        for(x in listOf(10,136)) {
+            p(x,13,14,67,Color(0xFF3A3A65))
+            p(x-4,11,22,6,Color(0xFF67638B))
+            p(x-5,76,24,6,Color(0xFF656384))
+            p(x+4,20,4,49,Color(0xFF171F48))
+            p(x+5,26,2,21,Color(0xFF9974D0))
+        }
+        p(0,81,160,14,Color(0xFF303055))
+        for(x in 20..130 step 9) {
+            p(x,83,7,2,Color(0xFF7468A4))
+            p(x+3,87,2,3,Color(0xFFAD88F5))
+        }
+        // Concentric rune circle formed with square segments.
+        p(41,74,78,3,Color(0xFF8C64EC))
+        p(48,70,64,2,Color(0xFFB390FF))
+        p(56,67,48,2,Color(0xFF544FDD))
+        p(64,64,32,2,Color(0xFFAF9CFF))
+        p(52,79,56,2,Color(0xFFD0A9FF))
+        // Central levitating diamond, true pixel-aligned stepped geometry.
+        for(y in 0..42) {
+            val width=if(y<20)1+y/3 else 1+(42-y)/3
+            val px0=80-width
+            val py0=16+y
+            p(px0-2,py0,2+width*2+2,1,Color(0xFF6A38C6))
+            p(px0,py0,width*2+1,1,
+                if(y%5<2)Color(0xFFD9B7FF) else Color(0xFF9A6AF0))
+            p(79,py0,2,1,Color(0xFFE5FBFF))
+        }
+        for(i in 0..15) {
+            val x=(i*29+13)%150+5
+            val y=(i*17+7)%58+5
+            p(x,y,2,2,if(i%3==0)Color(0xFFE8C6FF) else Color(0xFF7958C6))
+        }
+    }
+}
+
 @Composable
 fun QuestSummon(
     state:QuestState,
@@ -638,15 +689,20 @@ fun QuestSummon(
         .padding(14.dp),verticalArrangement=Arrangement.spacedBy(12.dp)) {
         Text("召喚の祭壇",style=MaterialTheme.typography.headlineSmall,
             color=Gold,fontWeight=FontWeight.Bold)
-        Box(Modifier.fillMaxWidth().height(160.dp)
-            .background(Color(0xFF1D1D47),RoundedCornerShape(12.dp)),
-            contentAlignment=Alignment.Center) {
-            Column(horizontalAlignment=Alignment.CenterHorizontally) {
-                Text("✧",color=Color(0xFFBBA3FF),
-                    style=MaterialTheme.typography.displayLarge)
-                Text("召喚結晶 ×"+state.summonStones,
-                    style=MaterialTheme.typography.titleLarge)
-            }
+        Box(Modifier.fillMaxWidth().height(228.dp)
+            .border(2.dp,Color(0xFFAA8EDB),RoundedCornerShape(10.dp))
+            .background(Color(0xFF181733),RoundedCornerShape(10.dp))) {
+            SummonPortalScene(Modifier.fillMaxSize().padding(4.dp))
+            Text("◆ 召喚結晶 ×"+state.summonStones,
+                modifier=Modifier.align(Alignment.TopCenter).padding(top=12.dp)
+                    .background(Color(0xCA141530),RoundedCornerShape(6.dp))
+                    .padding(horizontal=12.dp,vertical=4.dp),
+                color=Gold,style=MaterialTheme.typography.titleMedium)
+            Text("クリスタルの祭壇",
+                modifier=Modifier.align(Alignment.BottomCenter).padding(bottom=10.dp)
+                    .background(Color(0xCA131428),RoundedCornerShape(6.dp))
+                    .padding(horizontal=9.dp,vertical=4.dp),
+                color=Color.White,style=MaterialTheme.typography.labelMedium)
         }
         Text("探索でまれに、ボス撃破で必ず召喚結晶を獲得。" +
             " 召喚成功時だけ結晶を1個消費します。",
