@@ -42,7 +42,8 @@ class GrowthRulesTest {
         assertEquals(0,boosted.tapRun.gold)
         assertEquals(boosted,GrowthRules.buy(boosted,"attack"))
         assertEquals(base,GrowthRules.buy(base,"nonsense"))
-        assertEquals(base,GrowthRules.buySupply(base.copy(tapRun=TapRun(gold=0)),"orb"))
+        val broke=base.copy(tapRun=TapRun(gold=0))
+        assertEquals(broke,GrowthRules.buySupply(broke,"orb"))
     }
 
     @Test fun shopConsumablesHaveCostsAndCap() {
