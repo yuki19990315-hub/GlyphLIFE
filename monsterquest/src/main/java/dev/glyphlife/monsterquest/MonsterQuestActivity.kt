@@ -595,7 +595,7 @@ class MonsterQuestActivity : ComponentActivity() {
                                 },
                                 onUseSkill={ owner,bonus ->
                                     if(!ChallengeRules.active(state))
-                                        update(TapAdventure.useSkill(state,owner,bonus))
+                                        update(TapAdventure.useSkill(state,owner,bonus=bonus))
                                 },
                                 onDodge={ side ->
                                     if(!ChallengeRules.active(state))
