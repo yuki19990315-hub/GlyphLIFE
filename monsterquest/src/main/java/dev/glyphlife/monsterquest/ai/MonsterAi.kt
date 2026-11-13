@@ -89,12 +89,14 @@ object MonsterAi {
     }
 
     fun prompt(userPrompt: String): String = """
-        Invent one ORIGINAL, imposing and visually memorable fantasy monster
-        for a serious dark-fantasy mobile RPG. Not a cute mascot or simple blob.
-        Create a unique anatomical concept with dramatic shape language:
-        layered armored anatomy, imposing horns/claws/wing silhouettes, an
-        elemental power source, distinct head geometry, asymmetrical details
-        and a strong original visual identity.
+        Invent one ORIGINAL, recognizable and appealing GBA-era inspired
+        monster for a three-stage monster collecting RPG. Do not copy any
+        existing franchise creature. Plan its face, body silhouette, limbs,
+        elemental organ and growth identity as one coherent character.
+        Stage 1 may be small/cute; stage 2 grows armor or anatomy; stage 3
+        becomes dramatic without losing the same species' signature traits.
+        Avoid shapeless ovals, generic blobs and incoherent random parts.
+        This API returns METADATA, not a rendered sprite.
         Inspiration: ${userPrompt.take(240)}
         Return ONLY valid JSON with this schema:
         {"name":"...", "element":"水", "description":"...",
@@ -113,8 +115,12 @@ object MonsterAi {
           of PLATE, SPIKE, CRYSTAL, RUNE. Use this to combine the fixed
           species skeleton with original armor, horns, crystals or sigils.
           The engine applies stage restrictions and draws all pixels locally.
-        - Design MUST read at 64x64 pixel art size, with a coherent silhouette,
-          contrasting outline and a restrained 12-16 color palette.
+        - Any future game sprite uses EXACT 64x64 native pixels, transparent
+          background, with <=16 TOTAL colors INCLUDING transparency
+          (<=15 opaque), 3/4 right-facing full body and visible extremities.
+        - Motif and armor tags MUST describe a coherent species, not random
+          shapes; retain the same face, elemental mark and base colors as
+          that species evolves through stages 1, 2 and 3.
         - Do not generate the 13x13 Glyph picture. That will be derived later
           from the native 64x64 art by the game engine.
         - Learn universal principles of strong silhouettes, evolutions, and

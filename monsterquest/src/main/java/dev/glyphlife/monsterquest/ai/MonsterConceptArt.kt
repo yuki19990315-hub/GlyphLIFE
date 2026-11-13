@@ -11,6 +11,8 @@ import java.net.URL
 
 /** An optional paid image request separate from the offline 13×13 Glyph asset. */
 enum class ConceptStyle(val label: String, val direction: String) {
+    GBA_PIXEL("GBA風ドット絵",
+        "Classic Game Boy Advance era original creature: compact sprite readability, distinct body silhouette and expressive eyes"),
     DARK_FANTASY("ダークファンタジー",
         "Eerie ancient monster, dark fantasy realism, rough hide, bone, armor and spectral energy"),
     MECHA("メカ・機甲",
@@ -29,40 +31,45 @@ object MonsterConceptArt {
     private const val MAX_RESPONSE = 18_000_000
 
     fun prompt(wild: WildMonster, style: ConceptStyle): String = """
-        Produce ONE finished, original full-body MONSTER PIXEL SPRITE for a serious
-        monster-collecting fantasy RPG. The creature must be imposing and
-        memorable, NOT a cute chibi, smooth painting, plush toy or simple blob.
-        Render as genuine retro hand-placed pixel art: BIG, CONSISTENT
-        pixel clusters, hard 1-pixel edges, NO antialiasing, NO gradients,
-        NO soft shading, NO smooth vector lines. The native sprite will be
-        sampled to EXACTLY 64x64 pixels and quantized to MAXIMUM 16 COLORS.
+        Create ONE original GAME BOY ADVANCE-STYLE full-body pixel-art monster
+        sprite for a creature collecting and evolving game. This must look like
+        coherent collectible monster character design, NOT a procedural circle,
+        geometric placeholder, blurred miniature painting or pasted collage.
 
-        Character identity: ${wild.species.take(60)}
+        IMPORTANT ART CONTRACT:
+        - The playable master canvas is an EXACT 64x64 pixel grid.
+        - Design for 16 total palette entries INCLUDING one transparent color.
+          Maximum 15 opaque colors for outline, materials, shadows and accents.
+        - Strong, deliberate clusters of square pixels aligned to a real grid.
+          No antialiasing, gradients, vector smoothing, photographic texture.
+        - Draw the WHOLE creature including both feet, horns, wings and tail,
+          inside a square with a clear safety margin on every side.
+        - A single complete character, three-quarter RIGHT-FACING battle pose.
+        - Explicit head, eyes, core silhouette, limbs and element-bearing parts;
+          avoid shapeless ovals and disconnected decoration.
+        - Stage 1 is small, appealing and expressive, not forcibly menacing.
+          Stage 2 grows distinctive horns, limbs or armor.
+          Stage 3 is impressive, but keeps the same species' facial identity,
+          base colors and elemental signature.
+        - Current stage: ${wild.stage.coerceIn(1,3)} / 3. Only ONE creature
+          at the requested stage, NOT a three-panel evolution sheet.
+        - Design may be beast, spirit, mechanical or mystical as appropriate.
+          Theme: ${style.direction}.
+
+        Character name: ${wild.species.take(60)}
         Element: ${wild.element.take(20)}
-        Lore: ${wild.description.take(180)}
-        Design route: ${style.direction}.
+        Lore / distinctive anatomy: ${wild.description.take(180)}
+        Primary motif: ${wild.motifPrimary.take(40)}
+        Secondary motif: ${wild.motifSecondary.take(40)}
 
-        Art direction:
-        - Full-body single creature, strong readable silhouette, 3/4 dramatic pose,
-          anatomically coherent original design.
-        - Distinct head and face, powerful limbs, tail or ornamentation appropriate
-          to species, carefully considered proportions, intricate armor/organic plates.
-        - Primary body palette, secondary material and small high-contrast accents
-          selected to reflect its element. Rich multi-tone shading, rim lighting,
-          sophisticated material details, mystical energy effects and cinematic depth.
-        - A sense of threat, intelligence, personality and iconic visual identity.
-        - Crisp, deliberate pixel clusters with a restrained indexed palette,
-          classic handcrafted 2D game sprite craftsmanship.
-        - Use EXACTLY a solid flat #FF00FF magenta background, no texture,
-          gradient, cast shadow, glow, lettering or decorative border.
-          Magenta is a background key for local transparent PNG conversion.
-        - Center entire character including horns, claws, wings and tail within
-          a SQUARE 1:1 frame, with safety margins so NOTHING is cropped.
-          Front/3-quarter game sprite pose, clear outline, strong silhouette.
-        - NO text, NO typography, NO letters, NO logos, NO watermarks, NO UI panels,
-          NO repeated bodies, NO collage, NO human character.
-        - Original character design, do not copy existing franchises or copyrighted characters.
-        Return the illustration itself, not a textual description.
+        Keep large shape, leg/wing/tail separation, facial features, and high
+        contrast more important than micro-detail. Pixel readability is judged
+        AT 64x64 rather than by looking attractive only at 1024x1024.
+
+        Use EXACT solid flat #FF00FF background for automated transparency
+        extraction (do NOT use magenta as a creature color), with no lighting,
+        terrain, shadows, type, text, borders, logo, watermarks or UI.
+        Return an image only. Do not depict any protected franchise creature.
     """.trimIndent()
 
     fun parseImagePayload(rawJson: String): ByteArray {

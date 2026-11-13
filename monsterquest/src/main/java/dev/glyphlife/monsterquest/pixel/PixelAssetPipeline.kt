@@ -16,10 +16,13 @@ import kotlin.math.min
  */
 object PixelAssetPipeline {
     const val NATIVE_SIZE = 64
-    private const val MAX_COLORS = 16
+    // One of the sixteen GBA-style palette slots is reserved for transparency.
+    // Never generate a 16-color opaque image PLUS an extra transparent color.
+    private const val MAX_COLORS = 15
 
     fun fromBitmap(source: Bitmap): PixelSprite {
         require(source.width in 16..8192 && source.height in 16..8192)
+        // One bitmap pixel is exactly one 64x64 grid cell.
         // Fit full body rather than crop horns, wings and tail.
         val ratio=min(NATIVE_SIZE.toFloat()/source.width,NATIVE_SIZE.toFloat()/source.height)
         val targetW=max(1,(source.width*ratio).toInt())
@@ -90,6 +93,7 @@ object PixelAssetPipeline {
      * both frequent material colors and contrast accents rather than flattening
      * an entire sprite to the modal background color.
      */
+    /** <=15 opaque colors + transparent (index 0) = <=16 total colors. */
     fun paletteReduce(input:IntArray):IntArray {
         val opaque=input.filter { (it ushr 24)>=96 }
         if(opaque.isEmpty())return IntArray(input.size)

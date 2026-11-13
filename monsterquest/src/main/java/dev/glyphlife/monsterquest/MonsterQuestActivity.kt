@@ -386,7 +386,7 @@ class MonsterQuestActivity : ComponentActivity() {
             ) {
                 Scaffold(topBar = {
                     Surface(tonalElevation = 2.dp) {
-                        Text("MONSTER QUEST  /  v3.5",
+                        Text("MONSTER QUEST  /  v3.6",
                             modifier = Modifier.padding(18.dp),
                             style = MaterialTheme.typography.titleMedium)
                     }
@@ -685,7 +685,7 @@ private fun QuestScreen(
     onNewRun: () -> Unit,
     onSendResult: () -> Unit
 ) {
-    var artStyle by remember { mutableStateOf(ConceptStyle.DARK_FANTASY) }
+    var artStyle by remember { mutableStateOf(ConceptStyle.GBA_PIXEL) }
     var glyphPreviewId by remember { mutableStateOf<String?>(null) }
     Column(
         modifier = modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(16.dp),

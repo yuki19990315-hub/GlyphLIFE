@@ -16,6 +16,19 @@ class PaletteReductionTest {
         assertTrue(quantized.toSet().size in 1..16)
     }
 
+    @Test fun sixteenColorsCountIncludesTransparentIndexZero() {
+        val input = IntArray(4096) { i ->
+            if (i % 17 == 0) 0
+            else 0xff000000.toInt() or
+                (((i * 71) and 255) shl 16) or
+                (((i * 43) and 255) shl 8) or ((i * 119) and 255)
+        }
+        val actual = PixelAssetPipeline.paletteReduce(input)
+        assertTrue(actual.any { it == 0 })
+        assertTrue(actual.filter { it != 0 }.toSet().size <= 15)
+        assertTrue(actual.toSet().size <= 16)
+    }
+
     @Test fun alphaTransparencyIsNotPaintedOver() {
         val pixels=IntArray(4096) { i ->
             when {

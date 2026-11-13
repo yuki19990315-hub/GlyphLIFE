@@ -18,6 +18,15 @@ class MonsterAiTest {
         assertTrue(wild.pixels.any { it == '1' })
     }
 
+    @Test fun metadataPromptDoesNotPretendToProduceAnImage() {
+        val prompt=MonsterAi.prompt("雷の四足獣")
+        assertTrue(prompt.contains("METADATA"))
+        assertTrue(prompt.contains("64x64"))
+        assertTrue(prompt.contains("transparency"))
+        assertTrue(prompt.contains("Stage 1"))
+        assertTrue(prompt.contains("<=16 TOTAL"))
+    }
+
     @Test fun malformedPixelsAreRejected() {
         try {
             MonsterAi.parse("""{"name":"テスト","element":"火","description":"説明",

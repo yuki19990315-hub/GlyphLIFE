@@ -11,6 +11,7 @@ import dev.glyphlife.monsterquest.data.MonsterArtworkStore
 import dev.glyphlife.monsterquest.model.MonsterPrototypeFactory
 import dev.glyphlife.monsterquest.model.WildMonster
 import dev.glyphlife.monsterquest.pixel.MonsterBodyType
+import dev.glyphlife.monsterquest.pixel.GbaMonsterArtStandard
 
 /** No key, no network: local anatomy/element/progression preview. */
 @Composable
@@ -146,9 +147,21 @@ fun MonsterDesignerPanel(
             revision=revision,
             modifier=Modifier.size(256.dp)
         )
-        Text("ゲーム画面：ネイティブ64×64を256×256に整数拡大。" +
-            " 13×13の拡大画像ではありません。",
+        Text("GBA風64×64の全身ドット絵。透過色を含めて最大16色、" +
+            "ドットグリッドに沿って表示します。256px表示は4倍の整数拡大です。",
             style=MaterialTheme.typography.bodySmall)
+        val artAudit = remember(model,store,revision) {
+            GbaMonsterArtStandard.audit(store.spriteFor(model))
+        }
+        Text(
+            "素材検査：${artAudit.totalColors}色（透過含む） / 64×64=" +
+                (if (artAudit.is64) "適合" else "不適合") +
+                (if (artAudit.croppedAtEdge) " / 枠端に画素あり" else " / 枠内に収まる") +
+                (if (!artAudit.hasTransparency) " / 透過背景なし" else ""),
+            style=MaterialTheme.typography.bodySmall,
+            color=if (artAudit.compliant) MaterialTheme.colorScheme.onSurfaceVariant
+                  else MaterialTheme.colorScheme.error
+        )
         Text("背面Glyph：全身13×13・256段階の輝度表示",
             style=MaterialTheme.typography.titleSmall)
         Text("本編の全身を縮小し、白色LEDの強弱で色の明暗を表現します。" +
