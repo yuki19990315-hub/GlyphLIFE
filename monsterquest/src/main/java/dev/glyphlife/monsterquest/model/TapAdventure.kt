@@ -54,11 +54,13 @@ object TapAdventure {
             return encounter(progress,bosses[rng.nextInt(bosses.size)],true,rng)
         if(step>=2 && rng.nextInt(100)<27) {
             val aiKnown=state.catalog.filter { it.lineage=="ai-summoned" }
-            val candidate=if(aiKnown.isNotEmpty() && rng.nextInt(100)<22) {
-                val known=aiKnown[rng.nextInt(aiKnown.size)]
-                Triple(known.species,known.element,MonsterDesign.bodyType(known))
-            } else mobs[rng.nextInt(mobs.size)]
-            return encounter(progress,candidate,false,rng)
+            val picked=if(aiKnown.isNotEmpty() && rng.nextInt(100)<22)
+                aiKnown[rng.nextInt(aiKnown.size)] else null
+            val candidate=if(picked!=null)
+                Triple(picked.species,picked.element,MonsterDesign.bodyType(picked))
+                else mobs[rng.nextInt(mobs.size)]
+            return encounter(progress,candidate,false,rng,
+                artSourceId=picked?.artSourceId?.ifBlank { picked.id }.orEmpty())
         }
         if(step>=STEPS_PER_FLOOR)return finishFloor(progress,rng)
         return progress.copy(tapRun=progress.tapRun.copy(
@@ -67,7 +69,7 @@ object TapAdventure {
 
     private fun encounter(
         state:QuestState,form:Triple<String,String,MonsterBodyType>,
-        boss:Boolean,rng:Random
+        boss:Boolean,rng:Random,artSourceId:String=""
     ):QuestState {
         val run=state.tapRun
         val stage=if(boss)(run.floor/BOSS_INTERVAL).coerceIn(2,3)
@@ -77,7 +79,7 @@ object TapAdventure {
             id=UUID.randomUUID().toString(),species=form.first,element=form.second,
             bodyType=form.third.name,maxHp=hp,
             attack=if(boss)15+run.floor*2 else 3+run.floor/2,
-            stage=stage,isBoss=boss,
+            stage=stage,isBoss=boss,artSourceId=artSourceId,
             description=if(boss)"予告攻撃を左右に避け、弱点が見えたら連打しよう！" else ""
         )
         return state.copy(
@@ -243,14 +245,14 @@ object TapAdventure {
     }
 
     fun selectParty(state:QuestState,id:String):QuestState {
-        if(state.captures.none { it.id==id })return state
+        if(state.inBattle || state.captures.none { it.id==id })return state
         val ids=state.partyIds.filter { it!=id }
         return state.copy(partyIds=if(id in state.partyIds)ids
             else (ids+id).takeLast(3))
     }
 
     fun offlineSummon(state:QuestState,rng:Random=Random.Default):QuestState {
-        if(state.summonStones<1 || state.captures.size>=100)return state
+        if(state.inBattle || state.summonStones<1 || state.captures.size>=100)return state
         val bodies=MonsterBodyType.entries
         val body=bodies[rng.nextInt(bodies.size)]
         val elements=listOf("火","水","草","雷","光","闇")
@@ -264,7 +266,7 @@ object TapAdventure {
     fun registerSummon(
         state:QuestState,monster:WildMonster,generatedByAi:Boolean=false
     ):QuestState {
-        if(state.summonStones<1 || state.captures.size>=100)return state
+        if(state.inBattle || state.summonStones<1 || state.captures.size>=100)return state
         require(monster.species.isNotBlank() && monster.maxHp in 1..100_000)
         val owned=monster.copy(id=UUID.randomUUID().toString(),stage=1,isBoss=false,
             lineage=if(generatedByAi)"ai-summoned" else monster.lineage)
