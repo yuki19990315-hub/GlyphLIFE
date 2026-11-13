@@ -29,6 +29,7 @@ object MonsterAnimation {
         return listOf(
             MonsterPixelFrame(translate(master,-1,0),130),
             MonsterPixelFrame(attackPose(master,wild),170),
+            MonsterPixelFrame(translate(master,1,0),150),
             MonsterPixelFrame(master,280)
         )
     }
@@ -47,16 +48,25 @@ object MonsterAnimation {
     }
 
     private fun translate(source: PixelSprite, dx:Int, dy:Int): PixelSprite {
+        // Never crop a horn, wingtip or tail while moving the entire sprite.
+        val box = GbaMonsterArtStandard.bounds(source)
+        val safeDx = if (box != null)
+            dx.coerceIn(-box.left, 63-box.right) else dx
+        val safeDy = if (box != null)
+            dy.coerceIn(-box.top, 63-box.bottom) else dy
         val pixels=IntArray(4096)
         for(y in 0 until 64)for(x in 0 until 64) {
-            val sx=x-dx;val sy=y-dy
+            val sx=x-safeDx;val sy=y-safeDy
             if(sx in 0..63 && sy in 0..63) pixels[y*64+x]=source.pixel(sx,sy)
         }
         return PixelSprite.fromArgb(64,64,pixels)
     }
 
     private fun blink(master:PixelSprite,wild:WildMonster):PixelSprite {
-        val palette=MonsterDesign.palette(wild.element)
+        val outline=master.colors().minByOrNull { color ->
+            ((color ushr 16) and 255)*30 +
+                ((color ushr 8) and 255)*59 + (color and 255)*11
+        } ?: return master
         val pixels=master.pixels()
         val head=when(MonsterDesign.bodyType(wild)) {
             MonsterBodyType.BEAST,MonsterBodyType.DRAGON -> 20 to 23
@@ -69,20 +79,25 @@ object MonsterAnimation {
         }
         val (eyeX,eyeY)=head
         for(x in eyeX-2..eyeX+2) {
-            if(x in 0..63 && eyeY in 0..63) pixels[eyeY*64+x]=palette[0]
+            if(x in 0..63 && eyeY in 0..63) pixels[eyeY*64+x]=outline
         }
         return PixelSprite.fromArgb(64,64,pixels)
     }
 
     private fun attackPose(master:PixelSprite,wild:WildMonster):PixelSprite {
-        val p=MonsterDesign.palette(wild.element)
+        val shades=master.colors().sortedBy { color ->
+            ((color ushr 16) and 255)*30 +
+                ((color ushr 8) and 255)*59 + (color and 255)*11
+        }
+        val primary=shades.lastOrNull() ?: return master
+        val secondary=shades.getOrElse((shades.size*2/3).coerceAtLeast(0)) { primary }
         val pixels=translate(master,3,-1).pixels()
         // Three sharp impact/radiance pixels as a cohesive shape.
         for(n in 0..4) {
             val x=54+n;val y=25-n
             if(x in 0..63 && y in 0..63) {
-                pixels[y*64+x]=p[4]
-                if(y+1<64) pixels[(y+1)*64+x]=p[3]
+                pixels[y*64+x]=primary
+                if(y+1<64) pixels[(y+1)*64+x]=secondary
             }
         }
         return PixelSprite.fromArgb(64,64,pixels)
