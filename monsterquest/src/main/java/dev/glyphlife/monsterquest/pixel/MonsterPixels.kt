@@ -102,6 +102,12 @@ object MonsterDesign {
     fun sprite(wild: WildMonster): PixelSprite {
         FeaturedCompanionArt.find(wild)?.let { return MonsterArmor.compose(it, wild) }
         FeaturedPixelArt.find(wild)?.let { return MonsterArmor.compose(it, wild) }
+        // All playable/encountered generic species now use actual sprite art from
+        // the approved ten-line evolution sheet, not shared ellipse geometry.
+        if(wild.species.isNotBlank() && wild.designSeed!="legacy-procedural") {
+            return GbaMonsterArtStandard.canonical(
+                MonsterArmor.compose(CuratedMonsterArt.find(wild),wild))
+        }
         val w=64; val h=64
         val data=IntArray(w*h)
         val p=palette(wild.element)
