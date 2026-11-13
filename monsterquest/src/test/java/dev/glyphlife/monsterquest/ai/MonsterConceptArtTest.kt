@@ -10,13 +10,16 @@ class MonsterConceptArtTest {
         maxHp = 40, attack = 8, description = "古代の機械竜"
     )
 
-    @Test fun eachStyleHasDetailedAndNonCuteDirection() {
+    @Test fun allStylesPreserveGbaArtworkContract() {
         for (style in ConceptStyle.entries) {
             val prompt = MonsterConceptArt.prompt(dragon, style)
-            assertTrue(prompt.contains("Full-body"))
-            assertTrue(prompt.contains("armor"))
-            assertTrue(prompt.contains("NO text"))
-            assertTrue(prompt.contains("deep") || prompt.contains("fantasy"))
+            assertTrue(prompt.contains("full-body"))
+            assertTrue(prompt.contains("64x64"))
+            assertTrue(prompt.contains("15 opaque"))
+            assertTrue(prompt.contains("transparent"))
+            assertTrue(prompt.contains("RIGHT-FACING"))
+            assertTrue(prompt.contains("Stage 1"))
+            assertTrue(prompt.contains("NOT a three-panel"))
             assertTrue(prompt.contains(style.direction))
             assertTrue(prompt.contains("深淵機甲竜"))
         }
