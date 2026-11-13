@@ -19,12 +19,16 @@ class QuestStorage(context: Context) {
                 id = p.getString("id"), name = p.getString("name"),
                 species = p.getString("species"), element = p.getString("element"),
                 level = p.getInt("level"), glyph = p.getString("glyph"),
-                importedFromGlyphLife = p.optBoolean("imported", false)
-            )
+                importedFromGlyphLife = p.optBoolean("imported", false),
+                extraSkillId = p.optString("extraSkillId",""),
+                statSlots = readStatSlots(p.optJSONArray("statSlots"))
+            ).let(TalentRules::awaken)
             val wallsArray = obj.getJSONArray("walls")
             val walls = (0 until wallsArray.length()).map { wallsArray.getInt(it) }.toSet()
             val capturesArray = obj.getJSONArray("captures")
-            val captures = (0 until capturesArray.length()).map { wildFromJson(capturesArray.getJSONObject(it)) }
+            val captures = (0 until capturesArray.length()).map {
+                TalentRules.awaken(wildFromJson(capturesArray.getJSONObject(it)))
+            }
             QuestState(
                 companion = pet,
                 challenge = obj.optJSONObject("challenge")?.let(::readChallenge)
@@ -58,7 +62,7 @@ class QuestStorage(context: Context) {
                 walls = walls,
                 enemy = obj.optJSONObject("enemy")?.let(::wildFromJson),
                 enemyHp = obj.optInt("enemyHp", 0).coerceAtLeast(0),
-                playerHp = obj.getInt("playerHp").coerceIn(0, 100),
+                playerHp = obj.getInt("playerHp").coerceIn(0, 200),
                 potions = obj.optInt("potions", 2).coerceIn(0, 99),
                 supportUsedInBattle = obj.optBoolean("supportUsedInBattle", false),
                 inBattle = obj.optBoolean("inBattle", false),
@@ -91,7 +95,9 @@ class QuestStorage(context: Context) {
                 .put("id", s.companion.id).put("name", s.companion.name)
                 .put("species", s.companion.species).put("element", s.companion.element)
                 .put("level", s.companion.level).put("glyph", s.companion.glyph)
-                .put("imported", s.companion.importedFromGlyphLife))
+                .put("imported", s.companion.importedFromGlyphLife)
+                .put("extraSkillId",s.companion.extraSkillId)
+                .put("statSlots",writeStatSlots(s.companion.statSlots)))
             .put("challenge",writeChallenge(s.challenge))
             .put("bossRelics",JSONArray().apply {
                 s.bossRelics.take(RelicRules.INVENTORY_LIMIT).forEach {
@@ -193,7 +199,7 @@ class QuestStorage(context: Context) {
         val enemy=o.optJSONObject("opponent")?.let {
             runCatching { wildFromJson(it) }.getOrNull()
         }
-        val hp=o.optInt("playerHp",100).coerceIn(0,100)
+        val hp=o.optInt("playerHp",100).coerceIn(0,200)
         val enemyHp=o.optInt("opponentHp",0).coerceIn(0,100000)
         val safeMode=if(enemy==null || hp<=0 || enemyHp<=0)
             ChallengeMode.NONE else mode
@@ -270,6 +276,25 @@ class QuestStorage(context: Context) {
         )
     }
 
+    private fun writeStatSlots(slots:List<StatSlot>):JSONArray=JSONArray().apply {
+        slots.take(3).forEach {
+            put(JSONObject().put("kind",it.kind).put("value",it.value)
+                .put("rarity",it.rarity))
+        }
+    }
+    private fun readStatSlots(items:JSONArray?):List<StatSlot> {
+        if(items==null)return emptyList()
+        return (0 until minOf(items.length(),3)).mapNotNull { index ->
+            val slot=items.optJSONObject(index) ?: return@mapNotNull null
+            val kind=slot.optString("kind","")
+            val amount=slot.optInt("value",0)
+            val rarity=slot.optInt("rarity",0)
+            if(kind !in TalentRules.statKinds || amount !in 1..60 ||
+                rarity !in 1..3)null
+            else StatSlot(kind,amount,rarity)
+        }
+    }
+
     private fun wildToJson(w: WildMonster) = JSONObject()
         .put("id", w.id).put("species", w.species).put("element", w.element)
         .put("maxHp", w.maxHp).put("attack", w.attack)
@@ -277,6 +302,8 @@ class QuestStorage(context: Context) {
         .put("isBoss", w.isBoss)
         .put("bodyType", w.bodyType).put("stage", w.stage)
         .put("level",w.level).put("xp",w.xp).put("victories",w.victories)
+        .put("extraSkillId",w.extraSkillId)
+        .put("statSlots",writeStatSlots(w.statSlots))
         .put("lineage", w.lineage)
         .put("motifPrimary", w.motifPrimary).put("motifSecondary", w.motifSecondary)
         .put("designSeed", w.designSeed)
@@ -304,6 +331,8 @@ class QuestStorage(context: Context) {
         level = o.optInt("level",1).coerceIn(1,GrowthRules.LEVEL_CAP),
         xp = o.optInt("xp",0).coerceIn(0,10000),
         victories = o.optInt("victories",0).coerceIn(0,100000),
+        extraSkillId = o.optString("extraSkillId","").take(32),
+        statSlots = readStatSlots(o.optJSONArray("statSlots")),
         lineage = o.optString("lineage", "").take(130),
         motifPrimary = o.optString("motifPrimary", "").take(60),
         motifSecondary = o.optString("motifSecondary", "").take(60),
