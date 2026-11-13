@@ -53,8 +53,9 @@ object TapAdventure {
         if(run.floor%BOSS_INTERVAL==0 && step>=STEPS_PER_FLOOR)
             return encounter(progress,bosses[rng.nextInt(bosses.size)],true,rng)
         if(step>=2 && rng.nextInt(100)<27) {
-            val candidate=if(state.catalog.isNotEmpty() && rng.nextInt(100)<22) {
-                val known=state.catalog[rng.nextInt(state.catalog.size)]
+            val aiKnown=state.catalog.filter { it.lineage=="ai-summoned" }
+            val candidate=if(aiKnown.isNotEmpty() && rng.nextInt(100)<22) {
+                val known=aiKnown[rng.nextInt(aiKnown.size)]
                 Triple(known.species,known.element,MonsterDesign.bodyType(known))
             } else mobs[rng.nextInt(mobs.size)]
             return encounter(progress,candidate,false,rng)
@@ -260,10 +261,13 @@ object TapAdventure {
         return registerSummon(state,MonsterPrototypeFactory.summon(prototype,1))
     }
 
-    fun registerSummon(state:QuestState,monster:WildMonster):QuestState {
+    fun registerSummon(
+        state:QuestState,monster:WildMonster,generatedByAi:Boolean=false
+    ):QuestState {
         if(state.summonStones<1 || state.captures.size>=100)return state
         require(monster.species.isNotBlank() && monster.maxHp in 1..100_000)
-        val owned=monster.copy(id=UUID.randomUUID().toString(),stage=1,isBoss=false)
+        val owned=monster.copy(id=UUID.randomUUID().toString(),stage=1,isBoss=false,
+            lineage=if(generatedByAi)"ai-summoned" else monster.lineage)
         return state.copy(
             summonStones=state.summonStones-1,
             captures=state.captures+owned,
