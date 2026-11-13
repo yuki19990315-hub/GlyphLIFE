@@ -653,7 +653,7 @@ class MonsterQuestActivity : ComponentActivity() {
                                 onAttack={update(ChallengeRules.attack(state))},
                                 onGuard={update(ChallengeRules.defend(state))},
                                 onUseSkill={ owner,bonus ->
-                                    update(ChallengeRules.useSkill(state,owner,bonus))
+                                    update(ChallengeRules.useSkill(state,owner,bonus=bonus))
                                 },
                                 onRetreat={update(ChallengeRules.retreat(state))}
                             )
