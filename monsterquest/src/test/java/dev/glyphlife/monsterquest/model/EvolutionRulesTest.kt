@@ -12,10 +12,10 @@ class EvolutionRulesTest {
         motifPrimary="wolf snout",motifSecondary="leaf armor"
     )
 
-    @Test fun evolveRequiresVictoriesAndPreservesIdentity() {
-        var state=QuestState(captures=listOf(one),defeated=0)
+    @Test fun evolveRequiresOwnLevelAndVictoriesAndPreservesIdentity() {
+        var state=QuestState(captures=listOf(one),defeated=100)
         assertFalse(EvolutionRules.canEvolve(state,one.id))
-        state=state.copy(defeated=2)
+        state=state.copy(captures=listOf(one.copy(level=7,victories=3)))
         val evolved=EvolutionRules.evolve(state,one.id).captures.single()
         assertEquals(one.id,evolved.id)
         assertEquals("BEAST",evolved.bodyType)
@@ -28,15 +28,21 @@ class EvolutionRulesTest {
     }
 
     @Test fun threeStagesEndAtThirdAndStayDeterministic() {
-        val middle=EvolutionRules.evolve(QuestState(captures=listOf(one),defeated=4),one.id)
-        val final=EvolutionRules.evolve(middle,one.id)
+        val middle=EvolutionRules.evolve(QuestState(
+            captures=listOf(one.copy(level=7,victories=3))),one.id)
+        assertFalse(EvolutionRules.canEvolve(middle,one.id))
+        val trained=middle.copy(captures=middle.captures.map {
+            it.copy(level=16,victories=12)
+        })
+        val final=EvolutionRules.evolve(trained,one.id)
         assertEquals(3,final.captures.single().stage)
         assertFalse(EvolutionRules.canEvolve(final,one.id))
         assertNotEquals(middle.captures.single().pixels,final.captures.single().pixels)
     }
 
     @Test fun cannotEvolveWhileFightingOrMissing() {
-        val state=QuestState(inBattle=true,defeated=100,captures=listOf(one))
+        val state=QuestState(inBattle=true,defeated=100,
+            captures=listOf(one.copy(level=20,victories=30)))
         assertFalse(EvolutionRules.canEvolve(state,one.id))
         assertFalse(EvolutionRules.canEvolve(state.copy(inBattle=false),"missing"))
     }
