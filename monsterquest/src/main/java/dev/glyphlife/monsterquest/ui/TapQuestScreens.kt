@@ -29,7 +29,7 @@ private val Gold=Color(0xFFFFD990)
 private val Blue=Color(0xFF91CBFF)
 
 enum class QuestTab(val label:String,val symbol:String) {
-    HOME("ホーム","⌂"), EXPLORE("探索","⚔"),
+    HOME("ホーム","⌂"), EXPLORE("探検","⚔"),
     SUMMON("召喚","✦"), FUTURE("？","♧")
 }
 
@@ -428,7 +428,7 @@ fun TapExplorationScreen(
             horizontalArrangement=Arrangement.SpaceBetween
         ) {
             Text(
-                "✧ 探索  "+run.floor+"F",
+                "✧ 探検  "+run.floor+"F",
                 style=MaterialTheme.typography.titleLarge,
                 fontWeight=FontWeight.ExtraBold,color=Gold
             )
