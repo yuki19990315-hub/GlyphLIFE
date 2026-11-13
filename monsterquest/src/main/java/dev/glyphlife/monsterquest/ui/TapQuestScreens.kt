@@ -30,7 +30,7 @@ private val Blue=Color(0xFF91CBFF)
 
 enum class QuestTab(val label:String,val symbol:String) {
     HOME("ホーム","⌂"), EXPLORE("探検","⚔"),
-    SUMMON("召喚","✦"), FUTURE("？","♧")
+    SUMMON("召喚","✦"), CHALLENGE("挑戦","♜")
 }
 
 @Composable
@@ -593,7 +593,9 @@ fun TapExplorationScreen(
                 Box(
                     Modifier.fillMaxWidth().height(346.dp)
                         .background(Color(0xFF132742),RoundedCornerShape(6.dp))
-                        .clickable(enabled=run.phase!=TapPhase.BRANCH,onClick=onTap)
+                        .clickable(
+                            enabled=run.phase!=TapPhase.BRANCH &&
+                                !ChallengeRules.active(state),onClick=onTap)
                 ) {
                     PixelDungeonBackdrop(run.floor,boss,run.steps,Modifier.fillMaxSize())
                     // Stage characters are big, full-body 64x64 pixel sprites.
@@ -671,6 +673,11 @@ fun TapExplorationScreen(
                 style=MaterialTheme.typography.bodyMedium,
                 maxLines=2)
         }
+        if(ChallengeRules.active(state)) {
+            Text("挑戦モード中は探検を一時停止しています。"+
+                "「挑戦」タブから帰還すると再開できます。",
+                color=Gold,style=MaterialTheme.typography.bodySmall)
+        }
         if(run.phase==TapPhase.BRANCH) {
             Text("◇ 分かれ道：進むルートを選択",
                 color=Gold,style=MaterialTheme.typography.titleMedium)
@@ -682,12 +689,14 @@ fun TapExplorationScreen(
                 Button(
                     modifier=Modifier.fillMaxWidth().height(52.dp),
                     onClick={onBranch(index)},
+                    enabled=!ChallengeRules.active(state),
                     colors=ButtonDefaults.buttonColors(containerColor=Color(0xFF283659))
                 ) { Text(title,color=Color.White) }
             }
         } else {
             Button(
                 onClick=onTap,
+                enabled=!ChallengeRules.active(state),
                 modifier=Modifier.fillMaxWidth().height(68.dp),
                 shape=RoundedCornerShape(14.dp),
                 colors=ButtonDefaults.buttonColors(

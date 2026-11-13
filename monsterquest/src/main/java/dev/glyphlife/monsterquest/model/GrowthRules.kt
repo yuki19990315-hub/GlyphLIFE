@@ -107,7 +107,19 @@ object GrowthRules {
         Achievement("evolve2","進化の兆し","仲間を第2形態へ進化",2){s->
             s.captures.any{it.stage>=2}},
         Achievement("evolve3","究極の姿","仲間を第3形態へ進化",4){s->
-            s.captures.any{it.stage>=3}}
+            s.captures.any{it.stage>=3}},
+        Achievement("tower5","塔の第一関門","試練の塔5Fを突破",1){
+            it.challenge.towerBest>=5},
+        Achievement("tower10","塔の踏破者","試練の塔10Fを突破",2){
+            it.challenge.towerBest>=10},
+        Achievement("tower20","頂を極めし者","試練の塔20Fを完全踏破",5){
+            it.challenge.towerBest>=20},
+        Achievement("arena3","アリーナの新星","模擬アリーナで3勝",2){
+            it.challenge.arenaWins>=3},
+        Achievement("arena10","歴戦の闘士","模擬アリーナで10勝",3){
+            it.challenge.arenaWins>=10},
+        Achievement("arenaGold","黄金の闘士","アリーナでゴールドに昇格",4){
+            it.challenge.arenaBestRating>=1450}
     )
 
     fun claim(state:QuestState,id:String):QuestState {
