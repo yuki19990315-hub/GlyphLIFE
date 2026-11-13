@@ -425,6 +425,7 @@ fun TapExplorationScreen(
 fun QuestSummon(
     state:QuestState,
     aiKey:String,aiDescription:String,aiBusy:Boolean,
+    aiArtEnabled:Boolean,onAiArtEnabled:(Boolean)->Unit,
     onAiKey:(String)->Unit,onDescription:(String)->Unit,
     onAiText:()->Unit,onAiPhoto:()->Unit,onOffline:()->Unit,
     studio:@Composable ()->Unit
@@ -466,10 +467,17 @@ fun QuestSummon(
             modifier=Modifier.fillMaxWidth(),
             label={Text("召喚したいモンスターのイメージ")},
             placeholder={Text("例：氷結晶をまとった小さな雷竜")})
+        Row(verticalAlignment=Alignment.CenterVertically,
+            modifier=Modifier.fillMaxWidth()) {
+            Checkbox(checked=aiArtEnabled,onCheckedChange=onAiArtEnabled)
+            Text("AI画像も生成（別のAPI呼び出し・有料の場合あり）",
+                style=MaterialTheme.typography.bodySmall)
+        }
         Row(horizontalArrangement=Arrangement.spacedBy(8.dp)) {
             Button(onClick=onAiText,
                 enabled=!aiBusy && aiKey.isNotBlank() && aiDescription.isNotBlank() &&
-                    state.summonStones>0 && state.captures.size<100,
+                    state.summonStones>0 && state.captures.size<100 &&
+                    state.tapRun.phase !in listOf(TapPhase.FIGHT,TapPhase.BOSS),
                 modifier=Modifier.weight(1f)) { Text("AI設定で召喚") }
             OutlinedButton(onClick=onAiPhoto,
                 enabled=!aiBusy && aiKey.isNotBlank() &&
