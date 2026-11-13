@@ -200,7 +200,7 @@ object TapAdventure {
         val chance=(18+(foe.maxHp-r.enemyHp)*65/foe.maxHp).coerceIn(18,85)
         val next=state.copy(captureOrbs=state.captureOrbs-1)
         if(rng.nextInt(100)<chance) {
-            val member=foe.copy(isBoss=false)
+            val member=TalentRules.awaken(foe.copy(isBoss=false))
             return next.copy(
                 captures=next.captures+member,
                 partyIds=if(next.partyIds.size<3)next.partyIds+member.id else next.partyIds,
@@ -325,8 +325,10 @@ object TapAdventure {
     ):QuestState {
         if(state.inBattle || state.summonStones<1 || state.captures.size>=100)return state
         require(monster.species.isNotBlank() && monster.maxHp in 1..100_000)
-        val owned=monster.copy(id=UUID.randomUUID().toString(),stage=1,isBoss=false,
-            lineage=if(generatedByAi)"ai-summoned" else monster.lineage)
+        val owned=TalentRules.awaken(monster.copy(
+            id=UUID.randomUUID().toString(),stage=1,isBoss=false,
+            extraSkillId="",statSlots=emptyList(),
+            lineage=if(generatedByAi)"ai-summoned" else monster.lineage))
         return state.copy(
             summonStones=state.summonStones-1,
             captures=state.captures+owned,
