@@ -27,6 +27,14 @@ class QuestStorage(context: Context) {
             val captures = (0 until capturesArray.length()).map { wildFromJson(capturesArray.getJSONObject(it)) }
             QuestState(
                 companion = pet,
+                companionXp = obj.optInt("companionXp",0).coerceIn(0,10000),
+                attackUpgrade = obj.optInt("attackUpgrade",0).coerceIn(0,GrowthRules.UPGRADE_CAP),
+                defenseUpgrade = obj.optInt("defenseUpgrade",0).coerceIn(0,GrowthRules.UPGRADE_CAP),
+                bossWins = obj.optInt("bossWins",0).coerceIn(0,999999),
+                achievementsClaimed = obj.optJSONArray("achievementsClaimed")?.let { array ->
+                    (0 until array.length()).map { array.optString(it) }.toSet()
+                        .intersect(GrowthRules.achievements.map { it.id }.toSet())
+                } ?: emptySet(),
                 room = obj.getInt("room").coerceIn(1, QuestRules.ROOM_COUNT),
                 position = obj.getInt("position").coerceIn(0, 15),
                 walls = walls,
@@ -39,7 +47,7 @@ class QuestStorage(context: Context) {
                 roomCleared = obj.optBoolean("roomCleared", false),
                 completed = obj.optBoolean("completed", false),
                 captures = captures.take(100),
-                defeated = obj.optInt("defeated", 0).coerceIn(0, 1000),
+                defeated = obj.optInt("defeated", 0).coerceIn(0, 999999),
                 earnedXp = obj.optInt("earnedXp", 0).coerceIn(0, 100),
                 earnedHappiness = obj.optInt("earnedHappiness", 0).coerceIn(0, 20),
                 rewardEventId = obj.optString("rewardEventId").ifBlank { null },
@@ -66,6 +74,12 @@ class QuestStorage(context: Context) {
                 .put("species", s.companion.species).put("element", s.companion.element)
                 .put("level", s.companion.level).put("glyph", s.companion.glyph)
                 .put("imported", s.companion.importedFromGlyphLife))
+            .put("companionXp",s.companionXp)
+            .put("attackUpgrade",s.attackUpgrade).put("defenseUpgrade",s.defenseUpgrade)
+            .put("bossWins",s.bossWins)
+            .put("achievementsClaimed",JSONArray().apply {
+                s.achievementsClaimed.sorted().forEach { put(it) }
+            })
             .put("room", s.room).put("position", s.position)
             .put("walls", JSONArray().apply { s.walls.forEach { put(it) } })
             .put("enemy", s.enemy?.let(::wildToJson))
@@ -131,6 +145,7 @@ class QuestStorage(context: Context) {
         .put("description", w.description).put("pixels", w.pixels)
         .put("isBoss", w.isBoss)
         .put("bodyType", w.bodyType).put("stage", w.stage)
+        .put("level",w.level).put("xp",w.xp).put("victories",w.victories)
         .put("lineage", w.lineage)
         .put("motifPrimary", w.motifPrimary).put("motifSecondary", w.motifSecondary)
         .put("designSeed", w.designSeed)
@@ -155,6 +170,9 @@ class QuestStorage(context: Context) {
         isBoss = o.optBoolean("isBoss", false),
         bodyType = o.optString("bodyType", "").take(32),
         stage = o.optInt("stage", 1).coerceIn(1, 3),
+        level = o.optInt("level",1).coerceIn(1,GrowthRules.LEVEL_CAP),
+        xp = o.optInt("xp",0).coerceIn(0,10000),
+        victories = o.optInt("victories",0).coerceIn(0,100000),
         lineage = o.optString("lineage", "").take(130),
         motifPrimary = o.optString("motifPrimary", "").take(60),
         motifSecondary = o.optString("motifSecondary", "").take(60),
