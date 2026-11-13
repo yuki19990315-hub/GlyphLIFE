@@ -185,7 +185,7 @@ fun QuestHome(
                                     color=if(selected)Gold else Blue)
                             }
                         }
-                        Box(Modifier.fillMaxWidth().padding(horizontal=9.dp,bottom=9.dp)) {
+                        Box(Modifier.fillMaxWidth().padding(start=9.dp,end=9.dp,bottom=9.dp)) {
                             MonsterPotentialPanel(monster)
                         }
                     }
