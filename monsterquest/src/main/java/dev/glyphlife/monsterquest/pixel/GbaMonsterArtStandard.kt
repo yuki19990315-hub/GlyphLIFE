@@ -101,6 +101,32 @@ object GbaMonsterArtStandard {
         return PixelSprite.fromArgb(SIZE,SIZE,out)
     }
 
+    /** Preserve every visible extremity but allow a larger presentation margin.
+     * For oversized slime silhouettes this prevents contact with battle panels.
+     * Transparent padding is part of the 64x64 source and affects Glyph fitting
+     * only through its opaque bounding box.
+     */
+    fun fitWithMargin(sprite:PixelSprite,margin:Int):PixelSprite {
+        require(sprite.width==SIZE && sprite.height==SIZE)
+        require(margin in 1..15)
+        val b=bounds(sprite) ?: return sprite
+        if(b.left>=margin && b.top>=margin &&
+            b.right<=SIZE-1-margin && b.bottom<=SIZE-1-margin)return sprite
+        val maxSize=SIZE-2*margin
+        val scale=minOf(1.0,maxSize.toDouble()/b.width,maxSize.toDouble()/b.height)
+        val newW=(b.width*scale).toInt().coerceIn(1,maxSize)
+        val newH=(b.height*scale).toInt().coerceIn(1,maxSize)
+        val dx=(SIZE-newW)/2
+        val dy=(SIZE-newH)/2
+        val out=IntArray(SIZE*SIZE)
+        for(y in 0 until newH)for(x in 0 until newW) {
+            val sx=b.left+((x+0.5)*b.width/newW).toInt().coerceIn(0,b.width-1)
+            val sy=b.top+((y+0.5)*b.height/newH).toInt().coerceIn(0,b.height-1)
+            out[(dy+y)*SIZE+dx+x]=sprite.pixel(sx,sy)
+        }
+        return PixelSprite.fromArgb(SIZE,SIZE,out)
+    }
+
     /**
      * Normalize imported/overlaid artwork on display/export without rewriting
      * its original saved PNG; preserve exact colors when already compliant.
