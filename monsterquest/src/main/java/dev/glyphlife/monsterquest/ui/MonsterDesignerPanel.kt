@@ -46,7 +46,8 @@ fun MonsterDesignerPanel(
     Text("モンスターデザイン工房（無料・オフライン対応／AI任意）",
         style=MaterialTheme.typography.titleMedium)
     Text("体型10種類×属性7種類×進化3段階のドット絵を確認できます。" +
-        " 背景を持たない64×64カラー素材をその場で生成し、AIへの送信は一切ありません。",
+        " ライゼルは固有のデザイン画像を元にした進化素材です。" +
+        " ほかの汎用体型は暫定の手続き描画であり、同じ品質ではありません。",
         style=MaterialTheme.typography.bodySmall)
     OutlinedButton(onClick={expanded=!expanded}) {
         Text(if(expanded)"工房を閉じる" else "オリジナルモンスターを設計")
@@ -94,7 +95,7 @@ fun MonsterDesignerPanel(
         val featured=(name.trim()=="ライゼル" && element=="雷" &&
             type==MonsterBodyType.BEAST)
         if(featured) {
-            Text("ライゼルはオリジナルの固定64×64ドット絵です。" +
+            Text("ライゼルはデザイン画から作った固有64×64全身ドット絵です。" +
                 " 進化段階を変えて3つの姿を比べられます。")
         } else {
         HorizontalDivider()
