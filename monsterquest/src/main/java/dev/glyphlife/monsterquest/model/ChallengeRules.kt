@@ -114,7 +114,8 @@ object ChallengeRules {
         val foe=newOpponent(ChallengeMode.TOWER,1,1000)
         return state.copy(challenge=state.challenge.copy(
             mode=ChallengeMode.TOWER,towerFloor=1,opponent=foe,
-            opponentHp=foe.maxHp,playerHp=100,attackTimerMs=towerTimer(1),
+            opponentHp=foe.maxHp,playerHp=TalentRules.maxHp(state),
+            attackTimerMs=towerTimer(1),
             guardCooldownMs=0,guardActive=false,combo=0,
             skillCooldowns=emptyMap(),guardHits=0,venomCharges=0,
             message="試練の塔に入った！ 第1階層から20階までの連戦"
@@ -128,7 +129,8 @@ object ChallengeRules {
         val foe=newOpponent(ChallengeMode.ARENA,1,c.arenaRating)
         return state.copy(challenge=c.copy(
             mode=ChallengeMode.ARENA,arenaWave=1,opponent=foe,
-            opponentHp=foe.maxHp,playerHp=100,attackTimerMs=arenaTimer(1),
+            opponentHp=foe.maxHp,playerHp=TalentRules.maxHp(state),
+            attackTimerMs=arenaTimer(1),
             guardCooldownMs=0,guardActive=false,combo=0,
             skillCooldowns=emptyMap(),guardHits=0,venomCharges=0,
             message="模擬アリーナ開幕！ NPCの3体を連続撃破しよう"
@@ -147,10 +149,13 @@ object ChallengeRules {
         val support=(team.sumOf { it.attack.coerceIn(0,300)/10+
             it.stage*2 }).coerceAtMost(90)
         val relic=RelicRules.stats(state)
-        val crit=rng.nextInt(100)<12+relic.critical
+        val talent=TalentRules.teamStats(state)
+        val crit=rng.nextInt(100)<
+            (12+relic.critical+talent.critical).coerceAtMost(80)
         val poison=if(c.venomCharges>0)8 else 0
         val damage=(7+state.companion.level.coerceIn(1,50)/3+
-            state.attackUpgrade*2+support/3+relic.attack+rng.nextInt(5))*
+            state.attackUpgrade*2+support/3+relic.attack+talent.attack+
+            rng.nextInt(5))*
             (if(crit)2 else 1)+poison
         val remaining=(c.opponentHp-damage).coerceAtLeast(0)
         val now=state.copy(challenge=c.copy(
@@ -162,11 +167,11 @@ object ChallengeRules {
         return if(remaining==0) win(now,enemy,rng) else now
     }
 
-    fun useSkill(state:QuestState,ownerId:String,
+    fun useSkill(state:QuestState,ownerId:String,bonus:Boolean=false,
                  rng:Random=Random.Default):QuestState {
         val c=state.challenge
         val foe=c.opponent ?: return state
-        val updated=SkillRules.useChallenge(state,ownerId)
+        val updated=SkillRules.useChallenge(state,ownerId,bonus)
         if(updated==state)return state
         return if(c.opponentHp>0 && updated.challenge.opponentHp==0)
             win(updated,foe,rng) else updated
@@ -195,7 +200,8 @@ object ChallengeRules {
         val boss=opponent.isBoss
         val raw=opponent.attack+(if(boss)7 else 0)
         val reduced=(raw-state.defenseUpgrade-
-            RelicRules.stats(state).defense).coerceAtLeast(1)
+            RelicRules.stats(state).defense-
+            TalentRules.teamStats(state).defense).coerceAtLeast(1)
         val damage=if(c.guardActive)(reduced/4).coerceAtLeast(1)
             else if(c.guardHits>0)(reduced*3/10).coerceAtLeast(1)
             else reduced
@@ -283,7 +289,7 @@ object ChallengeRules {
         val next=newOpponent(ChallengeMode.TOWER,nextFloor,1000)
         return baseState.copy(challenge=c.copy(
             towerFloor=nextFloor,towerBest=best,towerMilestones=totalMilestones,
-            playerHp=(c.playerHp+16).coerceAtMost(100),
+            playerHp=(c.playerHp+16).coerceAtMost(TalentRules.maxHp(base)),
             opponent=next,opponentHp=next.maxHp,
             attackTimerMs=towerTimer(nextFloor),
             guardActive=false,guardCooldownMs=0,combo=0,
@@ -303,7 +309,7 @@ object ChallengeRules {
             return waveState.copy(challenge=c.copy(
                 arenaWave=wave+1,
                 opponent=next,opponentHp=next.maxHp,
-                playerHp=(c.playerHp+12).coerceAtMost(100),
+                playerHp=(c.playerHp+12).coerceAtMost(TalentRules.maxHp(base)),
                 guardCooldownMs=0,guardActive=false,combo=0,
                 skillCooldowns=emptyMap(),guardHits=0,venomCharges=0,
                 attackTimerMs=arenaTimer(wave+1),
