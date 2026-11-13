@@ -23,6 +23,22 @@ class CuratedMonsterArtTest {
         }
     }
 
+    @Test fun allSlimeStagesKeepFullBodyWithSevenPixelMargin() {
+        for(stage in 1..3) {
+            val monster=WildMonster(id="slime-$stage",
+                species="スライム",element="水",bodyType="AQUATIC",
+                maxHp=40,attack=8,stage=stage)
+            val sprite=CuratedMonsterArt.find(monster)
+            val b=GbaMonsterArtStandard.bounds(sprite)!!
+            assertTrue("Left cut stage $stage",b.left>=7)
+            assertTrue("Top cut stage $stage",b.top>=7)
+            assertTrue("Right cut stage $stage",b.right<=56)
+            assertTrue("Bottom cut stage $stage",b.bottom<=56)
+            assertTrue(sprite.opaqueCount()>80)
+            assertTrue(GbaMonsterArtStandard.audit(sprite).compliant)
+        }
+    }
+
     @Test fun silhouettesChangeAcrossAllThreeStagesAndTypes() {
         fun mask(m:WildMonster):String {
             return CuratedMonsterArt.find(m).pixels().joinToString("") {
