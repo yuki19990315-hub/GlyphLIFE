@@ -451,7 +451,7 @@ class MonsterQuestActivity : ComponentActivity() {
                 Scaffold(
                     topBar={
                         Surface(tonalElevation=2.dp,color=Color(0xFF121B30)) {
-                            Text("MONSTER QUEST / v4.1",Modifier.padding(14.dp),
+                            Text("MONSTER QUEST / v4.2",Modifier.padding(14.dp),
                                 style=MaterialTheme.typography.titleMedium,
                                 color=Color(0xFFFFD990))
                         }
@@ -467,6 +467,15 @@ class MonsterQuestActivity : ComponentActivity() {
                                 onSelectParty={ memberId ->
                                     if(!state.inBattle) update(TapAdventure.selectParty(state,memberId))
                                     else notify("戦闘中は編成を変更できません")
+                                },
+                                onBuyUpgrade={ kind ->
+                                    if(!state.inBattle)update(GrowthRules.buy(state,kind))
+                                },
+                                onBuySupply={ kind ->
+                                    if(!state.inBattle)update(GrowthRules.buySupply(state,kind))
+                                },
+                                onClaimAchievement={ id ->
+                                    if(!state.inBattle)update(GrowthRules.claim(state,id))
                                 }
                             ) {
                                 CaptureLab(
