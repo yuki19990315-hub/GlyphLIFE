@@ -39,7 +39,9 @@ data class WildMonster(
     val customArmorParts: Map<String, String> = emptyMap(),
     /** Per-slot alignment of imported AI PNG modules, in native 64px coordinates. */
     val customArmorOffsets:
-        Map<String, dev.glyphlife.monsterquest.pixel.ArmorOffset> = emptyMap()
+        Map<String, dev.glyphlife.monsterquest.pixel.ArmorOffset> = emptyMap(),
+    /** Shared artwork owner UUID for AI-generated enemies; never a network URL. */
+    val artSourceId: String = ""
 )
 
 /** Only explicit, opt-in featured art families use authored sprites. Blank keeps legacy procedural art. */
