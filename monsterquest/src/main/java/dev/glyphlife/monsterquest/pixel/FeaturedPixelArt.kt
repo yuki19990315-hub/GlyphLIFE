@@ -7,22 +7,26 @@ import java.util.Base64
 import java.util.zip.InflaterInputStream
 
 /**
- * Raizel artwork v3.3: original three-stage quadruped thunder beast.
- * Based on the newly approved three-stage Raizel design concept.
- * Real 64x64 alpha sprites, at most 15 opaque indexed colors each.
- * Full body (head, four legs, horns and charged tail) fits in each frame.
- * No runtime AI/network. Glyph insignias remain separate 13x13 assets.
+ * Original three-stage Raizel lightning-wolf designs built from an actual
+ * image-first pixel-art workflow, not procedural circles and polygons.
+ *
+ * Each is a hand-reviewed, transparent 64x64 game sprite with <=15 colors.
+ * Distinct full-body anatomy is maintained from small pup to guardian.
+ * Pixel art is the game's immutable source; the 13x13 rear Glyph Matrix
+ * receives a full-body luminance projection elsewhere, never a face icon.
  */
 object FeaturedPixelArt {
     private val palettes = arrayOf(
-        intArrayOf(0,0xFF1B1823L.toInt(),0xFF312E3AL.toInt(),0xFF4C415EL.toInt(),0xFF64567FL.toInt(),0xFF67554EL.toInt(),0xFF82728EL.toInt(),0xFF917661L.toInt(),0xFFAF9581L.toInt(),0xFFB39FB2L.toInt(),0xFFD1A74EL.toInt(),0xFFDBB589L.toInt(),0xFFDBC7BBL.toInt(),0xFFF7E5C4L.toInt(),0xFFFAE175L.toInt(),0xFFFAF5E6L.toInt()),
-        intArrayOf(0,0xFF1E1923L.toInt(),0xFF312C39L.toInt(),0xFF4C415FL.toInt(),0xFF53433BL.toInt(),0xFF5F5279L.toInt(),0xFF7E675AL.toInt(),0xFF80708CL.toInt(),0xFFA7979EL.toInt(),0xFFAB8B71L.toInt(),0xFFC9B9B5L.toInt(),0xFFCBAB84L.toInt(),0xFFEED3A3L.toInt(),0xFFF6E3C0L.toInt(),0xFFF7F3E7L.toInt(),0xFFF8DF70L.toInt()),
-        intArrayOf(0,0xFF231D2BL.toInt(),0xFF3A3139L.toInt(),0xFF473C56L.toInt(),0xFF5D5074L.toInt(),0xFF665041L.toInt(),0xFF836C69L.toInt(),0xFFA0898AL.toInt(),0xFFB18A5BL.toInt(),0xFFB5A6ADL.toInt(),0xFFCBAA89L.toInt(),0xFFDEC6B0L.toInt(),0xFFF4CE5CL.toInt(),0xFFF5E4C0L.toInt(),0xFFFAF7EEL.toInt(),0xFFFBE374L.toInt())
+        intArrayOf(0,0xFF000058L.toInt(),0xFF040613L.toInt(),0xFF0D1357L.toInt(),0xFF192874L.toInt(),0xFF333363L.toInt(),0xFF374A91L.toInt(),0xFF577BC1L.toInt(),0xFF5B5789L.toInt(),0xFF8EC9EAL.toInt(),0xFF9796B4L.toInt(),0xFFE0DEE5L.toInt(),0xFFFAF4D8L.toInt(),0xFFFEFDFEL.toInt()),
+        intArrayOf(0,0xFF001C82L.toInt(),0xFF0E0D29L.toInt(),0xFF23295FL.toInt(),0xFF342F52L.toInt(),0xFF3F3C5FL.toInt(),0xFF45497BL.toInt(),0xFF4664AAL.toInt(),0xFF6D6780L.toInt(),0xFF888594L.toInt(),0xFF97A3BCL.toInt(),0xFF97CCE7L.toInt(),0xFFE2D6B2L.toInt(),0xFFFCFBE9L.toInt()),
+        intArrayOf(0,0xFF000098L.toInt(),0xFF0035BBL.toInt(),0xFF111134L.toInt(),0xFF213EA4L.toInt(),0xFF3A3F7AL.toInt(),0xFF3C94EDL.toInt(),0xFF436DC9L.toInt(),0xFF5A4D6CL.toInt(),0xFF6DCDF9L.toInt(),0xFF8C7D72L.toInt(),0xFFAA9F85L.toInt(),0xFFBECED8L.toInt(),0xFFE4D282L.toInt(),0xFFF7F8CEL.toInt())
     )
+    // Four-bit indexed palettes, zlib-compressed and base64 encoded to keep
+    // the source lightweight while avoiding runtime networking/AI generation.
     private val compressed = arrayOf(
-        "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"
+        "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"
     )
     private val frames: List<PixelSprite> by lazy {
         compressed.indices.map { index ->
@@ -32,16 +36,22 @@ object FeaturedPixelArt {
             check(bytes.size == 2048) { "Invalid 64px sprite data" }
             val palette = palettes[index]
             val pixels = IntArray(4096) { i ->
-                val b = bytes[i / 2].toInt() and 0xff
-                val colorIndex = if (i % 2 == 0) b ushr 4 else b and 15
-                check(colorIndex < palette.size) { "Invalid palette index" }
-                palette[colorIndex]
+                val packed = bytes[i/2].toInt() and 255
+                val color = if (i%2 == 0) packed ushr 4 else packed and 15
+                check(color < palette.size) { "Invalid palette index" }
+                palette[color]
             }
-            PixelSprite.fromArgb(64, 64, pixels)
+            // Source composition faced left; mirror to the design template's
+            // right-facing three-quarter battle view.
+            val facingRight = IntArray(4096) { i ->
+                pixels[(i / 64) * 64 + (63 - i % 64)]
+            }
+            PixelSprite.fromArgb(64,64,facingRight)
         }
     }
-    /** Same immutable source for atelier, summons, captured monsters and evolution. */
-    internal fun stageSprite(stage: Int): PixelSprite = frames[stage.coerceIn(1, 3) - 1]
+    /** The same full-body source is used in encounters, the studio and the bestiary. */
+    internal fun stageSprite(stage: Int): PixelSprite = frames[stage.coerceIn(1,3)-1]
+
     fun find(monster: WildMonster): PixelSprite? {
         val explicit = monster.artFamily == MonsterArtFamilies.RAIZEL
         val legacy = monster.artFamily.isBlank() && monster.species == "ライゼル"
