@@ -161,6 +161,10 @@ object CuratedMonsterArt {
     fun find(monster: WildMonster):PixelSprite {
         val family=family(monster)
         val stage=monster.stage.coerceIn(1,3)
-        return personalized(stages[family*3+stage-1],monster)
+        val authored=personalized(stages[family*3+stage-1],monster)
+        // Slimes were drawn with only a few transparent edge pixels.
+        // Reserve a seven-pixel rim all around the complete body at every stage.
+        return if(family==9)GbaMonsterArtStandard.fitWithMargin(authored,7)
+            else authored
     }
 }
