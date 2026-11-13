@@ -24,6 +24,9 @@ data class ChallengeState(
     val attackTimerMs:Int=3000,
     val guardCooldownMs:Int=0,
     val guardActive:Boolean=false,
+    val skillCooldowns:Map<String,Int> = emptyMap(),
+    val guardHits:Int=0,
+    val venomCharges:Int=0,
     val combo:Int=0,
     val message:String="試練の塔かアリーナに挑戦しよう！"
 )
