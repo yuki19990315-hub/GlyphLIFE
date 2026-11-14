@@ -354,5 +354,5 @@ object TapAdventure {
 
     private fun addCatalog(old:List<WildMonster>,wild:WildMonster):List<WildMonster> =
         if(old.any { it.species==wild.species && it.element==wild.element })old
-        else (old+wild.copy(isBoss=false)).takeLast(150)
+        else (old+wild).takeLast(150)
 }
