@@ -114,8 +114,9 @@ class MetroidRulesTest {
         val used=MetroidRules.useSkill(s,"hero",bonus=false,zeroRandom)
         assertTrue(used.side.skillCooldowns.containsKey("hero"))
         assertEquals(100,used.side.enemyHp) // Light spirit heals instead of damage.
-        assertEquals(s,MetroidRules.useSkill(s.copy(side=s.side.copy(x=2f)),
-            "hero",bonus=false,zeroRandom))
+        val tooFar=s.copy(side=s.side.copy(x=2f))
+        assertEquals(tooFar,MetroidRules.useSkill(
+            tooFar,"hero",bonus=false,zeroRandom))
     }
 
     @Test fun deathRestoresHealthCheckpointButKeepsAbilitiesAndLoot() {
