@@ -51,11 +51,13 @@ private fun JourneyBackdrop(floor:Int,distance:Int,modifier:Modifier=Modifier) {
             Color(0xFF276064),Color(0xFF5B3A60),Color(0xFF4A4262))[biome]
         val tile=listOf(Color(0xFF435E61),Color(0xFF4B5A6D),
             Color(0xFF3D6C67),Color(0xFF684A69),Color(0xFF6A5567))[biome]
-        val u=size.width/64f
+        val ux=size.width/64f
+        val uy=size.height/64f
+        val u=minOf(ux,uy)
         val h=size.height
         fun block(x:Float,y:Float,w:Float,hh:Float,color:Color) =
-            drawRect(color,topLeft=Offset(x*u,y*u),
-                size=Size(w*u,hh*u))
+            drawRect(color,topLeft=Offset(x*ux,y*uy),
+                size=Size(w*ux,hh*uy))
         drawRect(sky)
         // A distinct moon/sky light, not a copied sprite from another game.
         drawCircle(RunGold.copy(alpha=.35f),
@@ -266,7 +268,7 @@ fun JourneyExploreScreen(
                 companion,store,revision,
                 Modifier.size(spriteSize)
                     .align(Alignment.BottomStart)
-                    .padding(start=7.dp,bottom=21.dp)
+                    .padding(start=7.dp,bottom=34.dp)
                     .offset(y=if(heldDirection!=0 && !battling)
                         (-4).dp else 0.dp),
                 bossRelicKind=RelicRules.visualKind(
@@ -275,7 +277,7 @@ fun JourneyExploreScreen(
                 if(rare) {
                     Box(Modifier.size(bossSize)
                         .align(Alignment.BottomEnd)
-                        .padding(end=7.dp,bottom=19.dp)
+                        .padding(end=7.dp,bottom=34.dp)
                         .border(2.dp,RunGold.copy(alpha=.58f),
                             RoundedCornerShape(90.dp)))
                 }
@@ -283,7 +285,7 @@ fun JourneyExploreScreen(
                     enemy,store,revision,
                     Modifier.size(if(boss)bossSize else spriteSize)
                         .align(Alignment.BottomEnd)
-                        .padding(end=6.dp,bottom=20.dp),
+                        .padding(end=6.dp,bottom=34.dp),
                     facingRight=false)
             } else {
                 Text("▶ 冒険中",color=RunText,
