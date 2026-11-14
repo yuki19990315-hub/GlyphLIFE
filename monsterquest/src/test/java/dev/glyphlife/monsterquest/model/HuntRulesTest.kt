@@ -29,6 +29,14 @@ class HuntRulesTest {
         assertTrue(HuntRules.choose(chosen,"").huntTargetId.isEmpty())
     }
 
+    @Test fun legacyCatalogBossWithMissingFlagIsNotTrackable() {
+        val oldRecord=target("old-boss","古代の歯車王","雷")
+            .copy(isBoss=false)
+        val state=sample().copy(catalog=listOf(oldRecord))
+        assertTrue(HuntRules.targets(state).isEmpty())
+        assertEquals(state,HuntRules.choose(state,oldRecord.id))
+    }
+
     @Test fun targetSelectionKeepsAllOtherRpgProgressUntouched() {
         val existing=sample().copy(
             captures=listOf(target("owned")),
