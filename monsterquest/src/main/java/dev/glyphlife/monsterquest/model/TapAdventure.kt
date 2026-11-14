@@ -89,17 +89,24 @@ object TapAdventure {
         val stage=if(boss)(run.floor/BOSS_INTERVAL).coerceIn(2,3)
                   else (1+run.floor/12).coerceIn(1,3)
         val hp=if(boss)125+run.floor*16 else 19+run.floor*5+rng.nextInt(12)
+        // Distinct 7% rare specimens give collectors another long-term goal.
+        // A captured rare keeps higher base HP/ATK and its rare lineage.
+        val rare=!boss && rng.nextInt(100)<7
         val monster=WildMonster(
             id=UUID.randomUUID().toString(),species=form.first,element=form.second,
-            bodyType=form.third.name,maxHp=hp,
-            attack=if(boss)15+run.floor*2 else 3+run.floor/2,
+            bodyType=form.third.name,
+            maxHp=if(rare)(hp*3/2).coerceAtMost(100000) else hp,
+            attack=(if(boss)15+run.floor*2 else 3+run.floor/2)+
+                (if(rare)3+run.floor/10 else 0),
             stage=stage,isBoss=boss,artSourceId=artSourceId,
-            description=if(boss)"予告攻撃を左右に避け、弱点が見えたら連打しよう！" else ""
+            lineage=if(rare)"rare" else "",
+            description=if(boss)"予告攻撃を左右に避け、弱点が見えたら連打しよう！"
+                else if(rare)"✦ 希少個体！ 強い基礎能力のまま捕獲できる。" else ""
         )
         return state.copy(
             catalog=addCatalog(state.catalog,monster),
             tapRun=run.copy(
-                enemy=monster,enemyHp=hp,combo=0,lane=0,
+                enemy=monster,enemyHp=monster.maxHp,combo=0,lane=0,
                 skillCooldowns=emptyMap(),guardHits=0,venomCharges=0,
                 phase=if(boss)TapPhase.BOSS else TapPhase.FIGHT,
                 bossCountdown=3,
@@ -107,7 +114,8 @@ object TapAdventure {
                 bossTarget=if(rng.nextBoolean())1 else -1,
                 weakpointTaps=0,
                 message=if(boss)"★ BOSS「"+monster.species+"」！ 大技の予告を見て回避"
-                        else monster.species+"が出現！ タップ連打で攻撃！"
+                        else (if(rare)"✦ 希少個体！ " else "")+
+                            monster.species+"が出現！ 近づいて攻撃！"
             )
         )
     }
@@ -120,12 +128,15 @@ object TapAdventure {
         val relic=RelicRules.stats(state)
         val talent=TalentRules.teamStats(state)
         val critical=rng.nextInt(100)<
-            (12+relic.critical+talent.critical).coerceAtMost(80)
+            (12+relic.critical+talent.critical+
+                (run.combo/8).coerceAtMost(8)).coerceAtMost(80)
         val weak=run.phase==TapPhase.BOSS && run.weakpointTaps>0
         val venom=if(run.venomCharges>0)8 else 0
-        val amount=(6+state.companion.level.coerceIn(1,50)/3+
+        val base=(6+state.companion.level.coerceIn(1,50)/3+
             state.attackUpgrade*2+support+relic.attack+talent.attack+
-            rng.nextInt(5)) *
+            rng.nextInt(5))
+        val element=ElementalRules.percentage(state.companion.element,foe.element)
+        val amount=(base*element/100).coerceAtLeast(1) *
             (if(critical)2 else 1) * (if(weak)3 else 1)+venom
         val hp=(run.enemyHp-amount).coerceAtLeast(0)
         val hit=run.copy(enemyHp=hp,combo=run.combo+1,
@@ -202,13 +213,22 @@ object TapAdventure {
             message=(if(side<0)"左" else "右")+"へ移動！ 大技が来る方向に注意"))
     }
 
+    fun captureChance(state:QuestState):Int {
+        val r=state.tapRun
+        val foe=r.enemy ?: return 0
+        if(r.phase!=TapPhase.FIGHT || state.captureOrbs<=0 ||
+            state.captures.size>=100)return 0
+        return (18+(foe.maxHp-r.enemyHp)*65/foe.maxHp.coerceAtLeast(1))
+            .coerceIn(18,85)
+    }
+
     fun capture(state:QuestState,rng:Random=Random.Default):QuestState {
         val r=state.tapRun
         val foe=r.enemy ?: return state
         if(r.phase!=TapPhase.FIGHT)return state
         if(state.captureOrbs<=0)return state.copy(tapRun=r.copy(message="捕獲玉がない！"))
         if(state.captures.size>=100)return state.copy(tapRun=r.copy(message="仲間が100匹で満杯"))
-        val chance=(18+(foe.maxHp-r.enemyHp)*65/foe.maxHp).coerceIn(18,85)
+        val chance=captureChance(state)
         val next=state.copy(captureOrbs=state.captureOrbs-1)
         if(rng.nextInt(100)<chance) {
             val member=TalentRules.awaken(foe.copy(isBoss=false))
@@ -278,9 +298,11 @@ object TapAdventure {
     private fun win(state:QuestState,foe:WildMonster,rng:Random):QuestState {
         val r=state.tapRun
         val boss=r.phase==TapPhase.BOSS
-        val drop=if(boss)2 else if(rng.nextInt(100)<8)1 else 0
+        val rare=foe.lineage=="rare" && !boss
+        val drop=if(boss)2 else if(rare || rng.nextInt(100)<8)1 else 0
         val next=state.copy(
             summonStones=(state.summonStones+drop).coerceAtMost(999),
+            captureOrbs=(state.captureOrbs+(if(rare)1 else 0)).coerceAtMost(99),
             defeated=(state.defeated+1).coerceAtMost(999999),
             earnedXp=(state.earnedXp+(if(boss)30 else 4)).coerceAtMost(100),
             earnedHappiness=(state.earnedHappiness+1).coerceAtMost(20)
@@ -299,9 +321,11 @@ object TapAdventure {
         return RelicRules.afterVictory(GrowthRules.rewardBattle(
             next.copy(tapRun=r.copy(
                 phase=TapPhase.WALK,enemy=null,enemyHp=0,combo=0,
-                gold=(r.gold+10+r.floor*2).coerceAtMost(999999),
+                gold=(r.gold+10+r.floor*2+
+                    (if(rare)25+r.floor*4 else 0)).coerceAtMost(999999),
                 message="勝利！ "+foe.species+
-                    (if(drop>0)" / 召喚結晶+1！" else "")
+                    (if(rare)" ✦希少撃破：追加G/捕獲玉/結晶！" else
+                        if(drop>0)" / 召喚結晶+1！" else "")
             )),boss=false,floor=r.floor
         ),false)
     }

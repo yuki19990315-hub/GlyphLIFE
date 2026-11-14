@@ -69,11 +69,18 @@ class QuestStorage(context: Context) {
                 roomCleared = obj.optBoolean("roomCleared", false),
                 completed = obj.optBoolean("completed", false),
                 captures = captures.take(100),
+                favoriteMonsterIds = obj.optJSONArray("favoriteMonsterIds")?.let{ a ->
+                    (0 until minOf(a.length(),100)).mapNotNull{i->
+                        a.optString(i).takeIf{id->captures.any{it.id==id}}
+                    }.toSet()
+                } ?: emptySet(),
                 defeated = obj.optInt("defeated", 0).coerceIn(0, 999999),
                 earnedXp = obj.optInt("earnedXp", 0).coerceIn(0, 100),
                 earnedHappiness = obj.optInt("earnedHappiness", 0).coerceIn(0, 20),
                 rewardEventId = obj.optString("rewardEventId").ifBlank { null },
                 tapRun = obj.optJSONObject("tapRun")?.let(::readTapRun) ?: TapRun(),
+                journey = obj.optJSONObject("journey")?.let(::readJourney)
+                    ?: JourneyState(),
                 summonStones = obj.optInt("summonStones", 0).coerceIn(0, 999),
                 captureOrbs = obj.optInt("captureOrbs", 3).coerceIn(0, 99),
                 catalog = obj.optJSONArray("catalog")?.let { known ->
@@ -125,6 +132,7 @@ class QuestStorage(context: Context) {
             .put("earnedXp", s.earnedXp).put("earnedHappiness", s.earnedHappiness)
             .put("rewardEventId", s.rewardEventId ?: "")
             .put("tapRun", writeTapRun(s.tapRun))
+            .put("journey",writeJourney(s.journey))
             .put("summonStones", s.summonStones)
             .put("captureOrbs", s.captureOrbs)
             .put("huntTargetId",s.huntTargetId)
@@ -134,6 +142,9 @@ class QuestStorage(context: Context) {
             .put("partyIds", JSONArray().apply { s.partyIds.take(3).forEach { put(it) } })
             .put("message", s.message)
             .put("captures", JSONArray().apply { s.captures.takeLast(100).forEach { put(wildToJson(it)) } })
+            .put("favoriteMonsterIds",JSONArray().apply {
+                s.favoriteMonsterIds.sorted().take(100).forEach{put(it)}
+            })
         // apply() makes the new state available immediately and writes it
         // asynchronously; synchronous commit on EVERY rapid combat tap caused
         // frame stalls and missed input on slower Android flash storage.
@@ -238,6 +249,26 @@ class QuestStorage(context: Context) {
             message=o.optString("message","塔とアリーナに挑戦しよう！").take(180)
         )
     }
+
+    private fun writeJourney(j:JourneyState):JSONObject=JSONObject()
+        .put("classic",j.classic).put("chain",j.chain)
+        .put("bestChain",j.bestChain)
+        .put("totalEncounters",j.totalEncounters)
+        .put("totalCaptures",j.totalCaptures)
+        .put("autoCapture",j.autoCapture)
+        .put("lastAutoCaptureId",j.lastAutoCaptureId)
+        .put("travelMs",j.travelMs)
+
+    private fun readJourney(o:JSONObject):JourneyState=JourneyState(
+        classic=o.optBoolean("classic",false),
+        chain=o.optInt("chain",0).coerceIn(0,99999),
+        bestChain=o.optInt("bestChain",0).coerceIn(0,99999),
+        totalEncounters=o.optInt("totalEncounters",0).coerceIn(0,999999),
+        totalCaptures=o.optInt("totalCaptures",0).coerceIn(0,999999),
+        autoCapture=o.optBoolean("autoCapture",false),
+        lastAutoCaptureId=o.optString("lastAutoCaptureId","").take(100),
+        travelMs=o.optInt("travelMs",0).coerceIn(0,2_000_000_000)
+    )
 
     private fun writeTapRun(r:TapRun):JSONObject=JSONObject()
         .put("floor",r.floor).put("steps",r.steps).put("phase",r.phase.name)

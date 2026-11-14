@@ -93,12 +93,16 @@ data class QuestState(
     val roomCleared: Boolean = false,
     val completed: Boolean = false,
     val captures: List<WildMonster> = emptyList(),
+    /** Favorites are only roster bookmarks; they never alter random rolls. */
+    val favoriteMonsterIds:Set<String> = emptySet(),
     val defeated: Int = 0,
     val earnedXp: Int = 0,
     val earnedHappiness: Int = 0,
     val rewardEventId: String? = null,
     /** New tap adventure state; legacy 5-room game fields remain valid. */
     val tapRun: TapRun = TapRun(),
+    /** Optional arcade run controls and permanent streak records. */
+    val journey:JourneyState=JourneyState(),
     val summonStones: Int = 0,
     val captureOrbs: Int = 3,
     val catalog: List<WildMonster> = emptyList(),

@@ -63,9 +63,13 @@ fun QuestHome(
     onBuySupply:(String)->Unit,
     onClaimAchievement:(String)->Unit,
     onTrackMonster:(String)->Unit,
+    onToggleFavorite:(String)->Unit,
     management:@Composable ()->Unit
 ) {
     var currentPanel by remember { mutableIntStateOf(0) }
+    var favoritesOnly by remember { mutableStateOf(false) }
+    var rosterOrder by remember { mutableStateOf(RosterOrder.NEWEST) }
+    var visibleCount by remember { mutableIntStateOf(16) }
     val companion=remember(state.companion) {
         WildMonster(
             id=state.companion.id,species=state.companion.species,
@@ -166,28 +170,82 @@ fun QuestHome(
                 MonsterPotentialPanel(SkillRules.party(state).first())
                 Text("仲間をタップして編成を変更。戦闘時は選んだ仲間が援護します。",
                     color=Blue,style=MaterialTheme.typography.labelMedium)
-                if(state.captures.isEmpty())
+                if(state.captures.isEmpty()) {
                     Text("まだ仲間がいません。探索で捕獲するか、召喚してください。")
-                else state.captures.forEach { monster ->
-                    val selected=monster.id in state.partyIds
-                    Card(Modifier.fillMaxWidth().clickable {onSelectParty(monster.id)},
-                        colors=CardDefaults.cardColors(containerColor=Color(0xFF1A2944))) {
-                        Row(Modifier.padding(9.dp),
-                            verticalAlignment=Alignment.CenterVertically) {
-                            MonsterArtworkView(monster,store,revision,Modifier.size(86.dp),
-                                bossRelicKind=RelicRules.visualKind(state,monster.id))
-                            Spacer(Modifier.width(8.dp))
-                            Column(Modifier.weight(1f)) {
-                                Text(monster.species,style=MaterialTheme.typography.titleMedium)
-                                Text("Lv."+monster.level+" / 進化"+monster.stage+
-                                    "  ATK "+monster.attack+"   "+monster.element,
-                                    style=MaterialTheme.typography.bodySmall)
-                                Text(if(selected)"✓ 出撃中" else "＋ タップで編成",
-                                    color=if(selected)Gold else Blue)
+                } else {
+                    Text("仲間の個体厳選：お気に入り★で強い個体を保存。" +
+                        "ランダムステータス3枠を比較できます。",
+                        color=Blue,style=MaterialTheme.typography.labelSmall)
+                    Row(Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()),
+                        horizontalArrangement=Arrangement.spacedBy(5.dp)) {
+                        FilterChip(selected=favoritesOnly,
+                            onClick={favoritesOnly=!favoritesOnly;visibleCount=16},
+                            label={Text("★ お気に入りだけ")})
+                        RosterOrder.entries.forEach { order ->
+                            FilterChip(selected=rosterOrder==order,
+                                onClick={rosterOrder=order;visibleCount=16},
+                                label={Text(when(order) {
+                                    RosterOrder.NEWEST -> "新着"
+                                    RosterOrder.LEVEL -> "高Lv"
+                                    RosterOrder.POTENTIAL -> "潜在値"
+                                    RosterOrder.RARE -> "希少"
+                                })})
+                        }
+                    }
+                    val sorted=remember(
+                        state.captures,state.favoriteMonsterIds,
+                        favoritesOnly,rosterOrder
+                    ) { RosterRules.ordered(state,rosterOrder,favoritesOnly) }
+                    Text("表示 "+minOf(sorted.size,visibleCount)+"/"+sorted.size+
+                        "匹　編成中 "+state.partyIds.size+"/3",
+                        color=Blue,style=MaterialTheme.typography.labelSmall)
+                    sorted.take(visibleCount).forEach { monster ->
+                        val selected=monster.id in state.partyIds
+                        val favorite=monster.id in state.favoriteMonsterIds
+                        val rare=monster.lineage=="rare"
+                        Card(Modifier.fillMaxWidth()
+                            .clickable{onSelectParty(monster.id)},
+                            colors=CardDefaults.cardColors(
+                                containerColor=if(selected)Color(0xFF253E58)
+                                else Color(0xFF1A2944))) {
+                            Row(Modifier.fillMaxWidth().padding(9.dp),
+                                verticalAlignment=Alignment.CenterVertically) {
+                                MonsterArtworkView(monster,store,revision,
+                                    Modifier.size(82.dp),
+                                    bossRelicKind=RelicRules.visualKind(state,monster.id))
+                                Spacer(Modifier.width(7.dp))
+                                Column(Modifier.weight(1f)) {
+                                    Text(monster.species+(if(rare)" ✦希少" else ""),
+                                        style=MaterialTheme.typography.titleMedium,
+                                        color=if(rare)Gold else Color.White)
+                                    Text("Lv."+monster.level+"  進化"+monster.stage+
+                                        "  ATK "+monster.attack+"  "+monster.element,
+                                        style=MaterialTheme.typography.labelSmall)
+                                    Text(if(selected)"✓ 出撃中" else "＋ タップで編成",
+                                        color=if(selected)Gold else Blue,
+                                        style=MaterialTheme.typography.labelMedium)
+                                }
+                                OutlinedButton(
+                                    onClick={onToggleFavorite(monster.id)},
+                                    contentPadding=PaddingValues(horizontal=8.dp),
+                                    modifier=Modifier.width(52.dp),
+                                    enabled=true
+                                ) {
+                                    Text(if(favorite)"★" else "☆",
+                                        color=if(favorite)Gold else Blue,
+                                        style=MaterialTheme.typography.titleMedium)
+                                }
+                            }
+                            Box(Modifier.fillMaxWidth()
+                                .padding(start=9.dp,end=9.dp,bottom=9.dp)) {
+                                MonsterPotentialPanel(monster)
                             }
                         }
-                        Box(Modifier.fillMaxWidth().padding(start=9.dp,end=9.dp,bottom=9.dp)) {
-                            MonsterPotentialPanel(monster)
+                    }
+                    if(sorted.size>visibleCount) {
+                        OutlinedButton(onClick={visibleCount+=16},
+                            modifier=Modifier.fillMaxWidth()) {
+                            Text("さらに16匹表示（残り"+(sorted.size-visibleCount)+"匹）")
                         }
                     }
                 }
