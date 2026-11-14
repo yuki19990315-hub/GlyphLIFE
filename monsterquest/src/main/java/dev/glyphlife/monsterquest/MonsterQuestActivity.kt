@@ -35,6 +35,7 @@ import dev.glyphlife.monsterquest.ui.CaptureLab
 import dev.glyphlife.monsterquest.ui.QuestTab
 import dev.glyphlife.monsterquest.ui.QuestBottomNavigation
 import dev.glyphlife.monsterquest.ui.QuestHome
+import dev.glyphlife.monsterquest.ui.MetroidvaniaScreen
 import dev.glyphlife.monsterquest.ui.TapExplorationScreen
 import dev.glyphlife.monsterquest.ui.QuestSummon
 import dev.glyphlife.monsterquest.ui.QuestFuture
@@ -77,15 +78,15 @@ class MonsterQuestActivity : ComponentActivity() {
         val artworkStore = MonsterArtworkStore(this)
         setContent {
             var state by remember {
-                mutableStateOf(storage.load().let { saved ->
-                    saved.copy(
-                        inBattle=saved.tapRun.phase in listOf(TapPhase.FIGHT,TapPhase.BOSS) ||
-                            ChallengeRules.active(saved),
-                        roomCleared=false,completed=false
-                    )
+                mutableStateOf(storage.load().let {saved ->
+                    val normalized=MetroidRules.normalized(saved)
+                    normalized.copy(inBattle=MetroidRules.isOccupied(normalized),
+                        roomCleared=false,completed=false)
                 })
             }
             var selectedTab by remember { mutableStateOf(QuestTab.HOME) }
+            var horizontalInput by remember { mutableIntStateOf(0) }
+            LaunchedEffect(selectedTab) {horizontalInput=0}
             var aiArtEnabled by remember { mutableStateOf(false) }
             var status by remember { mutableStateOf("オフラインで遊べます") }
             var aiKey by remember { mutableStateOf("") }
@@ -103,8 +104,7 @@ class MonsterQuestActivity : ComponentActivity() {
 
             fun update(next: QuestState) {
                 val fixed=next.copy(
-                    inBattle=next.tapRun.phase in listOf(TapPhase.FIGHT,TapPhase.BOSS) ||
-                        ChallengeRules.active(next),
+                    inBattle=MetroidRules.isOccupied(next),
                     roomCleared=false,completed=false
                 )
                 val rapidStrike =
@@ -435,19 +435,45 @@ class MonsterQuestActivity : ComponentActivity() {
             // Battle time advances independently from taps. Pausing Explore
             // pauses the clock; one 100-ms tick can trigger at most one strike.
             LaunchedEffect(selectedTab,state.tapRun.phase,state.tapRun.enemy?.id) {
-                if(selectedTab==QuestTab.EXPLORE &&
+                if(selectedTab==QuestTab.EXPLORE && state.side.legacy &&
                     state.tapRun.phase in listOf(TapPhase.FIGHT,TapPhase.BOSS)) {
                     while(true) {
                         kotlinx.coroutines.delay(100L)
                         val before=state
                         val next=TapAdventure.tick(before,100)
                         if(next!=before) {
-                            state=next.copy(inBattle=next.tapRun.phase in
-                                listOf(TapPhase.FIGHT,TapPhase.BOSS))
+                            state=next.copy(inBattle=MetroidRules.isOccupied(next))
                             // Persist hits and important changes, not every frame.
                             if(next.playerHp!=before.playerHp ||
                                 next.tapRun.phase!=before.tapRun.phase)
                                 storage.save(state)
+                        }
+                    }
+                }
+            }
+
+            // Continuous movement / gravity / enemy attacks at 30Hz.
+            // Never call synchronous save for every physics frame: persist
+            // 650-ms checkpoints, damage and room/ability transitions.
+            LaunchedEffect(selectedTab,state.side.legacy) {
+                if(selectedTab==QuestTab.EXPLORE && !state.side.legacy) {
+                    var checkpointMs=0
+                    while(true) {
+                        kotlinx.coroutines.delay(33L)
+                        val before=state
+                        if(ChallengeRules.active(before))continue
+                        val next=MetroidRules.tick(before,horizontalInput,33)
+                        if(next!=before) {
+                            state=next.copy(inBattle=MetroidRules.isOccupied(next))
+                            checkpointMs+=33
+                            if(checkpointMs>=650 ||
+                                before.playerHp!=next.playerHp ||
+                                before.side.room!=next.side.room ||
+                                before.side.acquired!=next.side.acquired ||
+                                before.side.deaths!=next.side.deaths) {
+                                storage.save(state)
+                                checkpointMs=0
+                            }
                         }
                     }
                 }
@@ -466,9 +492,7 @@ class MonsterQuestActivity : ComponentActivity() {
                         val before=state
                         val next=ChallengeRules.tick(before,100)
                         if(next!=before) {
-                            state=next.copy(inBattle=
-                                next.tapRun.phase in listOf(TapPhase.FIGHT,TapPhase.BOSS) ||
-                                    ChallengeRules.active(next))
+                            state=next.copy(inBattle=MetroidRules.isOccupied(next))
                             if(next.challenge.playerHp!=before.challenge.playerHp ||
                                 next.challenge.mode!=before.challenge.mode)
                                 storage.save(state)
@@ -499,7 +523,7 @@ class MonsterQuestActivity : ComponentActivity() {
                 Scaffold(
                     topBar={
                         Surface(tonalElevation=2.dp,color=Color(0xFF121B30)) {
-                            Text("MONSTER QUEST / v4.5.1",Modifier.padding(14.dp),
+                            Text("MONSTER QUEST / v4.6.0",Modifier.padding(14.dp),
                                 style=MaterialTheme.typography.titleMedium,
                                 color=Color(0xFFFFD990))
                         }
@@ -587,7 +611,35 @@ class MonsterQuestActivity : ComponentActivity() {
                                     }
                                 )
                             }
-                            QuestTab.EXPLORE -> TapExplorationScreen(
+                            QuestTab.EXPLORE -> if(!state.side.legacy) {
+                                MetroidvaniaScreen(
+                                    state=state,store=artworkStore,
+                                    revision=artworkRevision,
+                                    movement=horizontalInput,
+                                    onMovement={horizontalInput=it},
+                                    onJump={update(MetroidRules.jump(state))},
+                                    onDash={update(MetroidRules.dash(state))},
+                                    onAttack={update(MetroidRules.attack(state))},
+                                    onCapture={update(MetroidRules.capture(state))},
+                                    onUseSkill={owner,bonus->
+                                        update(MetroidRules.useSkill(state,owner,bonus))
+                                    },
+                                    onInteract={update(MetroidRules.interact(state))},
+                                    onHeal={update(MetroidRules.heal(state))},
+                                    onLegacy={
+                                        horizontalInput=0
+                                        update(MetroidRules.switchLegacy(state,true))
+                                    }
+                                )
+                            } else Column(Modifier.fillMaxSize()) {
+                                TextButton(onClick={
+                                    horizontalInput=0
+                                    update(MetroidRules.switchLegacy(state,false))
+                                },modifier=Modifier.fillMaxWidth()) {
+                                    Text("◀ 横スクロール探索に戻る")
+                                }
+                                Box(Modifier.weight(1f)) {
+                                    TapExplorationScreen(
                                 state=state,store=artworkStore,revision=artworkRevision,
                                 onTap={
                                     if(!aiBusy && !ChallengeRules.active(state))
@@ -613,7 +665,9 @@ class MonsterQuestActivity : ComponentActivity() {
                                     if(!ChallengeRules.active(state))
                                         update(TapAdventure.branch(state,route))
                                 }
-                            )
+                                    )
+                                }
+                            }
                             QuestTab.SUMMON -> QuestSummon(
                                 state=state,aiKey=aiKey,
                                 aiDescription=aiDescription,aiBusy=aiBusy,
