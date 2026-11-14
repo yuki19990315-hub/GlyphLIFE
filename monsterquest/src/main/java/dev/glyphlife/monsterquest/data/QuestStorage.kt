@@ -247,6 +247,8 @@ class QuestStorage(context: Context) {
         .put("bestChain",j.bestChain)
         .put("totalEncounters",j.totalEncounters)
         .put("totalCaptures",j.totalCaptures)
+        .put("autoCapture",j.autoCapture)
+        .put("lastAutoCaptureId",j.lastAutoCaptureId)
         .put("travelMs",j.travelMs)
 
     private fun readJourney(o:JSONObject):JourneyState=JourneyState(
@@ -255,6 +257,8 @@ class QuestStorage(context: Context) {
         bestChain=o.optInt("bestChain",0).coerceIn(0,99999),
         totalEncounters=o.optInt("totalEncounters",0).coerceIn(0,999999),
         totalCaptures=o.optInt("totalCaptures",0).coerceIn(0,999999),
+        autoCapture=o.optBoolean("autoCapture",false),
+        lastAutoCaptureId=o.optString("lastAutoCaptureId","").take(100),
         travelMs=o.optInt("travelMs",0).coerceIn(0,2_000_000_000)
     )
 
