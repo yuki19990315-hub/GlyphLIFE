@@ -33,7 +33,6 @@ class QuestStorage(context: Context) {
                 companion = pet,
                 challenge = obj.optJSONObject("challenge")?.let(::readChallenge)
                     ?: ChallengeState(),
-                side = obj.optJSONObject("side")?.let(::readSide) ?: SideRun(),
                 bossRelics = obj.optJSONArray("bossRelics")?.let { arr ->
                     (0 until arr.length()).mapNotNull { index ->
                         runCatching {
@@ -82,6 +81,7 @@ class QuestStorage(context: Context) {
                         runCatching { wildFromJson(known.getJSONObject(index)) }.getOrNull()
                     }.takeLast(150)
                 } ?: emptyList(),
+                huntTargetId = obj.optString("huntTargetId","").take(120),
                 partyIds = obj.optJSONArray("partyIds")?.let { party ->
                     (0 until party.length()).map { party.getString(it) }.distinct().take(3)
                 }?.filter { id -> captures.any { it.id == id } } ?: emptyList(),
@@ -100,7 +100,6 @@ class QuestStorage(context: Context) {
                 .put("extraSkillId",s.companion.extraSkillId)
                 .put("statSlots",writeStatSlots(s.companion.statSlots)))
             .put("challenge",writeChallenge(s.challenge))
-            .put("side",writeSide(s.side))
             .put("bossRelics",JSONArray().apply {
                 s.bossRelics.take(RelicRules.INVENTORY_LIMIT).forEach {
                     put(JSONObject().put("id",it.id).put("kind",it.kind)
@@ -128,6 +127,7 @@ class QuestStorage(context: Context) {
             .put("tapRun", writeTapRun(s.tapRun))
             .put("summonStones", s.summonStones)
             .put("captureOrbs", s.captureOrbs)
+            .put("huntTargetId",s.huntTargetId)
             .put("catalog", JSONArray().apply {
                 s.catalog.takeLast(150).forEach { put(wildToJson(it)) }
             })
@@ -138,65 +138,6 @@ class QuestStorage(context: Context) {
         // asynchronously; synchronous commit on EVERY rapid combat tap caused
         // frame stalls and missed input on slower Android flash storage.
         prefs.edit().putString("session", data.toString()).apply()
-    }
-
-    private fun writeSide(r:SideRun):JSONObject=JSONObject()
-        .put("legacy",r.legacy).put("room",r.room)
-        .put("x",r.x.toDouble()).put("y",r.y.toDouble())
-        .put("vy",r.vy.toDouble()).put("grounded",r.grounded)
-        .put("usedAirJump",r.usedAirJump).put("facing",r.facing)
-        .put("acquired",JSONArray().apply {r.acquired.sorted().forEach{put(it)}})
-        .put("cleared",JSONArray().apply {r.cleared.sorted().forEach{put(it)}})
-        .put("enemyHp",r.enemyHp).put("enemyTimerMs",r.enemyTimerMs)
-        .put("attackCooldownMs",r.attackCooldownMs)
-        .put("dashCooldownMs",r.dashCooldownMs)
-        .put("hurtCooldownMs",r.hurtCooldownMs)
-        .put("guardHits",r.guardHits).put("venomCharges",r.venomCharges)
-        .put("skillCooldowns",JSONObject(r.skillCooldowns))
-        .put("checkpoint",r.checkpoint).put("deaths",r.deaths)
-        .put("elapsedMs",r.elapsedMs).put("message",r.message)
-
-    private fun readSide(o:JSONObject):SideRun {
-        val room=o.optInt("room",0).coerceIn(0,MetroidRules.ROOM_COUNT-1)
-        fun array(name:String):List<String> {
-            val a=o.optJSONArray(name)?:return emptyList()
-            return (0 until minOf(a.length(),16)).mapNotNull {
-                a.optString(it).takeIf{v->v.isNotBlank()}
-            }
-        }
-        val unlocked=array("acquired").filter{it in setOf("double","dash")}.toSet()
-        val cleared=array("cleared").mapNotNull {
-            it.toIntOrNull()?.takeIf{v->v in 0 until MetroidRules.ROOM_COUNT}
-        }.toSet()
-        // Old versions or manipulated values cannot grant invalid coordinates.
-        val x=o.optDouble("x",2.0).takeIf{it.isFinite()}?.toFloat()
-            ?.coerceIn(0.4f,23.6f) ?: 2f
-        val y=o.optDouble("y",10.0).takeIf{it.isFinite()}?.toFloat()
-            ?.coerceIn(1.2f,MetroidRules.FLOOR) ?: MetroidRules.FLOOR
-        val vy=o.optDouble("vy",0.0).takeIf{it.isFinite()}?.toFloat()
-            ?.coerceIn(-12f,16f) ?: 0f
-        val hp=if(room in cleared)0 else
-            o.optInt("enemyHp",MetroidRules.maxEnemyHp(room))
-                .coerceIn(1,MetroidRules.maxEnemyHp(room))
-        return SideRun(
-            legacy=o.optBoolean("legacy",false),room=room,x=x,y=y,vy=vy,
-            grounded=o.optBoolean("grounded",true),
-            usedAirJump=o.optBoolean("usedAirJump",false),
-            facing=if(o.optInt("facing",1)<0)-1 else 1,
-            acquired=unlocked,cleared=cleared,enemyHp=hp,
-            enemyTimerMs=o.optInt("enemyTimerMs",2200).coerceIn(1,6000),
-            attackCooldownMs=o.optInt("attackCooldownMs",0).coerceIn(0,2000),
-            dashCooldownMs=o.optInt("dashCooldownMs",0).coerceIn(0,3000),
-            hurtCooldownMs=o.optInt("hurtCooldownMs",0).coerceIn(0,3000),
-            guardHits=o.optInt("guardHits",0).coerceIn(0,1),
-            venomCharges=o.optInt("venomCharges",0).coerceIn(0,2),
-            skillCooldowns=readCooldowns(o.optJSONObject("skillCooldowns")),
-            checkpoint=o.optInt("checkpoint",0)
-                .coerceIn(0,MetroidRules.ROOM_COUNT-1),
-            deaths=o.optInt("deaths",0).coerceIn(0,999999),
-            elapsedMs=o.optInt("elapsedMs",0).coerceIn(0,99999),
-            message=o.optString("message","左右移動で探索").take(180)
-        )
     }
 
     private fun readCooldowns(value:JSONObject?):Map<String,Int> {

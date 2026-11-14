@@ -62,6 +62,7 @@ fun QuestHome(
     onBuyUpgrade:(String)->Unit,
     onBuySupply:(String)->Unit,
     onClaimAchievement:(String)->Unit,
+    onTrackMonster:(String)->Unit,
     management:@Composable ()->Unit
 ) {
     var currentPanel by remember { mutableIntStateOf(0) }
@@ -256,6 +257,21 @@ fun QuestHome(
                 SectionTitle("モンスター図鑑　発見"+state.catalog.size+"種")
                 Text("AI生成で登録した種族も、以後の探索に出現します。",
                     color=Blue,style=MaterialTheme.typography.bodySmall)
+                SectionTitle("捕獲ターゲットの追跡")
+                val hunted=HuntRules.selected(state)
+                Text(
+                    if(hunted==null)"未指定：どの種族も通常の確率で出現"
+                    else "◎ 追跡中："+hunted.species+"（"+hunted.element+"）",
+                    color=Gold,style=MaterialTheme.typography.bodyMedium)
+                Text("図鑑で発見した種族を指定すると通常遭遇の45%で出現。" +
+                    "レア個体の厳選に便利。BOSSには影響しません。",
+                    color=Blue,style=MaterialTheme.typography.labelSmall)
+                if(hunted!=null) {
+                    TextButton(onClick={onTrackMonster("")},
+                        enabled=!state.inBattle) {
+                        Text("追跡を解除してランダム遭遇に戻す")
+                    }
+                }
                 val all=state.catalog.takeLast(150)
                 if(all.isEmpty()) Text("まだ発見したモンスターがいません。")
                 else all.chunked(3).forEach { group ->
@@ -273,6 +289,16 @@ fun QuestHome(
                                     Text(monster.element+" / 進化"+monster.stage,
                                         style=MaterialTheme.typography.labelSmall,
                                         color=Blue)
+                                    if(!monster.isBoss) {
+                                        FilterChip(
+                                            selected=hunted?.id==monster.id,
+                                            onClick={onTrackMonster(monster.id)},
+                                            enabled=!state.inBattle,
+                                            label={Text(if(hunted?.id==monster.id)
+                                                "追跡中" else "追跡する",
+                                                style=MaterialTheme.typography.labelSmall)}
+                                        )
+                                    }
                                 }
                             }
                         }
@@ -551,6 +577,10 @@ fun TapExplorationScreen(
             .padding(horizontal=10.dp,vertical=7.dp),
         verticalArrangement=Arrangement.spacedBy(8.dp)
     ) {
+        HuntRules.selected(state)?.let { focus ->
+            Text("◎ 追跡中：${focus.species}（通常遭遇の45%で出現）",
+                color=Gold,style=MaterialTheme.typography.labelSmall)
+        }
         // GBA RPG style: compact counters and a framed battle vista.
         Row(
             modifier=Modifier.fillMaxWidth(),

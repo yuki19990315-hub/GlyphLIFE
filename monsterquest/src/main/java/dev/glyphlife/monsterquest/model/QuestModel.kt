@@ -71,8 +71,6 @@ data class QuestState(
     val companion: Companion = Companion(),
     /** Tower and arena are separate from the main exploration session. */
     val challenge: ChallengeState = ChallengeState(),
-    /** Separate, backwards-compatible side-scrolling exploration progress. */
-    val side:SideRun=SideRun(),
     /** Collectible boss equipment and its unique one-owner assignments. */
     val bossRelics:List<BossRelic> = emptyList(),
     val relicEquipment:Map<String,String> = emptyMap(),
@@ -104,6 +102,8 @@ data class QuestState(
     val summonStones: Int = 0,
     val captureOrbs: Int = 3,
     val catalog: List<WildMonster> = emptyList(),
+    /** Optional discovery record ID chosen for species-focused encounters. */
+    val huntTargetId:String="",
     val partyIds: List<String> = emptyList(),
     val message: String = "冒険を始めよう！"
 )
