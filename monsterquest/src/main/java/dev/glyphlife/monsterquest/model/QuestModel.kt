@@ -93,6 +93,8 @@ data class QuestState(
     val roomCleared: Boolean = false,
     val completed: Boolean = false,
     val captures: List<WildMonster> = emptyList(),
+    /** Favorites are only roster bookmarks; they never alter random rolls. */
+    val favoriteMonsterIds:Set<String> = emptySet(),
     val defeated: Int = 0,
     val earnedXp: Int = 0,
     val earnedHappiness: Int = 0,
