@@ -10,6 +10,7 @@ import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.graphics.graphicsLayer
 import dev.glyphlife.monsterquest.data.MonsterArtworkStore
 import dev.glyphlife.monsterquest.model.WildMonster
+import dev.glyphlife.monsterquest.pixel.GbaMonsterArtStandard
 import dev.glyphlife.monsterquest.pixel.BossRelicPixels
 import dev.glyphlife.monsterquest.pixel.MonsterAnimation
 import dev.glyphlife.monsterquest.pixel.MonsterDesign
@@ -32,10 +33,16 @@ fun MonsterArtworkView(
     bossRelicKind:String?=null
 ) {
     val frames=remember(monster,store,revision,bossRelicKind) {
-        val master=store.spriteFor(monster)
+        // Source art, including imported PNGs, might have wings or tails
+        // touching the original edge. Fit the FULL opaque silhouette before
+        // animation, then fit again after the boss-relic overlay. Never
+        // overwrite user-owned source files.
+        val master=GbaMonsterArtStandard.fitWithMargin(
+            store.spriteFor(monster),9)
         MonsterAnimation.idle(master,monster).map { frame ->
+            val equipped=BossRelicPixels.compose(frame.sprite,bossRelicKind)
             frame.durationMs to PixelAssetPipeline.display256(
-                BossRelicPixels.compose(frame.sprite,bossRelicKind)
+                GbaMonsterArtStandard.fitWithMargin(equipped,8)
             ).asImageBitmap()
         }
     }
