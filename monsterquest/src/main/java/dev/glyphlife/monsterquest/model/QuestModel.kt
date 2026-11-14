@@ -99,6 +99,8 @@ data class QuestState(
     val rewardEventId: String? = null,
     /** New tap adventure state; legacy 5-room game fields remain valid. */
     val tapRun: TapRun = TapRun(),
+    /** Optional arcade run controls and permanent streak records. */
+    val journey:JourneyState=JourneyState(),
     val summonStones: Int = 0,
     val captureOrbs: Int = 3,
     val catalog: List<WildMonster> = emptyList(),
