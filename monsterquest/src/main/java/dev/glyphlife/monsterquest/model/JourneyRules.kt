@@ -16,6 +16,9 @@ data class JourneyState(
     val bestChain:Int=0,
     val totalEncounters:Int=0,
     val totalCaptures:Int=0,
+    /** One optional auto-capture try at <=35% enemy HP per encounter. */
+    val autoCapture:Boolean=false,
+    val lastAutoCaptureId:String="",
     val travelMs:Int=0,
     val bonusText:String=""
 )
@@ -25,6 +28,10 @@ object JourneyRules {
     const val ATTACK_INTERVAL_MS=390
     const val BACK_INTERVAL_MS=210
     const val CHAIN_REWARD_EVERY=5
+
+    fun toggleAutoCapture(state:QuestState):QuestState=
+        state.copy(journey=state.journey.copy(
+            autoCapture=!state.journey.autoCapture))
 
     fun phaseInterval(phase:TapPhase):Int = when(phase) {
         TapPhase.WALK -> WALK_INTERVAL_MS
@@ -161,7 +168,22 @@ object JourneyRules {
             ChallengeRules.active(state))return state
         val dt=elapsedMs.coerceIn(1,160)
         val attacked=TapAdventure.tick(state,dt,rng)
-        val pre=record(state,attacked)
+        val clocked=record(state,attacked)
+        // Automation is opt-in and tries at most once per distinct monster.
+        // It cannot consume orbs on a boss or on a full roster.
+        val canAuto=clocked.journey.autoCapture &&
+            clocked.tapRun.phase==TapPhase.FIGHT &&
+            clocked.tapRun.enemy!=null &&
+            clocked.tapRun.enemyHp>0 &&
+            clocked.tapRun.enemyHp*100<=
+                clocked.tapRun.enemy!!.maxHp*35 &&
+            clocked.journey.lastAutoCaptureId!=clocked.tapRun.enemy!!.id &&
+            clocked.captureOrbs>0 && clocked.captures.size<100
+        val pre=if(canAuto) {
+            val marked=clocked.copy(journey=clocked.journey.copy(
+                lastAutoCaptureId=clocked.tapRun.enemy!!.id))
+            capture(marked,rng)
+        } else clocked
         val journey=pre.journey
         val travelMs=(journey.travelMs+dt).coerceAtMost(2_000_000_000)
         val phase=pre.tapRun.phase
