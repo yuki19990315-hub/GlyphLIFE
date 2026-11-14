@@ -89,6 +89,16 @@ object MetroidRules {
 
     fun maxEnemyHp(room:Int):Int=enemy(room).maxHp
 
+    fun inCombat(state:QuestState):Boolean = !state.side.legacy &&
+        state.side.enemyHp>0 &&
+        abs(state.side.x-rooms[state.side.room].enemyX)<3.3f
+
+    fun isOccupied(state:QuestState):Boolean =
+        ChallengeRules.active(state) ||
+            (state.side.legacy &&
+                state.tapRun.phase in listOf(TapPhase.FIGHT,TapPhase.BOSS)) ||
+            inCombat(state)
+
     /** New rooms respawn their original enemy; clearing a room is persistent. */
     private fun loadRoom(s:SideRun,to:Int,fromLeft:Boolean):SideRun {
         val pos=if(fromLeft)1.6f else ROOM_WIDTH-1.6f
