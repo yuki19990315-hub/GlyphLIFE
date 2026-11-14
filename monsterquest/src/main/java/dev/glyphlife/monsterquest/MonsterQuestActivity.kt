@@ -568,6 +568,9 @@ class MonsterQuestActivity : ComponentActivity() {
                                 },
                                 onTrackMonster={id ->
                                     if(!state.inBattle) update(HuntRules.choose(state,id))
+                                },
+                                onToggleFavorite={id ->
+                                    update(RosterRules.toggleFavorite(state,id))
                                 }
                             ) {
                                 CaptureLab(
@@ -616,7 +619,11 @@ class MonsterQuestActivity : ComponentActivity() {
                                                 relicEquipment=state.relicEquipment.filterKeys { id ->
                                                     id==state.companion.id ||
                                                         owned.any{it.id==id}
-                                                }
+                                                },
+                                                favoriteMonsterIds=
+                                                    state.favoriteMonsterIds.filter { id ->
+                                                        owned.any{it.id==id}
+                                                    }.toSet()
                                             ))
                                             artworkRevision++
                                             notify("2匹を合成しました")
