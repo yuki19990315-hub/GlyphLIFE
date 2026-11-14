@@ -74,6 +74,8 @@ class QuestStorage(context: Context) {
                 earnedHappiness = obj.optInt("earnedHappiness", 0).coerceIn(0, 20),
                 rewardEventId = obj.optString("rewardEventId").ifBlank { null },
                 tapRun = obj.optJSONObject("tapRun")?.let(::readTapRun) ?: TapRun(),
+                journey = obj.optJSONObject("journey")?.let(::readJourney)
+                    ?: JourneyState(),
                 summonStones = obj.optInt("summonStones", 0).coerceIn(0, 999),
                 captureOrbs = obj.optInt("captureOrbs", 3).coerceIn(0, 99),
                 catalog = obj.optJSONArray("catalog")?.let { known ->
@@ -125,6 +127,7 @@ class QuestStorage(context: Context) {
             .put("earnedXp", s.earnedXp).put("earnedHappiness", s.earnedHappiness)
             .put("rewardEventId", s.rewardEventId ?: "")
             .put("tapRun", writeTapRun(s.tapRun))
+            .put("journey",writeJourney(s.journey))
             .put("summonStones", s.summonStones)
             .put("captureOrbs", s.captureOrbs)
             .put("huntTargetId",s.huntTargetId)
@@ -238,6 +241,22 @@ class QuestStorage(context: Context) {
             message=o.optString("message","塔とアリーナに挑戦しよう！").take(180)
         )
     }
+
+    private fun writeJourney(j:JourneyState):JSONObject=JSONObject()
+        .put("classic",j.classic).put("chain",j.chain)
+        .put("bestChain",j.bestChain)
+        .put("totalEncounters",j.totalEncounters)
+        .put("totalCaptures",j.totalCaptures)
+        .put("travelMs",j.travelMs)
+
+    private fun readJourney(o:JSONObject):JourneyState=JourneyState(
+        classic=o.optBoolean("classic",false),
+        chain=o.optInt("chain",0).coerceIn(0,99999),
+        bestChain=o.optInt("bestChain",0).coerceIn(0,99999),
+        totalEncounters=o.optInt("totalEncounters",0).coerceIn(0,999999),
+        totalCaptures=o.optInt("totalCaptures",0).coerceIn(0,999999),
+        travelMs=o.optInt("travelMs",0).coerceIn(0,2_000_000_000)
+    )
 
     private fun writeTapRun(r:TapRun):JSONObject=JSONObject()
         .put("floor",r.floor).put("steps",r.steps).put("phase",r.phase.name)
