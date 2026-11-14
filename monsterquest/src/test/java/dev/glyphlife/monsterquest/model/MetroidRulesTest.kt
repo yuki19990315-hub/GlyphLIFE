@@ -133,6 +133,20 @@ class MetroidRulesTest {
         assertEquals(state.tapRun,revived.tapRun)
     }
 
+    @Test fun restShrineRespawnsNormalMobsButKeepsBossProgress() {
+        val state=fresh().copy(
+            playerHp=70,
+            side=SideRun(room=0,x=2f,enemyHp=0,
+                cleared=setOf(0,1,2,5),
+                acquired=setOf("double","dash")))
+        val rested=MetroidRules.interact(state)
+        assertEquals(90,rested.playerHp)
+        assertEquals(setOf(5),rested.side.cleared)
+        assertEquals(MetroidRules.maxEnemyHp(0),rested.side.enemyHp)
+        assertEquals(state.side.acquired,rested.side.acquired)
+        assertEquals(state.captures,rested.captures)
+    }
+
     @Test fun twoModesCannotTickSimultaneouslyWithArena() {
         val state=fresh().copy(challenge=ChallengeState(
             mode=ChallengeMode.TOWER,opponent=MetroidRules.enemy(0),
