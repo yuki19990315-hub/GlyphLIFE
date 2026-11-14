@@ -661,6 +661,10 @@ class MonsterQuestActivity : ComponentActivity() {
                                     onAutoCapture={
                                         update(JourneyRules.toggleAutoCapture(state))
                                     },
+                                    onBuySupply={kind->
+                                        if(!ChallengeRules.active(state))
+                                            update(GrowthRules.buySupply(state,kind))
+                                    },
                                     onClassic={
                                         journeyHeld=0
                                         update(state.copy(journey=
