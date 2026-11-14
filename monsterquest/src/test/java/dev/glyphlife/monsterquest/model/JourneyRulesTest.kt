@@ -10,7 +10,7 @@ class JourneyRulesTest {
     }
     private val unlucky=object:Random(){
         override fun nextBits(bitCount:Int):Int =
-            if(bitCount==32)-1 else ((1L shl bitCount)-1L).toInt()
+            if(bitCount>=7)99 else (1 shl bitCount)-1
     }
     private fun foe(id:String="foe",hp:Int=90):WildMonster =
         WildMonster(id=id,species="モコ",element="草",
@@ -28,7 +28,8 @@ class JourneyRulesTest {
         s=JourneyRules.tick(no,1,150,lucky)
         assertEquals(1,s.tapRun.steps)
         assertEquals(1,s.tapRun.distance)
-        s=JourneyRules.tick(s,1,300,lucky)
+        s=JourneyRules.tick(s,1,160,lucky)
+        s=JourneyRules.tick(s,1,160,lucky)
         assertEquals(TapPhase.FIGHT,s.tapRun.phase)
         assertNotNull(s.tapRun.enemy)
         assertEquals(2,s.tapRun.distance)
