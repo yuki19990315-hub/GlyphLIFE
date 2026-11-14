@@ -10,6 +10,7 @@ import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.layout.ContentScale
 import dev.glyphlife.monsterquest.data.MonsterArtworkStore
 import dev.glyphlife.monsterquest.model.WildMonster
+import dev.glyphlife.monsterquest.pixel.GbaMonsterArtStandard
 import dev.glyphlife.monsterquest.pixel.MonsterDesign
 import dev.glyphlife.monsterquest.pixel.PixelAssetPipeline
 
@@ -24,7 +25,9 @@ fun MonsterStaticSprite(
 ) {
     val sprite = remember(monster, store, revision) {
         val master = store?.spriteFor(monster) ?: MonsterDesign.sprite(monster)
-        PixelAssetPipeline.toBitmap(master).asImageBitmap()
+        PixelAssetPipeline.toBitmap(
+            GbaMonsterArtStandard.fitWithMargin(master,9)
+        ).asImageBitmap()
     }
     Image(
         bitmap = sprite,
