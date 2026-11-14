@@ -83,11 +83,11 @@ object SkillRules {
             .filterValues{it>0}
     }
 
-    private data class Effect(
+    data class Effect(
         val damage:Int=0,val healing:Int=0,
         val shield:Int=0,val poison:Int=0,val delay:Int=0
     )
-    private fun effect(
+    fun effect(
         skill:UniqueSkill,monster:WildMonster,bossStats:RelicStats
     ):Effect {
         val lv=monster.level.coerceIn(1,50)
