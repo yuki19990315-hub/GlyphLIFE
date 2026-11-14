@@ -71,8 +71,6 @@ data class QuestState(
     val companion: Companion = Companion(),
     /** Tower and arena are separate from the main exploration session. */
     val challenge: ChallengeState = ChallengeState(),
-    /** Separate, backwards-compatible side-scrolling exploration progress. */
-    val side:SideRun=SideRun(),
     /** Collectible boss equipment and its unique one-owner assignments. */
     val bossRelics:List<BossRelic> = emptyList(),
     val relicEquipment:Map<String,String> = emptyMap(),
