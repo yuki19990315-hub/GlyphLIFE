@@ -185,9 +185,12 @@ object JourneyRules {
             capture(marked,rng)
         } else clocked
         val journey=pre.journey
-        val travelMs=(journey.travelMs+dt).coerceAtMost(2_000_000_000)
         val phase=pre.tapRun.phase
         val dir=direction.coerceIn(-1,1)
+        // Standing in a cleared corridor should not redraw/rewrite the full
+        // 100-monster roster ten times a second. Paused game time is free.
+        if(dir==0 && phase==TapPhase.WALK && pre==state)return state
+        val travelMs=(journey.travelMs+dt).coerceAtMost(2_000_000_000)
         if(dir==0 || phase==TapPhase.BRANCH ||
             (dir<0 && phase==TapPhase.BOSS)) {
             return pre.copy(journey=journey.copy(repeatMs=0,travelMs=travelMs))
