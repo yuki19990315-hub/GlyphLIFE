@@ -35,6 +35,7 @@ import dev.glyphlife.monsterquest.ui.CaptureLab
 import dev.glyphlife.monsterquest.ui.QuestTab
 import dev.glyphlife.monsterquest.ui.QuestBottomNavigation
 import dev.glyphlife.monsterquest.ui.QuestHome
+import dev.glyphlife.monsterquest.ui.JourneyExploreScreen
 import dev.glyphlife.monsterquest.ui.TapExplorationScreen
 import dev.glyphlife.monsterquest.ui.QuestSummon
 import dev.glyphlife.monsterquest.ui.QuestFuture
@@ -86,6 +87,8 @@ class MonsterQuestActivity : ComponentActivity() {
                 })
             }
             var selectedTab by remember { mutableStateOf(QuestTab.HOME) }
+            var journeyHeld by remember { mutableIntStateOf(0) }
+            LaunchedEffect(selectedTab) { journeyHeld=0 }
             var aiArtEnabled by remember { mutableStateOf(false) }
             var status by remember { mutableStateOf("オフラインで遊べます") }
             var aiKey by remember { mutableStateOf("") }
@@ -435,7 +438,7 @@ class MonsterQuestActivity : ComponentActivity() {
             // Battle time advances independently from taps. Pausing Explore
             // pauses the clock; one 100-ms tick can trigger at most one strike.
             LaunchedEffect(selectedTab,state.tapRun.phase,state.tapRun.enemy?.id) {
-                if(selectedTab==QuestTab.EXPLORE &&
+                if(selectedTab==QuestTab.EXPLORE && state.journey.classic &&
                     state.tapRun.phase in listOf(TapPhase.FIGHT,TapPhase.BOSS)) {
                     while(true) {
                         kotlinx.coroutines.delay(100L)
@@ -448,6 +451,37 @@ class MonsterQuestActivity : ComponentActivity() {
                             if(next.playerHp!=before.playerHp ||
                                 next.tapRun.phase!=before.tapRun.phase)
                                 storage.save(state)
+                        }
+                    }
+                }
+            }
+
+            // One single 100ms loop owns both arcade movement and enemy
+            // retaliation; never run a second legacy combat timer alongside it.
+            LaunchedEffect(selectedTab,state.journey.classic) {
+                if(selectedTab==QuestTab.EXPLORE && !state.journey.classic) {
+                    var checkpoint=0
+                    while(true) {
+                        kotlinx.coroutines.delay(100L)
+                        val before=state
+                        val next=JourneyRules.tick(before,journeyHeld,100)
+                        if(next!=before) {
+                            val saved=next.copy(inBattle=
+                                next.tapRun.phase in listOf(TapPhase.FIGHT,TapPhase.BOSS) ||
+                                    ChallengeRules.active(next))
+                            state=saved
+                            checkpoint+=100
+                            if(checkpoint>=900 ||
+                                next.playerHp!=before.playerHp ||
+                                next.tapRun.phase!=before.tapRun.phase ||
+                                next.tapRun.floor!=before.tapRun.floor ||
+                                next.captureOrbs!=before.captureOrbs ||
+                                next.summonStones!=before.summonStones ||
+                                next.captures.size!=before.captures.size ||
+                                next.defeated!=before.defeated) {
+                                storage.save(saved)
+                                checkpoint=0
+                            }
                         }
                     }
                 }
@@ -499,7 +533,7 @@ class MonsterQuestActivity : ComponentActivity() {
                 Scaffold(
                     topBar={
                         Surface(tonalElevation=2.dp,color=Color(0xFF121B30)) {
-                            Text("MONSTER QUEST / v4.7.0",Modifier.padding(14.dp),
+                            Text("MONSTER QUEST / v4.8.0",Modifier.padding(14.dp),
                                 style=MaterialTheme.typography.titleMedium,
                                 color=Color(0xFFFFD990))
                         }
@@ -590,33 +624,81 @@ class MonsterQuestActivity : ComponentActivity() {
                                     }
                                 )
                             }
-                            QuestTab.EXPLORE -> TapExplorationScreen(
-                                state=state,store=artworkStore,revision=artworkRevision,
-                                onTap={
-                                    if(!aiBusy && !ChallengeRules.active(state))
-                                        update(TapAdventure.tap(state))
-                                },
-                                onUseSkill={ owner,bonus ->
-                                    if(!ChallengeRules.active(state))
-                                        update(TapAdventure.useSkill(state,owner,bonus=bonus))
-                                },
-                                onDodge={ side ->
-                                    if(!ChallengeRules.active(state))
+                            QuestTab.EXPLORE -> if(!state.journey.classic) {
+                                JourneyExploreScreen(
+                                    state=state,store=artworkStore,
+                                    revision=artworkRevision,
+                                    heldDirection=journeyHeld,
+                                    onDirection={journeyHeld=it},
+                                    onPress={ direction ->
+                                        if(!ChallengeRules.active(state)) {
+                                            val next=if(direction>0)
+                                                JourneyRules.pressRight(state)
+                                            else JourneyRules.pressLeft(state)
+                                            if(next!=state)update(next)
+                                        }
+                                    },
+                                    onCapture={
+                                        update(JourneyRules.capture(state))
+                                    },
+                                    onHeal={update(JourneyRules.heal(state))},
+                                    onSkill={owner,bonus->
+                                        update(JourneyRules.useSkill(state,owner,bonus))
+                                    },
+                                    onDodge={side->
                                         update(TapAdventure.dodge(state,side))
-                                },
-                                onCapture={
-                                    if(!ChallengeRules.active(state))
-                                        update(TapAdventure.capture(state))
-                                },
-                                onHeal={
-                                    if(!ChallengeRules.active(state))
-                                        update(TapAdventure.heal(state))
-                                },
-                                onBranch={ route ->
-                                    if(!ChallengeRules.active(state))
-                                        update(TapAdventure.branch(state,route))
+                                    },
+                                    onBranch={route->
+                                        update(JourneyRules.chooseBranch(state,route))
+                                    },
+                                    onAutoCapture={
+                                        update(JourneyRules.toggleAutoCapture(state))
+                                    },
+                                    onClassic={
+                                        journeyHeld=0
+                                        update(state.copy(journey=
+                                            state.journey.copy(classic=true,repeatMs=0)))
+                                    }
+                                )
+                            } else Column(Modifier.fillMaxSize()) {
+                                TextButton(onClick={
+                                    journeyHeld=0
+                                    update(state.copy(journey=
+                                        state.journey.copy(classic=false,repeatMs=0)))
+                                },modifier=Modifier.fillMaxWidth()) {
+                                    Text("◀ 連続探索に戻る")
                                 }
-                            )
+                                Box(Modifier.weight(1f)) {
+                                    TapExplorationScreen(
+                                        state=state,store=artworkStore,
+                                        revision=artworkRevision,
+                                        onTap={
+                                            if(!aiBusy && !ChallengeRules.active(state))
+                                                update(TapAdventure.tap(state))
+                                        },
+                                        onUseSkill={owner,bonus->
+                                            if(!ChallengeRules.active(state))
+                                                update(TapAdventure.useSkill(state,owner,bonus=bonus))
+                                        },
+                                        onDodge={side->
+                                            if(!ChallengeRules.active(state))
+                                                update(TapAdventure.dodge(state,side))
+                                        },
+                                        onCapture={
+                                            if(!ChallengeRules.active(state))
+                                                update(TapAdventure.capture(state))
+                                        },
+                                        onHeal={
+                                            if(!ChallengeRules.active(state))
+                                                update(TapAdventure.heal(state))
+                                        },
+                                        onBranch={route->
+                                            if(!ChallengeRules.active(state))
+                                                update(TapAdventure.branch(state,route))
+                                        }
+                                    )
+                                }
+                            }
                             QuestTab.SUMMON -> QuestSummon(
                                 state=state,aiKey=aiKey,
                                 aiDescription=aiDescription,aiBusy=aiBusy,
