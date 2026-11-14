@@ -70,7 +70,6 @@ object JourneyRules {
                         else now.tapRun.message),
                 journey=prev.copy(
                     chain=chain,bestChain=maxOf(prev.bestChain,chain),
-                    totalEncounters=prev.totalEncounters+1,
                     repeatMs=0,bonusText=rewardText)
             )
         }
@@ -92,8 +91,8 @@ object JourneyRules {
         if(ChallengeRules.active(state) || state.tapRun.phase==TapPhase.BRANCH)
             return state
         val result=TapAdventure.tap(state,rng)
-        return record(state,result).copy(
-            journey=record(state,result).journey.copy(repeatMs=0))
+        val progressed=record(state,result)
+        return progressed.copy(journey=progressed.journey.copy(repeatMs=0))
     }
 
     fun pressLeft(state:QuestState):QuestState {
@@ -158,7 +157,8 @@ object JourneyRules {
      */
     fun tick(state:QuestState,direction:Int,elapsedMs:Int,
              rng:Random=Random.Default):QuestState {
-        if(elapsedMs<=0 || ChallengeRules.active(state))return state
+        if(elapsedMs<=0 || state.journey.classic ||
+            ChallengeRules.active(state))return state
         val dt=elapsedMs.coerceIn(1,160)
         val attacked=TapAdventure.tick(state,dt,rng)
         val pre=record(state,attacked)
