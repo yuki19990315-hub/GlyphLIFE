@@ -39,7 +39,7 @@ private val RunText=Color(0xFFEAF4FF)
  * collision, so a player can focus on their captured monsters and strategy.
  */
 @Composable
-private fun JourneyBackdrop(floor:Int,distance:Int,modifier:Modifier=Modifier) {
+private fun JourneyBackdrop(floor:Int,position:Float,modifier:Modifier=Modifier) {
     val biome=((floor-1).coerceAtLeast(0)/5)%5
     Canvas(modifier) {
         val sky=listOf(Color(0xFF102C40),Color(0xFF1B263E),
@@ -68,7 +68,7 @@ private fun JourneyBackdrop(floor:Int,distance:Int,modifier:Modifier=Modifier) {
             val y=((i*7+3)%22).toFloat()
             block(x,y,1f,1f,Color(0xFFE0F5FF).copy(alpha=.30f))
         }
-        val slow=((distance*2)%78)
+        val slow=(position*2f)%78f
         for(i in -1..6) {
             val x=i*18f-slow*.35f
             block(x,27f,8f,23f,back)
@@ -76,7 +76,7 @@ private fun JourneyBackdrop(floor:Int,distance:Int,modifier:Modifier=Modifier) {
             block(x+8f,29f,8f,21f,back)
             block(x+5f,19f,2f,6f,sky)
         }
-        val shift=((distance*5)%82)
+        val shift=(position*5f)%82f
         for(i in -1..6) {
             val x=i*16f-shift*.65f
             if(biome%2==0) {
@@ -101,7 +101,7 @@ private fun JourneyBackdrop(floor:Int,distance:Int,modifier:Modifier=Modifier) {
         drawRect(Color(0xFFE1B96D).copy(alpha=.35f),
             topLeft=Offset(0f,floorY),
             size=Size(size.width,u*.48f))
-        val pathShift=(distance*7)%10
+        val pathShift=(position*7f)%10f
         for(i in -1..9) {
             block(i*10f-pathShift,58f,8f,1.5f,
                 Color(0xFF314D57).copy(alpha=.75f))
@@ -257,7 +257,17 @@ fun JourneyExploreScreen(
             .clip(RoundedCornerShape(11.dp))
             .border(2.dp,Color(0xFF728BA6),RoundedCornerShape(11.dp))
         ) {
-            JourneyBackdrop(run.floor,run.distance,Modifier.fillMaxSize())
+            val fraction=when {
+                run.phase!=TapPhase.WALK -> 0f
+                heldDirection>0 ->
+                    journey.repeatMs.toFloat()/JourneyRules.WALK_INTERVAL_MS
+                heldDirection<0 ->
+                    -journey.repeatMs.toFloat()/JourneyRules.BACK_INTERVAL_MS
+                else -> 0f
+            }
+            val scenePosition=(run.floor-1)*TapAdventure.STEPS_PER_FLOOR+
+                run.steps+fraction
+            JourneyBackdrop(run.floor,scenePosition,Modifier.fillMaxSize())
 
             // Monster sprites are independently full-body fitted to 64px and
             // further letterboxed inside the field. Never crop big boss wings.
@@ -269,7 +279,8 @@ fun JourneyExploreScreen(
                     .align(Alignment.BottomStart)
                     .padding(start=7.dp,bottom=34.dp)
                     .offset(y=if(heldDirection!=0 && !battling)
-                        (-4).dp else 0.dp),
+                        (if((journey.travelMs/140)%2==0)-3 else 0).dp
+                        else 0.dp),
                 bossRelicKind=RelicRules.visualKind(
                     state,state.companion.id))
             if(enemy!=null) {
