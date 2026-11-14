@@ -61,14 +61,20 @@ object TapAdventure {
         if(run.floor%BOSS_INTERVAL==0 && step>=STEPS_PER_FLOOR)
             return encounter(progress,bosses[rng.nextInt(bosses.size)],true,rng)
         if(step>=2 && rng.nextInt(100)<27) {
-            val aiKnown=state.catalog.filter { it.lineage=="ai-summoned" }
-            val picked=if(aiKnown.isNotEmpty() && rng.nextInt(100)<22)
+            val hunted=HuntRules.draw(progress,rng)
+            val aiKnown=if(hunted==null)
+                state.catalog.filter { it.lineage=="ai-summoned" } else emptyList()
+            val picked=if(hunted==null && aiKnown.isNotEmpty() && rng.nextInt(100)<22)
                 aiKnown[rng.nextInt(aiKnown.size)] else null
-            val candidate=if(picked!=null)
-                Triple(picked.species,picked.element,MonsterDesign.bodyType(picked))
+            val target=hunted ?: picked
+            val candidate=if(target!=null)
+                Triple(target.species,target.element,MonsterDesign.bodyType(target))
                 else mobs[rng.nextInt(mobs.size)]
-            return encounter(progress,candidate,false,rng,
-                artSourceId=picked?.artSourceId?.ifBlank { picked.id }.orEmpty())
+            val artId=target?.let {
+                if(it.artSourceId.isNotBlank())it.artSourceId
+                else if(it.lineage=="ai-summoned")it.id else ""
+            }.orEmpty()
+            return encounter(progress,candidate,false,rng,artSourceId=artId)
         }
         if(step>=STEPS_PER_FLOOR)return finishFloor(progress,rng)
         return progress.copy(tapRun=progress.tapRun.copy(
