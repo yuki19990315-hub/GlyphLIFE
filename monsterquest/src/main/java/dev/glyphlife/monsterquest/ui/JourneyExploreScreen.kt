@@ -188,7 +188,7 @@ fun JourneyExploreScreen(
     onCapture:()->Unit,onHeal:()->Unit,
     onSkill:(String,Boolean)->Unit,onDodge:(Int)->Unit,
     onBranch:(Int)->Unit,onAutoCapture:()->Unit,
-    onClassic:()->Unit
+    onBuySupply:(String)->Unit,onClassic:()->Unit
 ) {
     val run=state.tapRun
     val journey=state.journey
@@ -409,6 +409,33 @@ fun JourneyExploreScreen(
         if(target!=null) {
             Text("◎ 追跡： "+target.species+"（通常遭遇の45%）",
                 color=RunCyan,style=MaterialTheme.typography.labelSmall)
+        }
+        if(run.phase==TapPhase.WALK && run.steps<=1 &&
+            run.floor%4==0) {
+            Surface(color=Color(0xFF26384D),shape=RoundedCornerShape(8.dp)) {
+                Column(Modifier.fillMaxWidth().padding(10.dp),
+                    verticalArrangement=Arrangement.spacedBy(5.dp)) {
+                    Text("◇ 旅商人の小屋  /  "+run.floor+"F",
+                        color=RunGold,fontWeight=FontWeight.Bold,
+                        style=MaterialTheme.typography.titleSmall)
+                    Text("遠征中の補給。所持金を使ってアイテムを購入！",
+                        color=RunCyan,style=MaterialTheme.typography.labelSmall)
+                    Row(horizontalArrangement=Arrangement.spacedBy(8.dp)) {
+                        OutlinedButton(
+                            onClick={onBuySupply("potion")},
+                            enabled=state.tapRun.gold>=35&&state.potions<99,
+                            modifier=Modifier.weight(1f)
+                        ) {Text("回復薬 35G",
+                            style=MaterialTheme.typography.labelSmall)}
+                        OutlinedButton(
+                            onClick={onBuySupply("orb")},
+                            enabled=state.tapRun.gold>=45&&state.captureOrbs<99,
+                            modifier=Modifier.weight(1f)
+                        ) {Text("捕獲玉 45G",
+                            style=MaterialTheme.typography.labelSmall)}
+                    }
+                }
+            }
         }
         if(ChallengeRules.active(state)) {
             Text("挑戦中のため探索は一時停止しています。",
