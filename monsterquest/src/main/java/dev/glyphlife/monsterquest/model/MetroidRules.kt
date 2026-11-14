@@ -147,6 +147,16 @@ object MetroidRules {
     fun interact(state:QuestState):QuestState {
         val r=state.side
         if(r.legacy || ChallengeRules.active(state))return state
+        if(r.room==0 && r.x<=3.2f) {
+            // An intentional rest action repopulates ordinary encounters,
+            // enabling repeated captures without defeating the final boss.
+            val cleared=r.cleared.filter{it==5}.toSet()
+            return state.copy(
+                playerHp=(state.playerHp+20).coerceAtMost(TalentRules.maxHp(state)),
+                side=r.copy(cleared=cleared,enemyHp=maxEnemyHp(0),
+                    message="休息石でHP+20。通常エリアの敵が再出現！ "+
+                        "捕獲と潜在能力厳選を続けよう"))
+        }
         if(r.room==2 && abs(r.x-19f)<2f && "double" !in r.acquired) {
             return state.copy(side=r.copy(acquired=r.acquired+"double",
                 message="【空蝉の翼】獲得！ 空中でもう一度ジャンプ可能"))
