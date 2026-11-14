@@ -81,6 +81,7 @@ class QuestStorage(context: Context) {
                         runCatching { wildFromJson(known.getJSONObject(index)) }.getOrNull()
                     }.takeLast(150)
                 } ?: emptyList(),
+                huntTargetId = obj.optString("huntTargetId","").take(120),
                 partyIds = obj.optJSONArray("partyIds")?.let { party ->
                     (0 until party.length()).map { party.getString(it) }.distinct().take(3)
                 }?.filter { id -> captures.any { it.id == id } } ?: emptyList(),
@@ -126,6 +127,7 @@ class QuestStorage(context: Context) {
             .put("tapRun", writeTapRun(s.tapRun))
             .put("summonStones", s.summonStones)
             .put("captureOrbs", s.captureOrbs)
+            .put("huntTargetId",s.huntTargetId)
             .put("catalog", JSONArray().apply {
                 s.catalog.takeLast(150).forEach { put(wildToJson(it)) }
             })
