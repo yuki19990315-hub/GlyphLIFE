@@ -11,8 +11,13 @@ import kotlin.random.Random
 object HuntRules {
     const val TARGET_RATE_PERCENT=45
 
+    // Older catalog saves discarded the boss flag. Exclude the three
+    // actual dungeon boss species by name as well as the flag, so legacy
+    // records cannot be exploited to target a boss as an ordinary catch.
+    private val bossSpecies=setOf("月蝕の竜","古代の歯車王","星光の守護者")
     fun targets(state:QuestState):List<WildMonster> =
-        state.catalog.filter{!it.isBoss && it.species.isNotBlank()}
+        state.catalog.filter{!it.isBoss && it.species.isNotBlank() &&
+            it.species !in bossSpecies}
             .distinctBy{it.species to it.element}
 
     fun selected(state:QuestState):WildMonster? =
