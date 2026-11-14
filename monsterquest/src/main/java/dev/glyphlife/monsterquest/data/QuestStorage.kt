@@ -69,6 +69,11 @@ class QuestStorage(context: Context) {
                 roomCleared = obj.optBoolean("roomCleared", false),
                 completed = obj.optBoolean("completed", false),
                 captures = captures.take(100),
+                favoriteMonsterIds = obj.optJSONArray("favoriteMonsterIds")?.let{ a ->
+                    (0 until minOf(a.length(),100)).mapNotNull{i->
+                        a.optString(i).takeIf{id->captures.any{it.id==id}}
+                    }.toSet()
+                } ?: emptySet(),
                 defeated = obj.optInt("defeated", 0).coerceIn(0, 999999),
                 earnedXp = obj.optInt("earnedXp", 0).coerceIn(0, 100),
                 earnedHappiness = obj.optInt("earnedHappiness", 0).coerceIn(0, 20),
@@ -137,6 +142,9 @@ class QuestStorage(context: Context) {
             .put("partyIds", JSONArray().apply { s.partyIds.take(3).forEach { put(it) } })
             .put("message", s.message)
             .put("captures", JSONArray().apply { s.captures.takeLast(100).forEach { put(wildToJson(it)) } })
+            .put("favoriteMonsterIds",JSONArray().apply {
+                s.favoriteMonsterIds.sorted().take(100).forEach{put(it)}
+            })
         // apply() makes the new state available immediately and writes it
         // asynchronously; synchronous commit on EVERY rapid combat tap caused
         // frame stalls and missed input on slower Android flash storage.
