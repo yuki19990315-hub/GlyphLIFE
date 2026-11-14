@@ -19,7 +19,6 @@ import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.input.pointer.pointerInput
-import androidx.compose.ui.input.pointer.consume
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.Dp
@@ -301,7 +300,7 @@ fun JourneyExploreScreen(
             if(battling) {
                 Column(
                     Modifier.align(Alignment.TopCenter)
-                        .padding(top=7.dp,horizontal=6.dp)
+                        .padding(start=6.dp,end=6.dp,top=7.dp)
                         .background(Color(0xD70C1930),
                             RoundedCornerShape(6.dp))
                         .padding(horizontal=9.dp,vertical=5.dp),
