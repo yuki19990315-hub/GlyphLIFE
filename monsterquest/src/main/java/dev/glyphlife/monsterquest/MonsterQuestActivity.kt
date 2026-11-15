@@ -661,6 +661,9 @@ class MonsterQuestActivity : ComponentActivity() {
                                     onBurst={
                                         update(JourneyRules.burst(state))
                                     },
+                                    onJump={
+                                        update(JourneyRules.jump(state))
+                                    },
                                     onAutoCapture={
                                         update(JourneyRules.toggleAutoCapture(state))
                                     },

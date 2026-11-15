@@ -34,47 +34,36 @@ private val RunInk=Color(0xFF0A1525)
 private val RunPanel=Color(0xFF172641)
 private val RunText=Color(0xFFEAF4FF)
 
-/** Five position markers and live, falling pixel projectiles. A warning
- * square is visible from launch until impact, so every hit can be avoided by
- * moving forward or backward instead of choosing an abstract dodge button. */
+/** Continuous horizontal telegraphs, plus a clearly distinct overhead shot.
+ * Ground projectiles can be jumped; blue high shots must be ducked or outrun. */
 @Composable
 private fun BossBarrageLayer(run:TapRun,modifier:Modifier=Modifier) {
     Canvas(modifier) {
         val pixel=minOf(size.width,size.height)/64f
         val floorY=size.height*.78f
-        for(lane in 0 until BossBarrageRules.LANE_COUNT) {
-            val x=size.width*BossBarrageRules.laneX(lane)
-            val targeted=run.bossBullets.any {it.lane==lane}
-            val active=lane==run.bossArenaLane
-            val shade=when {
-                targeted -> Color(0xFFE86A76)
-                active -> Color(0xFFB2F2D3)
-                else -> Color(0xFF7494A7)
-            }
-            drawRect(shade.copy(alpha=if(targeted).58f else .30f),
-                topLeft=Offset(x-11*pixel,floorY),
-                size=Size(22*pixel,2.2f*pixel))
-            if(active)drawRect(Color(0xFFEAF4FF),
-                topLeft=Offset(x-4*pixel,floorY+2.5f*pixel),
-                size=Size(8*pixel,1.3f*pixel))
-            if(targeted) {
-                drawRect(shade.copy(alpha=.5f),
-                    topLeft=Offset(x-9*pixel,floorY-7*pixel),
-                    size=Size(18*pixel,7*pixel))
-                drawRect(shade,topLeft=Offset(x-7*pixel,floorY-2*pixel),
-                    size=Size(14*pixel,2*pixel))
-            }
+        val heroX=size.width*BossBarrageRules.screenX(run.bossPosition)
+        drawRect(Color(0xFF9ADDBB).copy(alpha=.7f),
+            topLeft=Offset(heroX-6*pixel,floorY+2*pixel),
+            size=Size(12*pixel,1.7f*pixel))
+        for(shot in run.bossBullets) {
+            val x=size.width*BossBarrageRules.screenX(shot.targetX)
+            val warning=if(shot.airborne)Color(0xFF77DAF3)
+                else Color(0xFFFF7484)
+            val targetY=if(shot.airborne)size.height*.56f else floorY
+            drawRect(warning.copy(alpha=.30f),
+                topLeft=Offset(x-9*pixel,targetY-6*pixel),
+                size=Size(18*pixel,7*pixel))
+            drawRect(warning,topLeft=Offset(x-7*pixel,targetY),
+                size=Size(14*pixel,2*pixel))
         }
         run.bossBullets.forEach { shot ->
             val p=(shot.ageMs.toFloat()/shot.flightMs).coerceIn(0f,1f)
-            val landingX=size.width*BossBarrageRules.laneX(shot.lane)
+            val landingX=size.width*BossBarrageRules.screenX(shot.targetX)
             val x=size.width*.85f+(landingX-size.width*.85f)*p
-            val y=size.height*(.20f+.57f*p)
-            val color=when(shot.style) {
-                1 -> Color(0xFF88DFF0)
-                2 -> Color(0xFFFF98E5)
-                else -> Color(0xFFFFB16A)
-            }
+            val y=size.height*(.20f+(if(shot.airborne).34f else .57f)*p)
+            val color=if(shot.airborne)Color(0xFF88DFF0)
+                else if(shot.style==2)Color(0xFFFF98E5)
+                else Color(0xFFFFB16A)
             val block=pixel*(if(shot.style==2)3.3f else 2.8f)
             drawRect(color.copy(alpha=.30f),
                 topLeft=Offset(x-block*1.7f,y-block*1.7f),
@@ -189,7 +178,7 @@ private fun JourneyHoldButton(
     symbol:String,title:String,hint:String,dir:Int,
     held:Int,enabled:Boolean,onDirection:(Int)->Unit,
     onPress:(Int)->Unit,modifier:Modifier=Modifier,
-    buttonHeight:Dp=85.dp
+    buttonHeight:Dp=85.dp,stacked:Boolean=false
 ) {
     val latestDirection=rememberUpdatedState(onDirection)
     val latestPress=rememberUpdatedState(onPress)
@@ -219,7 +208,14 @@ private fun JourneyHoldButton(
                 }
             }
         },contentAlignment=Alignment.Center) {
-        Row(verticalAlignment=Alignment.CenterVertically,
+        if(stacked) {
+            Column(horizontalAlignment=Alignment.CenterHorizontally) {
+                Text(symbol,color=RunText,fontSize=25.sp,
+                    fontWeight=FontWeight.Black)
+                Text(title,color=RunText,fontWeight=FontWeight.Bold,
+                    style=MaterialTheme.typography.labelSmall,maxLines=1)
+            }
+        }else Row(verticalAlignment=Alignment.CenterVertically,
             horizontalArrangement=Arrangement.spacedBy(10.dp)) {
             Text(symbol,color=RunText,fontSize=30.sp,
                 fontWeight=FontWeight.Black)
@@ -243,6 +239,7 @@ fun JourneyExploreScreen(
     onCapture:()->Unit,onHeal:()->Unit,
     onSkill:(String,Boolean)->Unit,
     onBranch:(Int)->Unit,onShrine:(Int)->Unit,onBurst:()->Unit,
+    onJump:()->Unit,
     onAutoCapture:()->Unit,
     onBuySupply:(String)->Unit,onClassic:()->Unit
 ) {
@@ -337,7 +334,7 @@ fun JourneyExploreScreen(
             val bossSize=minOf(maxWidth*.31f,if(tiny)111.dp else 158.dp)
             val spriteBottom=stageHeight*.16f
             val heroCenter=if(boss)
-                maxWidth*BossBarrageRules.laneX(run.bossArenaLane)
+                maxWidth*BossBarrageRules.screenX(run.bossPosition)
                 else maxWidth*.20f
             val heroLeft=(heroCenter-spriteSize/2).coerceAtLeast(0.dp)
             MonsterArtworkView(
@@ -346,8 +343,10 @@ fun JourneyExploreScreen(
                     .align(Alignment.BottomStart)
                     .offset(x=heroLeft)
                     .padding(bottom=spriteBottom)
-                    .offset(y=if(heldDirection!=0 && !battling)
-                        (if((journey.travelMs/140)%2==0)-3 else 0).dp
+                    .offset(y=if(boss)
+                        -(stageHeight*.32f)*BossBarrageRules.jumpHeight(run)
+                        else if(heldDirection!=0 && !battling)
+                            (if((journey.travelMs/140)%2==0)-3 else 0).dp
                         else 0.dp),
                 bossRelicKind=RelicRules.visualKind(
                     state,state.companion.id))
@@ -523,11 +522,10 @@ fun JourneyExploreScreen(
 
         if(boss) {
             Surface(color=Color(0xFF26334F),shape=RoundedCornerShape(8.dp)) {
-                Text("↔ 前後移動で着弾地点を回避。位置 "+
-                    "${run.bossArenaLane+1}/5  ·  "+
-                    (if(run.bossArenaLane==BossBarrageRules.ATTACK_LANE)
-                        "攻撃可能" else "敵に近づくと攻撃できる")+
-                    "  ·  回避成功 ${run.bossVolleysDodged}回",
+                Text("↔ 前後に自由移動 ＋ ▲ジャンプ。"+
+                    (if(run.bossPosition>=BossBarrageRules.ATTACK_X)
+                        "射程内！攻撃可能" else "接近すると攻撃可能")+
+                    " ·  回避成功 ${run.bossVolleysDodged}回",
                     Modifier.fillMaxWidth().padding(9.dp),
                     color=RunCyan,style=MaterialTheme.typography.labelSmall)
             }
@@ -600,17 +598,32 @@ fun JourneyExploreScreen(
                 horizontalArrangement=Arrangement.spacedBy(9.dp)) {
                 JourneyHoldButton("◀",
                     if(run.phase==TapPhase.FIGHT)"にげる" else
-                        if(boss)"後退・回避" else "もどる",
+                        if(boss)"後退" else "もどる",
                     if(run.phase==TapPhase.FIGHT)"2歩後退" else
-                        if(boss)"弾から離れる" else "左に移動",
+                        if(boss)"後ろへ走る" else "左に移動",
                     -1,heldDirection,!ChallengeRules.active(state),
-                    onDirection,onPress,Modifier.weight(1f),controlHeight)
+                    onDirection,onPress,Modifier.weight(1f),controlHeight,boss)
+                if(boss) {
+                    Button(onClick=onJump,
+                        enabled=run.bossJumpMs==0 && run.bossJumpCooldownMs==0 &&
+                            !ChallengeRules.active(state),
+                        modifier=Modifier.weight(1f).height(controlHeight),
+                        contentPadding=PaddingValues(horizontal=3.dp,vertical=4.dp),
+                        colors=ButtonDefaults.buttonColors(
+                            containerColor=Color(0xFF536FAA))) {
+                        Column(horizontalAlignment=Alignment.CenterHorizontally) {
+                            Text("▲",fontSize=24.sp,fontWeight=FontWeight.Black)
+                            Text("ジャンプ",style=MaterialTheme.typography.labelSmall,
+                                maxLines=1)
+                        }
+                    }
+                }
                 JourneyHoldButton("▶",
-                    if(boss)"前進・攻撃" else if(battling)"こうげき" else "すすむ",
+                    if(boss)"前進/攻撃" else if(battling)"こうげき" else "すすむ",
                     if(boss)"最前列で連撃" else
                         if(battling)"長押しで連撃" else "長押しで冒険",
                     1,heldDirection,!ChallengeRules.active(state),
-                    onDirection,onPress,Modifier.weight(1.34f),controlHeight)
+                    onDirection,onPress,Modifier.weight(1.22f),controlHeight,boss)
             }
 
             Row(Modifier.fillMaxWidth(),

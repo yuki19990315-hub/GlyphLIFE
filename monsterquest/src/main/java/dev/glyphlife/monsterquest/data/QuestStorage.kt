@@ -289,15 +289,18 @@ class QuestStorage(context: Context) {
         .put("guardHits",r.guardHits).put("venomCharges",r.venomCharges)
         .put("bossTarget",r.bossTarget).put("lane",r.lane)
         .put("weakpointTaps",r.weakpointTaps)
-        .put("bossArenaLane",r.bossArenaLane)
+        .put("bossPosition",r.bossPosition)
+        .put("bossJumpMs",r.bossJumpMs)
+        .put("bossJumpCooldownMs",r.bossJumpCooldownMs)
         .put("bossWaveCooldownMs",r.bossWaveCooldownMs)
         .put("bossWaveIndex",r.bossWaveIndex)
         .put("bossWaveTouched",r.bossWaveTouched)
         .put("bossVolleysDodged",r.bossVolleysDodged)
         .put("bossBullets",JSONArray().apply {
             r.bossBullets.take(4).forEach { b ->
-                put(JSONObject().put("lane",b.lane).put("ageMs",b.ageMs)
-                    .put("flightMs",b.flightMs).put("style",b.style))
+                put(JSONObject().put("targetX",b.targetX).put("ageMs",b.ageMs)
+                    .put("flightMs",b.flightMs).put("style",b.style)
+                    .put("airborne",b.airborne))
             }
         })
         .put("bestFloor",r.bestFloor).put("deaths",r.deaths)
@@ -322,8 +325,13 @@ class QuestStorage(context: Context) {
             bossTarget=if(o.optInt("bossTarget",-1)==1)1 else -1,
             lane=o.optInt("lane",0).coerceIn(-1,1),
             weakpointTaps=o.optInt("weakpointTaps",0).coerceIn(0,3),
-            bossArenaLane=o.optInt("bossArenaLane",1)
-                .coerceIn(0,BossBarrageRules.ATTACK_LANE),
+            bossPosition=o.optInt("bossPosition",
+                BossBarrageRules.START_X).coerceIn(
+                    BossBarrageRules.MIN_X,BossBarrageRules.MAX_X),
+            bossJumpMs=o.optInt("bossJumpMs",0).coerceIn(
+                0,BossBarrageRules.JUMP_DURATION_MS),
+            bossJumpCooldownMs=o.optInt("bossJumpCooldownMs",0).coerceIn(
+                0,BossBarrageRules.JUMP_COOLDOWN_MS),
             bossWaveCooldownMs=o.optInt("bossWaveCooldownMs",
                 BossBarrageRules.FIRST_WAVE_MS).coerceIn(0,5000),
             bossWaveIndex=o.optInt("bossWaveIndex",0).coerceIn(0,999999),
@@ -332,14 +340,15 @@ class QuestStorage(context: Context) {
             bossBullets=o.optJSONArray("bossBullets")?.let { bullets ->
                 (0 until minOf(bullets.length(),4)).mapNotNull { index ->
                     val b=bullets.optJSONObject(index) ?: return@mapNotNull null
-                    val lane=b.optInt("lane",-1)
+                    val target=b.optInt("targetX",-1)
                     val flight=b.optInt("flightMs",0)
-                    if(lane !in 0 until BossBarrageRules.LANE_COUNT ||
+                    if(target !in BossBarrageRules.MIN_X..BossBarrageRules.MAX_X ||
                         flight !in 400..2500)return@mapNotNull null
-                    BossBarrageBullet(lane=lane,
+                    BossBarrageBullet(targetX=target,
                         ageMs=b.optInt("ageMs",0).coerceIn(-1000,flight),
                         flightMs=flight,
-                        style=b.optInt("style",0).coerceIn(0,2))
+                        style=b.optInt("style",0).coerceIn(0,2),
+                        airborne=b.optBoolean("airborne",false))
                 }
             } ?: emptyList(),
             bestFloor=o.optInt("bestFloor",1).coerceIn(1,TapAdventure.MAX_FLOOR),

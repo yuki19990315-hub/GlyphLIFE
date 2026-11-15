@@ -5,7 +5,6 @@ import org.junit.Test
 import kotlin.random.Random
 
 class BossBarrageRulesTest {
-    private val deterministic=Random(19)
     private fun enemy():WildMonster=WildMonster(id="arena-boss",
         species="月蝕の竜",element="闇",isBoss=true,
         bodyType="DRAGON",maxHp=450,attack=15)
@@ -14,110 +13,127 @@ class BossBarrageRulesTest {
         companion=Companion(id="fighter",level=20,element="光"),
         playerHp=120,potions=2,
         tapRun=TapRun(floor=5,phase=TapPhase.BOSS,
-            enemy=enemy(),enemyHp=450,bossArenaLane=1,
-            bossWaveCooldownMs=0))
+            enemy=enemy(),enemyHp=450,
+            bossPosition=BossBarrageRules.START_X,bossWaveCooldownMs=0))
 
-    @Test fun bossIsOnlyAttackableFromFrontAndRetreatDoesNotFlee() {
-        val start=arena()
-        val close=JourneyRules.pressRight(start,deterministic)
-        assertEquals(2,close.tapRun.bossArenaLane)
-        assertEquals(450,close.tapRun.enemyHp)
-        val front=JourneyRules.pressRight(
-            JourneyRules.pressRight(close,deterministic),deterministic)
-        assertEquals(4,front.tapRun.bossArenaLane)
-        val hit=JourneyRules.pressRight(front,deterministic)
-        assertTrue(hit.tapRun.enemyHp<450)
-        assertEquals(4,hit.tapRun.bossArenaLane)
-        val retreat=JourneyRules.pressLeft(hit)
-        assertEquals(TapPhase.BOSS,retreat.tapRun.phase)
-        assertEquals(3,retreat.tapRun.bossArenaLane)
-        assertEquals(hit.tapRun.enemyHp,retreat.tapRun.enemyHp)
-        var back=retreat
-        repeat(10){back=JourneyRules.pressLeft(back)}
-        assertEquals(0,back.tapRun.bossArenaLane)
-        assertEquals(TapPhase.BOSS,back.tapRun.phase)
-        assertEquals(back,JourneyRules.pressLeft(back))
+    @Test fun freeMovementNeedsNoFiveFixedLanesAndAttackRequiresRange() {
+        var state=arena()
+        assertEquals(28,state.tapRun.bossPosition)
+        state=JourneyRules.pressRight(state,Random(5))
+        assertEquals(34,state.tapRun.bossPosition)
+        assertEquals(450,state.tapRun.enemyHp)
+        repeat(7){state=JourneyRules.pressRight(state,Random(5))}
+        assertEquals(76,state.tapRun.bossPosition)
+        assertEquals(450,state.tapRun.enemyHp)
+        state=JourneyRules.pressRight(state,Random(5))
+        assertTrue(state.tapRun.enemyHp<450)
+        val previous=state.tapRun.enemyHp
+        state=JourneyRules.pressLeft(state)
+        assertEquals(70,state.tapRun.bossPosition)
+        assertEquals(previous,state.tapRun.enemyHp)
+        assertEquals(TapPhase.BOSS,state.tapRun.phase)
+        repeat(30){state=JourneyRules.pressLeft(state)}
+        assertEquals(BossBarrageRules.MIN_X,state.tapRun.bossPosition)
+        assertEquals(state,JourneyRules.pressLeft(state))
     }
 
-    @Test fun everyVolleyLeavesAtLeastOneRealSafePosition() {
-        val launched=BossBarrageRules.tick(arena(),100,Random(3))
-        assertTrue(launched.tapRun.bossBullets.size in 2..3)
-        assertTrue(launched.tapRun.bossBullets.all {
-            it.lane in 0..4 && it.flightMs>=1100
-        })
-        val safe=(0..4).filter { lane ->
-            launched.tapRun.bossBullets.none{it.lane==lane}
-        }
-        assertTrue(safe.isNotEmpty())
-        assertEquals(1,launched.tapRun.bossWaveIndex)
-        assertEquals(0,launched.tapRun.bossWaveCooldownMs)
+    @Test fun holdingDirectionsMovesWhileJumping() {
+        var state=arena().copy(tapRun=arena().tapRun.copy(
+            bossWaveCooldownMs=4500))
+        state=JourneyRules.jump(state)
+        assertEquals(BossBarrageRules.JUMP_DURATION_MS,state.tapRun.bossJumpMs)
+        repeat(4){state=JourneyRules.tick(state,1,100,Random(1))}
+        assertTrue(state.tapRun.bossPosition>BossBarrageRules.START_X)
+        assertTrue(BossBarrageRules.jumpHeight(state.tapRun)>.75f)
+        assertEquals(state,JourneyRules.jump(state))
+        repeat(5){state=JourneyRules.tick(state,0,100,Random(1))}
+        assertEquals(0,state.tapRun.bossJumpMs)
+        assertTrue(state.tapRun.bossJumpCooldownMs>0)
+        assertEquals(state,JourneyRules.jump(state))
+        repeat(3){state=JourneyRules.tick(state,0,100,Random(1))}
+        assertEquals(0,state.tapRun.bossJumpCooldownMs)
+        assertTrue(JourneyRules.jump(state).tapRun.bossJumpMs>0)
     }
 
-    @Test fun landingOutsideThePlayerPositionGrantsOnePerfectDodge() {
-        var state=BossBarrageRules.tick(arena(),100,Random(9))
-        val safe=(0..4).first{ lane->
-            state.tapRun.bossBullets.none {it.lane==lane}
-        }
-        state=state.copy(tapRun=state.tapRun.copy(bossArenaLane=safe))
-        val originalHp=state.playerHp
-        repeat(20){state=JourneyRules.tick(state,0,100,Random(11))}
-        assertEquals(originalHp,state.playerHp)
-        assertTrue(state.tapRun.bossBullets.isEmpty())
+    @Test fun jumpOverGroundShotAvoidsDamageAndRewardsBurst() {
+        var state=arena().copy(tapRun=arena().tapRun.copy(
+            bossWaveCooldownMs=0,
+            bossBullets=listOf(BossBarrageBullet(
+                targetX=BossBarrageRules.START_X,ageMs=800,flightMs=1350))))
+        state=JourneyRules.jump(state)
+        repeat(6){state=JourneyRules.tick(state,0,100,Random(2))}
+        assertEquals(120,state.playerHp)
         assertEquals(1,state.tapRun.bossVolleysDodged)
         assertEquals(3,state.tapRun.weakpointTaps)
         assertEquals(30,state.journey.burstGauge)
-        val idle=JourneyRules.tick(state,0,100,Random(10))
-        assertEquals(30,idle.journey.burstGauge)
-        assertEquals(1,idle.tapRun.bossVolleysDodged)
+        assertTrue(BossBarrageRules.jumpHeight(state.tapRun)>.35f)
     }
 
-    @Test fun directHitOnlyDamagesOncePerVolleyEvenWhenShotsAreStaggered() {
-        val volley=listOf(
-            BossBarrageBullet(2,ageMs=1350,flightMs=1400,style=1),
-            BossBarrageBullet(2,ageMs=1230,flightMs=1400,style=1),
-            BossBarrageBullet(4,ageMs=1100,flightMs=1400,style=1))
+    @Test fun highShotsPassOverGroundButCanCatchMidairJump() {
+        val shot=BossBarrageBullet(targetX=28,ageMs=800,
+            flightMs=1350,airborne=true)
+        var grounded=arena().copy(tapRun=arena().tapRun.copy(
+            bossBullets=listOf(shot)))
+        repeat(6){grounded=JourneyRules.tick(grounded,0,100,Random(1))}
+        assertEquals(120,grounded.playerHp)
+        assertEquals(1,grounded.tapRun.bossVolleysDodged)
+
+        var jumping=JourneyRules.jump(arena().copy(
+            tapRun=arena().tapRun.copy(bossBullets=listOf(shot))))
+        repeat(6){jumping=JourneyRules.tick(jumping,0,100,Random(1))}
+        assertTrue(jumping.playerHp<120)
+        assertEquals(0,jumping.tapRun.bossVolleysDodged)
+    }
+
+    @Test fun movingOutOfLandingAreaAlsoDodgesGroundShot() {
+        val shot=BossBarrageBullet(targetX=28,ageMs=1280,flightMs=1350)
+        val start=arena().copy(tapRun=arena().tapRun.copy(
+            bossBullets=listOf(shot)))
+        val moved=JourneyRules.pressLeft(JourneyRules.pressLeft(start))
+        assertEquals(16,moved.tapRun.bossPosition)
+        val done=JourneyRules.tick(moved,0,100,Random(4))
+        assertEquals(120,done.playerHp)
+        assertEquals(1,done.tapRun.bossVolleysDodged)
+    }
+
+    @Test fun staggeredVolleyCanOnlyHurtOnceAndDoesNotGrantDodgeBonus() {
         var state=arena().copy(tapRun=arena().tapRun.copy(
-            bossArenaLane=2,bossBullets=volley))
-        val initialHp=state.playerHp
+            bossBullets=listOf(
+                BossBarrageBullet(targetX=28,ageMs=1300,flightMs=1350),
+                BossBarrageBullet(targetX=28,ageMs=1190,flightMs=1350),
+                BossBarrageBullet(targetX=55,ageMs=1070,flightMs=1350))))
         state=JourneyRules.tick(state,0,100,Random(5))
-        assertTrue(state.playerHp<initialHp)
-        val afterFirst=state.playerHp
+        assertTrue(state.playerHp<120)
+        val hp=state.playerHp
         repeat(5){state=JourneyRules.tick(state,0,100,Random(5))}
-        assertEquals(afterFirst,state.playerHp)
+        assertEquals(hp,state.playerHp)
         assertEquals(0,state.tapRun.bossVolleysDodged)
         assertEquals(0,state.journey.burstGauge)
     }
 
-    @Test fun enragedBossShootsFourButNeverAllFiveLanes() {
-        val start=arena().copy(tapRun=arena().tapRun.copy(
-            enemyHp=200,bossWaveCooldownMs=0))
-        val launched=BossBarrageRules.tick(start,100,Random(8))
-        assertEquals(4,launched.tapRun.bossBullets.size)
-        assertEquals(4,launched.tapRun.bossBullets.map{it.lane}.distinct().size)
-        assertTrue(launched.tapRun.bossBullets.all{it.flightMs==1100})
-    }
-
-    @Test fun normalBossAlternatesSpreadSweepAndHeavyVolley() {
-        for((index,count) in listOf(2,3,3).withIndex()) {
+    @Test fun barragePatternsHaveDifferentTargetPositionsAndHeights() {
+        for((pattern,count) in listOf(2,3,3).withIndex()) {
             val start=arena().copy(tapRun=arena().tapRun.copy(
-                bossWaveIndex=index,bossWaveCooldownMs=0))
-            val volley=BossBarrageRules.tick(start,100,Random(12))
+                bossWaveIndex=pattern,bossWaveCooldownMs=0))
+            val bullets=BossBarrageRules.tick(start,100,Random(12))
                 .tapRun.bossBullets
-            assertEquals(count,volley.size)
-            if(index==1) {
-                val lanes=volley.map{it.lane}
-                assertEquals(lanes.minOrNull()!!+2,lanes.maxOrNull()!!)
-                assertTrue(volley.any{it.ageMs<0})
-            }
+            assertEquals(count,bullets.size)
+            assertTrue(bullets.all{it.targetX in 8..82})
+            if(pattern==1)assertTrue(bullets.any{it.airborne})
+            if(pattern==2)assertTrue(bullets.any{it.ageMs<0})
         }
+        val enraged=arena().copy(tapRun=arena().tapRun.copy(
+            enemyHp=200,bossWaveIndex=2,bossWaveCooldownMs=0))
+        assertEquals(4,BossBarrageRules.tick(enraged,100,Random(9))
+            .tapRun.bossBullets.size)
     }
 
-    @Test fun lethalProjectileUsesExistingFirstFloorDeathAndKeepsCompanion() {
+    @Test fun dyingToGroundProjectileUsesExistingRetryRules() {
         val near=arena().copy(playerHp=1,
             journey=JourneyState(chain=8,burstGauge=100),
             tapRun=arena().tapRun.copy(
-                bossArenaLane=3,
-                bossBullets=listOf(BossBarrageBullet(3,1390,1400))))
+                bossPosition=28,
+                bossBullets=listOf(BossBarrageBullet(28,1340,1350))))
         val result=JourneyRules.tick(near,0,100,Random(7))
         assertEquals(TapPhase.WALK,result.tapRun.phase)
         assertEquals(1,result.tapRun.floor)
@@ -125,20 +141,5 @@ class BossBarrageRulesTest {
         assertEquals(0,result.journey.burstGauge)
         assertEquals(0,result.journey.chain)
         assertEquals(near.companion,result.companion)
-        assertTrue(result.playerHp>0)
-    }
-
-    @Test fun holdingDirectionMovesThroughPositionsWithoutSkippingAttackRange() {
-        var state=arena()
-        state=JourneyRules.tick(state,1,160,Random(2))
-        assertEquals(1,state.tapRun.bossArenaLane)
-        state=JourneyRules.tick(state,1,100,Random(2))
-        assertEquals(2,state.tapRun.bossArenaLane)
-        repeat(8){state=JourneyRules.tick(state,1,160,Random(2))}
-        assertEquals(4,state.tapRun.bossArenaLane)
-        assertTrue(state.tapRun.enemyHp<450)
-        state=JourneyRules.tick(state,-1,160,Random(2))
-        state=JourneyRules.tick(state,-1,160,Random(2))
-        assertTrue(state.tapRun.bossArenaLane<4)
     }
 }

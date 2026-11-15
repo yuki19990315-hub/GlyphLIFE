@@ -160,7 +160,7 @@ object JourneyRules {
             tapRun=state.tapRun.copy(message=
                 "✦ 精霊の祠を発見！ 自分に合った加護を選ぼう"))
         val result=if(state.tapRun.phase==TapPhase.BOSS &&
-            state.tapRun.bossArenaLane<BossBarrageRules.ATTACK_LANE)
+            state.tapRun.bossPosition<BossBarrageRules.ATTACK_X)
             BossBarrageRules.move(state,1)
             else TapAdventure.tap(state,rng)
         val landed=state.tapRun.phase in listOf(TapPhase.FIGHT,TapPhase.BOSS) &&
@@ -183,6 +183,10 @@ object JourneyRules {
             TapPhase.BRANCH -> state
         }.let{if(it==state)state else it.copy(journey=it.journey.copy(repeatMs=0))}
     }
+
+    fun jump(state:QuestState):QuestState =
+        if(ChallengeRules.active(state) || state.journey.shrinePending)state
+        else BossBarrageRules.jump(state)
 
     private fun retreat(state:QuestState):QuestState {
         val run=state.tapRun
@@ -275,7 +279,7 @@ object JourneyRules {
                 repeatMs=0,chain=0,travelMs=travelMs))
         val threshold=when {
             phase==TapPhase.BOSS && (dir<0 ||
-                pre.tapRun.bossArenaLane<BossBarrageRules.ATTACK_LANE) ->
+                pre.tapRun.bossPosition<BossBarrageRules.ATTACK_X) ->
                 BossBarrageRules.MOVE_INTERVAL_MS
             dir<0 -> BACK_INTERVAL_MS
             else -> phaseInterval(phase)
