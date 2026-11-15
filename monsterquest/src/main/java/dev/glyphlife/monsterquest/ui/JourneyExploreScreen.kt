@@ -476,7 +476,7 @@ fun JourneyExploreScreen(
                             color=RunText,fontSize=10.sp)
                     }
                     LinearProgressIndicator(
-                        progress={run.enemyHp.toFloat()/enemy.maxHp.coerceAtLeast(1)},
+                        progress={run.enemyHp.toFloat()/enemy!!.maxHp.coerceAtLeast(1)},
                         color=if(rare)RunGold else RunRed,
                         trackColor=Color(0xFF364052),
                         modifier=Modifier.fillMaxWidth().height(7.dp)
