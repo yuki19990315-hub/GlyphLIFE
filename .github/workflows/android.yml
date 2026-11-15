@@ -55,6 +55,62 @@ jobs:
           path: monsterquest/build/pixel-preview/*.png
           if-no-files-found: error
 
+  # Deliberately opt-in via a commit message containing [ui-qa]. This captures
+  # an actual Android-rendered screen, not a code-only illustration. It costs
+  # emulator minutes and therefore is not run on every routine patch.
+  ui-screenshot:
+    name: Inspect actual Monster Quest exploration on emulator
+    if: github.event_name == 'push' && contains(github.event.head_commit.message, '[ui-qa]')
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+      - uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '8.14'
+      - name: Install Android SDK 35
+        shell: bash
+        run: |
+          SDKMANAGER="$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager"
+          if [ ! -x "$SDKMANAGER" ]; then
+            SDKMANAGER="$(find "$ANDROID_HOME/cmdline-tools" -type f -name sdkmanager | head -n 1)"
+          fi
+          test -n "$SDKMANAGER" && test -x "$SDKMANAGER"
+          yes | "$SDKMANAGER" --licenses >/dev/null || true
+          "$SDKMANAGER" --install 'platforms;android-35' 'build-tools;35.0.0'
+      - name: Build standalone Monster Quest APK
+        run: gradle --no-daemon :monsterquest:assembleDebug
+      - name: Boot emulator and photograph the genuine Compose UI
+        uses: reactivecircus/android-emulator-runner@v2
+        with:
+          api-level: 35
+          target: google_apis
+          arch: x86_64
+          profile: pixel_6
+          disable-animations: true
+          script: |
+            adb shell wm size 1080x2400
+            adb shell wm density 420
+            adb install monsterquest/build/outputs/apk/debug/monsterquest-debug.apk
+            adb shell am start -n dev.glyphlife.monsterquest/.MonsterQuestActivity
+            sleep 6
+            adb shell input tap 410 2255
+            sleep 5
+            mkdir -p monsterquest/build/ui-screenshot
+            adb shell screencap -p /sdcard/monsterquest-explore.png
+            adb pull /sdcard/monsterquest-explore.png monsterquest/build/ui-screenshot/explore.png
+            adb shell uiautomator dump /sdcard/monsterquest-screen.xml || true
+            adb pull /sdcard/monsterquest-screen.xml monsterquest/build/ui-screenshot/accessibility.xml || true
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: MonsterQuest-UI-Emulator
+          path: monsterquest/build/ui-screenshot/*
+          if-no-files-found: warn
+
   glyph-sdk-compile:
     name: Compile Nothing Glyph SDK adapter (no artifact)
     runs-on: ubuntu-latest

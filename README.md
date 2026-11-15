@@ -1,6 +1,6 @@
 # GlyphLIFE v0.14 / Monster Quest v3.0.1
 
-> **Monster Quest v5.4**: 承認された金縁×紺色のピクセルRPG案を探索・ボス戦へ実装。森の遺跡／月夜のボスステージ、上部のステータス・敵HPパネル、固定の「後退・攻撃・前進」、奥義ゲージ・捕獲・回復・技の導線、金縁のボトムナビへ刷新。ボスは攻撃と移動を分離し、前進／後退中だけ自動ぴょんぴょん移動。見切れ防止の全身スプライト表示は継続。詳細は [v5.4探索・ボスUI](docs/MONSTER_QUEST_V54_UI_JA.md)。
+> **Monster Quest v5.5**: 探索・ボス戦の背景を1枚絵から、320×180基準／16pxタイル／32〜64色の **10エリア×4層PNG** と、整数倍nearest-neighbour描画・遠中床前景パララックスへ変更。前回の金縁UI、跳ねながらの前後移動、独立したボス攻撃は維持。アセットを確認できる [40レイヤー検証プレビュー](docs/MONSTER_QUEST_BACKGROUND_QA.png) と [制作仕様・検証項目](docs/MONSTER_QUEST_V55_BACKGROUND_JA.md) を追加。
 
 Two **independently installable Android apps** in one repository:
 

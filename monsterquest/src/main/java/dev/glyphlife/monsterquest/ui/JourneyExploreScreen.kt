@@ -1,6 +1,5 @@
 package dev.glyphlife.monsterquest.ui
 
-import androidx.compose.foundation.Image
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -20,16 +19,12 @@ import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.FilterQuality
 import androidx.compose.ui.input.pointer.pointerInput
-import androidx.compose.ui.layout.ContentScale
-import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import dev.glyphlife.monsterquest.R
 import dev.glyphlife.monsterquest.data.MonsterArtworkStore
 import dev.glyphlife.monsterquest.model.*
 import kotlin.math.min
@@ -303,6 +298,7 @@ fun JourneyExploreScreen(
     val enemy=run.enemy
     val battling=run.phase in listOf(TapPhase.FIGHT,TapPhase.BOSS)
     val boss=run.phase==TapPhase.BOSS
+    val biome=PixelBiomeRules.zone(run.floor,boss)
     val rare=enemy?.lineage=="rare"
     val companion=remember(state.companion) {
         WildMonster(id=state.companion.id,
@@ -320,7 +316,8 @@ fun JourneyExploreScreen(
     BoxWithConstraints(Modifier.fillMaxSize().background(RunInk)) {
     val small=maxHeight<660.dp
     val tiny=maxHeight<560.dp
-    val stageHeight=if(tiny)158.dp else if(small)203.dp else 251.dp
+    val stageHeight=minOf(maxWidth*9f/16f,
+        if(tiny)158.dp else if(small)202.dp else 252.dp)
     val controlHeight=if(tiny)57.dp else if(small)65.dp else 76.dp
     Column(Modifier.fillMaxSize()
         .padding(horizontal=9.dp,vertical=5.dp),
@@ -355,7 +352,7 @@ fun JourneyExploreScreen(
                 shape=RoundedCornerShape(5.dp),
                 border=androidx.compose.foundation.BorderStroke(1.dp,RunBrass)) {
                 Text(if(boss)"☠ BOSS  ${run.floor}F"
-                    else "◆  第${run.floor}階層",
+                    else "◆ 第${run.floor}階層 · ${biome.displayName}",
                     Modifier.padding(horizontal=8.dp,vertical=5.dp),
                     color=RunGold,fontWeight=FontWeight.Bold,
                     style=MaterialTheme.typography.labelMedium)
@@ -390,28 +387,10 @@ fun JourneyExploreScreen(
             }
             val scenePosition=(run.floor-1)*TapAdventure.STEPS_PER_FLOOR+
                 run.steps+fraction
-            Image(painter=painterResource(id=if(boss)R.drawable.mq_moon_ruins
-                else R.drawable.mq_forest_ruins),contentDescription=null,
-                contentScale=ContentScale.Crop,filterQuality=FilterQuality.None,
+            val worldTravel=if(boss)run.bossPosition.toFloat()*3f
+                else scenePosition*14f
+            PixelParallaxStage(biome,worldTravel,foreground=false,
                 modifier=Modifier.fillMaxSize())
-            // A still scenic illustration should feel deep during travel;
-            // procedural foreground shadows shift without cropping monsters.
-            Canvas(Modifier.fillMaxSize()) {
-                drawRect(brush=Brush.horizontalGradient(listOf(
-                    Color(0xBB06151D),Color.Transparent,
-                    Color.Transparent,Color(0x8806151D))),
-                    size=size)
-                drawRect(Color(0x3300101C),
-                    topLeft=Offset(0f,size.height*.83f),
-                    size=Size(size.width,size.height*.17f))
-                for(i in 0..7) {
-                    val drift=(scenePosition*3f+i*17f)%100f
-                    drawRect(RunGold.copy(alpha=.19f),
-                        topLeft=Offset(size.width*(drift/100f),
-                            size.height*((i*13+11)%63)/100f),
-                        size=Size(2f,2f))
-                }
-            }
 
             // Use the entire square sprite viewport. Insetting via padding
             // *inside* a fixed-size Image previously squashed its content to
@@ -472,6 +451,9 @@ fun JourneyExploreScreen(
                     style=MaterialTheme.typography.labelMedium)
             }
 
+            PixelParallaxStage(biome,worldTravel,foreground=true,
+                modifier=Modifier.fillMaxSize())
+
             if(boss)BossBarrageLayer(run,Modifier.fillMaxSize())
 
             if(battling) {
@@ -490,7 +472,7 @@ fun JourneyExploreScreen(
                         Text((if(boss)"☠ BOSS  " else if(rare)"✦ RARE  " else "⚔ ")+
                             enemy!!.species,color=RunGold,
                             fontSize=11.sp,fontWeight=FontWeight.Black,maxLines=1)
-                        Text("${run.enemyHp}/${enemy.maxHp}",
+                        Text("${run.enemyHp}/${enemy!!.maxHp}",
                             color=RunText,fontSize=10.sp)
                     }
                     LinearProgressIndicator(
