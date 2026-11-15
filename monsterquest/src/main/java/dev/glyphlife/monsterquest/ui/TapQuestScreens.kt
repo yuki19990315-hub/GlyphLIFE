@@ -701,18 +701,23 @@ fun TapExplorationScreen(
                         }
                     }
                 }
-                Box(
+                BoxWithConstraints(
                     Modifier.fillMaxWidth().height(346.dp)
                         .background(Color(0xFF132742),RoundedCornerShape(6.dp))
                         .clickable(
                             enabled=run.phase!=TapPhase.BRANCH &&
                                 !ChallengeRules.active(state),onClick=onTap)
                 ) {
+                    // Keep both whole-body sprites in separate responsive
+                    // areas even on 320dp-wide displays.
+                    val heroSize=minOf(maxWidth*.32f,169.dp)
+                    val opponentSize=minOf(maxWidth*.35f,
+                        if(boss)199.dp else 161.dp)
                     PixelDungeonBackdrop(run.floor,boss,run.steps,Modifier.fillMaxSize())
                     // Stage characters are big, full-body 64x64 pixel sprites.
                     MonsterArtworkView(
                         monster=companion,store=store,revision=revision,
-                        modifier=Modifier.size(169.dp)
+                        modifier=Modifier.size(heroSize)
                             .align(Alignment.BottomStart)
                             .offset(
                                 x=(if(fighting)run.combo%2*9 else run.steps%2*4).dp,
@@ -725,7 +730,7 @@ fun TapExplorationScreen(
                     run.enemy?.let { foe ->
                         MonsterArtworkView(
                             monster=foe,store=store,revision=revision,
-                            modifier=Modifier.size(if(boss)199.dp else 161.dp)
+                            modifier=Modifier.size(opponentSize)
                                 .align(Alignment.BottomEnd)
                                 .offset(x=(if(run.combo%2==0)0 else -3).dp)
                                 .padding(end=4.dp,bottom=18.dp),

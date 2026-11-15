@@ -1,6 +1,6 @@
 # GlyphLIFE v0.14 / Monster Quest v3.0.1
 
-> **Monster Quest v4.9**: 長押し探索の移動・攻撃ボタンを画面下に固定し、奥義ゲージと祠の三択イベント、ボスの左右予告を実装。旧セーブを保持。仕様は [v4.9探索改善](docs/MONSTER_QUEST_V49_EXPEDITION_JA.md)。
+> **Monster Quest v5.0**: ボス戦を5地点の前後移動で着弾予告と複数弾を避ける「弾幕探索」に再設計。前へ近づいて攻撃・後退して回避、ノーダメージ回避で弱点露出と奥義チャージ。狭い画面のフルボディ表示・操作UIも調整。旧セーブを保持。詳細は [v5.0ボス弾幕とUI](docs/MONSTER_QUEST_V50_BOSS_BARRAGE_JA.md)。
 
 Two **independently installable Android apps** in one repository:
 

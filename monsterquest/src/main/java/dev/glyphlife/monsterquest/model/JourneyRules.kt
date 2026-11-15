@@ -159,7 +159,10 @@ object JourneyRules {
             journey=state.journey.copy(shrinePending=true,repeatMs=0),
             tapRun=state.tapRun.copy(message=
                 "✦ 精霊の祠を発見！ 自分に合った加護を選ぼう"))
-        val result=TapAdventure.tap(state,rng)
+        val result=if(state.tapRun.phase==TapPhase.BOSS &&
+            state.tapRun.bossArenaLane<BossBarrageRules.ATTACK_LANE)
+            BossBarrageRules.move(state,1)
+            else TapAdventure.tap(state,rng)
         val landed=state.tapRun.phase in listOf(TapPhase.FIGHT,TapPhase.BOSS) &&
             result.tapRun.enemyHp<state.tapRun.enemyHp
         val charged=if(landed)result.copy(journey=result.journey.copy(
@@ -174,7 +177,7 @@ object JourneyRules {
         if(state.journey.shrinePending)return state
         val run=state.tapRun
         return when(run.phase) {
-            TapPhase.BOSS -> TapAdventure.dodge(state,-1)
+            TapPhase.BOSS -> BossBarrageRules.move(state,-1)
             TapPhase.FIGHT -> retreat(state)
             TapPhase.WALK -> backStep(state)
             TapPhase.BRANCH -> state
@@ -236,13 +239,12 @@ object JourneyRules {
             state.journey.shrinePending ||
             ChallengeRules.active(state))return state
         val dt=elapsedMs.coerceIn(1,160)
-        val attacked=TapAdventure.tick(state,dt,rng)
-        val justDodged=state.tapRun.phase==TapPhase.BOSS &&
-            state.tapRun.weakpointTaps==0 && attacked.tapRun.weakpointTaps>0
-        val charged=if(justDodged)attacked.copy(journey=attacked.journey.copy(
-            burstGauge=(attacked.journey.burstGauge+30).coerceAtMost(BURST_COST)))
-            else attacked
-        val clocked=record(state,charged)
+        val attacked=if(state.tapRun.phase==TapPhase.BOSS)
+            BossBarrageRules.tick(state,dt,rng) else TapAdventure.tick(state,dt,rng)
+        val clocked=record(state,attacked)
+        // Death returns the player to the first floor; never also walk one
+        // step on the exact frame of the retry transition.
+        if(clocked.tapRun.deaths>state.tapRun.deaths)return clocked
         // Automation is opt-in and tries at most once per distinct monster.
         // It cannot consume orbs on a boss or on a full roster.
         val canAuto=clocked.journey.autoCapture &&
@@ -265,18 +267,23 @@ object JourneyRules {
         // 100-monster roster ten times a second. Paused game time is free.
         if(dir==0 && phase==TapPhase.WALK && pre==state)return state
         val travelMs=(journey.travelMs+dt).coerceAtMost(2_000_000_000)
-        if(dir==0 || phase==TapPhase.BRANCH || pre.journey.shrinePending ||
-            (dir<0 && phase==TapPhase.BOSS)) {
+        if(dir==0 || phase==TapPhase.BRANCH || pre.journey.shrinePending) {
             return pre.copy(journey=journey.copy(repeatMs=0,travelMs=travelMs))
         }
         if(dir<0 && phase==TapPhase.FIGHT)
             return retreat(pre).copy(journey=journey.copy(
                 repeatMs=0,chain=0,travelMs=travelMs))
-        val threshold=if(dir<0)BACK_INTERVAL_MS else phaseInterval(phase)
+        val threshold=when {
+            phase==TapPhase.BOSS && (dir<0 ||
+                pre.tapRun.bossArenaLane<BossBarrageRules.ATTACK_LANE) ->
+                BossBarrageRules.MOVE_INTERVAL_MS
+            dir<0 -> BACK_INTERVAL_MS
+            else -> phaseInterval(phase)
+        }
         val charge=(journey.repeatMs+dt).coerceAtMost(threshold)
         if(charge<threshold)
             return pre.copy(journey=journey.copy(repeatMs=charge,travelMs=travelMs))
-        val stepped=if(dir<0)backStep(pre) else pressRight(pre,rng)
+        val stepped=if(dir<0)pressLeft(pre) else pressRight(pre,rng)
         // The returned step has already consumed its repeat charge. Timer
         // uses a fresh interval even if the phase changed on this frame.
         return stepped.copy(journey=stepped.journey.copy(

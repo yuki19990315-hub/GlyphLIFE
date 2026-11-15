@@ -73,7 +73,7 @@ class JourneyRulesTest {
             phase=TapPhase.BOSS,enemy=foe(),enemyHp=30))
         val dodge=JourneyRules.pressLeft(boss)
         assertEquals(TapPhase.BOSS,dodge.tapRun.phase)
-        assertEquals(-1,dodge.tapRun.lane)
+        assertEquals(0,dodge.tapRun.bossArenaLane)
     }
 
     @Test fun fiveVictoriesGrantOrbGoldAndTenGrantCrystalOnce() {
@@ -142,7 +142,12 @@ class JourneyRulesTest {
         val monster=foe("boss",500).copy(isBoss=true)
         val s=fresh().copy(tapRun=TapRun(floor=5,steps=7,
             phase=TapPhase.BOSS,enemy=monster,enemyHp=500))
-        val attacked=JourneyRules.pressRight(s,lucky)
+        val approached=JourneyRules.pressRight(s,lucky)
+        assertEquals(2,approached.tapRun.bossArenaLane)
+        assertEquals(500,approached.tapRun.enemyHp)
+        val attacked=JourneyRules.pressRight(
+            JourneyRules.pressRight(
+                JourneyRules.pressRight(approached,lucky),lucky),lucky)
         assertEquals(TapPhase.BOSS,attacked.tapRun.phase)
         assertEquals(s.tapRun.floor,attacked.tapRun.floor)
         assertTrue(attacked.tapRun.enemyHp<500)
@@ -224,7 +229,8 @@ class JourneyRulesTest {
         val monster=foe("guardian",200).copy(isBoss=true,attack=20)
         val boss=fresh().copy(tapRun=TapRun(floor=5,
             phase=TapPhase.BOSS,enemy=monster,enemyHp=200,
-            attackTimerMs=1,bossTarget=1,lane=-1),
+            bossArenaLane=1,bossBullets=listOf(
+                BossBarrageBullet(lane=0,ageMs=1380,flightMs=1400))),
             journey=JourneyState(burstGauge=50))
         val avoided=JourneyRules.tick(boss,0,100,unlucky)
         assertEquals(80,avoided.journey.burstGauge)
@@ -232,7 +238,7 @@ class JourneyRulesTest {
         assertEquals(boss.playerHp,avoided.playerHp)
 
         val danger=boss.copy(playerHp=1,
-            tapRun=boss.tapRun.copy(lane=0),
+            tapRun=boss.tapRun.copy(bossArenaLane=0),
             journey=JourneyState(burstGauge=100))
         val dead=JourneyRules.tick(danger,0,100,unlucky)
         assertEquals(1,dead.tapRun.floor)

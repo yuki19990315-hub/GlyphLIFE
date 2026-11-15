@@ -156,9 +156,12 @@ fun QuestChallenge(
                                 style=MaterialTheme.typography.labelSmall)
                         }
                     }
-                    Box(Modifier.fillMaxWidth().height(281.dp)
+                    BoxWithConstraints(Modifier.fillMaxWidth().height(281.dp)
                         .background(Color(0xFF172844),RoundedCornerShape(6.dp))
                         .clickable(onClick=onAttack)) {
+                        val heroSize=minOf(maxWidth*.32f,143.dp)
+                        val enemySize=minOf(maxWidth*.35f,
+                            if(c.opponent?.isBoss==true)163.dp else 143.dp)
                         PixelDungeonBackdrop(
                             floor=if(tower)c.towerFloor+8 else 22+c.arenaWave,
                             boss=c.opponent?.isBoss==true,
@@ -167,7 +170,7 @@ fun QuestChallenge(
                         )
                         MonsterArtworkView(
                             monster=pet,store=store,revision=revision,
-                            modifier=Modifier.size(143.dp)
+                            modifier=Modifier.size(heroSize)
                                 .align(Alignment.BottomStart)
                                 .padding(start=4.dp,bottom=18.dp),
                             facingRight=true,
@@ -176,7 +179,7 @@ fun QuestChallenge(
                         c.opponent?.let { enemy ->
                             MonsterArtworkView(
                                 monster=enemy,store=store,revision=revision,
-                                modifier=Modifier.size(if(enemy.isBoss)163.dp else 143.dp)
+                                modifier=Modifier.size(enemySize)
                                     .align(Alignment.BottomEnd)
                                     .padding(end=4.dp,bottom=18.dp),
                                 facingRight=false

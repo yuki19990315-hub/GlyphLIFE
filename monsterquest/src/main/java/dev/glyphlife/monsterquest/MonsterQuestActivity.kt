@@ -652,9 +652,6 @@ class MonsterQuestActivity : ComponentActivity() {
                                     onSkill={owner,bonus->
                                         update(JourneyRules.useSkill(state,owner,bonus))
                                     },
-                                    onDodge={side->
-                                        update(TapAdventure.dodge(state,side))
-                                    },
                                     onBranch={route->
                                         update(JourneyRules.chooseBranch(state,route))
                                     },

@@ -17,6 +17,13 @@ data class TapRun(
     val guardHits:Int=0,
     val venomCharges:Int=0,
     val bossTarget:Int=-1, val lane:Int=0, val weakpointTaps:Int=0,
+    /** New one-finger boss arena. Legacy bossTarget/lane remain for classic mode. */
+    val bossArenaLane:Int=1,
+    val bossBullets:List<BossBarrageBullet> = emptyList(),
+    val bossWaveCooldownMs:Int=BossBarrageRules.FIRST_WAVE_MS,
+    val bossWaveIndex:Int=0,
+    val bossWaveTouched:Boolean=false,
+    val bossVolleysDodged:Int=0,
     val bestFloor:Int=1, val deaths:Int=0, val distance:Int=0, val gold:Int=0,
     val message:String="画面をタップして冒険を始めよう！"
 )
@@ -113,7 +120,10 @@ object TapAdventure {
                 attackTimerMs=if(boss)BOSS_ATTACK_INTERVAL_MS else NORMAL_ATTACK_INTERVAL_MS,
                 bossTarget=if(rng.nextBoolean())1 else -1,
                 weakpointTaps=0,
-                message=if(boss)"★ BOSS「"+monster.species+"」！ 大技の予告を見て回避"
+                bossArenaLane=1,bossBullets=emptyList(),
+                bossWaveCooldownMs=BossBarrageRules.FIRST_WAVE_MS,
+                bossWaveIndex=0,bossWaveTouched=false,bossVolleysDodged=0,
+                message=if(boss)"★ BOSS「"+monster.species+"」！ 前後移動で弾幕を避けよう"
                         else (if(rare)"✦ 希少個体！ " else "")+
                             monster.species+"が出現！ 近づいて攻撃！"
             )
@@ -225,6 +235,16 @@ object TapAdventure {
         if(r.phase!=TapPhase.BOSS || side !in listOf(-1,1))return state
         return state.copy(tapRun=r.copy(lane=side,
             message=(if(side<0)"左" else "右")+"へ移動！ 大技が来る方向に注意"))
+    }
+
+    /** Allows the new projectile arena to use the original death-and-retry
+     * pipeline, including held items, growth, and the best-floor record. */
+    fun barrageHit(state:QuestState,damage:Int):QuestState {
+        if(state.tapRun.phase!=TapPhase.BOSS || damage<=0)return state
+        val hp=(state.playerHp-damage).coerceAtLeast(0)
+        return if(hp==0)death(state.copy(playerHp=0))
+        else state.copy(playerHp=hp,tapRun=state.tapRun.copy(
+            guardHits=(state.tapRun.guardHits-1).coerceAtLeast(0)))
     }
 
     fun captureChance(state:QuestState):Int {
