@@ -80,11 +80,23 @@ object BossBarrageRules {
         val enraged=run.enemyHp<=run.enemy.maxHp/2
         // Every pattern guarantees one or more safe positions. A simple
         // seeded shuffle varies the safe lane without unfair full-row hits.
-        val safe=rng.nextInt(LANE_COUNT)
-        val count=if(enraged)4 else 2+rng.nextInt(2)
         val pattern=run.bossWaveIndex%3
-        val threatened=(0 until LANE_COUNT).filter{it!=safe}
-            .shuffled(rng).take(count).sorted()
+        val threatened=when {
+            enraged -> {
+                val safe=rng.nextInt(LANE_COUNT)
+                (0 until LANE_COUNT).filter{it!=safe}
+            }
+            pattern==1 -> {
+                // A readable three-shot sweep; two adjacent safe positions.
+                val start=rng.nextInt(LANE_COUNT-2)
+                (start..start+2).toList()
+            }
+            else -> {
+                val safe=rng.nextInt(LANE_COUNT)
+                (0 until LANE_COUNT).filter{it!=safe}
+                    .shuffled(rng).take(if(pattern==0)2 else 3).sorted()
+            }
+        }
         val travel=if(enraged)1100 else 1400
         val missiles=threatened.mapIndexed { index,lane ->
             BossBarrageBullet(lane=lane,

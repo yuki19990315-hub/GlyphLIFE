@@ -97,6 +97,21 @@ class BossBarrageRulesTest {
         assertTrue(launched.tapRun.bossBullets.all{it.flightMs==1100})
     }
 
+    @Test fun normalBossAlternatesSpreadSweepAndHeavyVolley() {
+        for((index,count) in listOf(2,3,3).withIndex()) {
+            val start=arena().copy(tapRun=arena().tapRun.copy(
+                bossWaveIndex=index,bossWaveCooldownMs=0))
+            val volley=BossBarrageRules.tick(start,100,Random(12))
+                .tapRun.bossBullets
+            assertEquals(count,volley.size)
+            if(index==1) {
+                val lanes=volley.map{it.lane}
+                assertEquals(lanes.minOrNull()!!+2,lanes.maxOrNull()!!)
+                assertTrue(volley.any{it.ageMs<0})
+            }
+        }
+    }
+
     @Test fun lethalProjectileUsesExistingFirstFloorDeathAndKeepsCompanion() {
         val near=arena().copy(playerHp=1,
             journey=JourneyState(chain=8,burstGauge=100),
@@ -119,7 +134,7 @@ class BossBarrageRulesTest {
         assertEquals(1,state.tapRun.bossArenaLane)
         state=JourneyRules.tick(state,1,100,Random(2))
         assertEquals(2,state.tapRun.bossArenaLane)
-        repeat(5){state=JourneyRules.tick(state,1,160,Random(2))}
+        repeat(8){state=JourneyRules.tick(state,1,160,Random(2))}
         assertEquals(4,state.tapRun.bossArenaLane)
         assertTrue(state.tapRun.enemyHp<450)
         state=JourneyRules.tick(state,-1,160,Random(2))
