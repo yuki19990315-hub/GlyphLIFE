@@ -97,7 +97,7 @@ fun QuestHome(
             PixelDungeonBackdrop(1,false,0,Modifier.fillMaxSize().padding(3.dp))
             MonsterArtworkView(companion,store,revision,
                 Modifier.size(174.dp).align(Alignment.BottomStart)
-                    .padding(start=12.dp,bottom=10.dp),facingRight=true,
+                    .offset(x=12.dp,y=(-10).dp),facingRight=true,
                 bossRelicKind=RelicRules.visualKind(state,state.companion.id))
             Column(
                 modifier=Modifier.align(Alignment.TopCenter)
@@ -720,10 +720,9 @@ fun TapExplorationScreen(
                         modifier=Modifier.size(heroSize)
                             .align(Alignment.BottomStart)
                             .offset(
-                                x=(if(fighting)run.combo%2*9 else run.steps%2*4).dp,
-                                y=(if(run.steps%2==0)0 else -3).dp
-                            )
-                            .padding(start=4.dp,bottom=19.dp),
+                                x=((if(fighting)run.combo%2*9 else run.steps%2*4)+4).dp,
+                                y=(if(run.steps%2==0)-19 else -22).dp
+                            ),
                         facingRight=true,
                         bossRelicKind=RelicRules.visualKind(state,state.companion.id)
                     )
@@ -732,8 +731,9 @@ fun TapExplorationScreen(
                             monster=foe,store=store,revision=revision,
                             modifier=Modifier.size(opponentSize)
                                 .align(Alignment.BottomEnd)
-                                .offset(x=(if(run.combo%2==0)0 else -3).dp)
-                                .padding(end=4.dp,bottom=18.dp),
+                                .offset(
+                                    x=(if(run.combo%2==0)-4 else -7).dp,
+                                    y=(-18).dp),
                             facingRight=false
                         )
                     }

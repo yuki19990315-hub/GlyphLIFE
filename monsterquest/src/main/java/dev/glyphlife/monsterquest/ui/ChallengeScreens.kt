@@ -172,7 +172,7 @@ fun QuestChallenge(
                             monster=pet,store=store,revision=revision,
                             modifier=Modifier.size(heroSize)
                                 .align(Alignment.BottomStart)
-                                .padding(start=4.dp,bottom=18.dp),
+                                .offset(x=4.dp,y=(-18).dp),
                             facingRight=true,
                             bossRelicKind=RelicRules.visualKind(state,state.companion.id)
                         )
@@ -181,7 +181,7 @@ fun QuestChallenge(
                                 monster=enemy,store=store,revision=revision,
                                 modifier=Modifier.size(enemySize)
                                     .align(Alignment.BottomEnd)
-                                    .padding(end=4.dp,bottom=18.dp),
+                                    .offset(x=(-4).dp,y=(-18).dp),
                                 facingRight=false
                             )
                         }

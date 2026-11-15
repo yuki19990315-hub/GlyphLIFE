@@ -1,6 +1,6 @@
 # GlyphLIFE v0.14 / Monster Quest v3.0.1
 
-> **Monster Quest v5.2**: 『ひまつぶクエスト』の軽快な移動表現を参考に、前進・後退で主人公が自動的にぴょんぴょん弾む。ジャンプ専用ボタンは廃止。ボス戦は左右長押しで移動し、着弾を避けて射程内から攻撃する。旧セーブと64×64ドット絵を保持。詳細は [v5.2移動アニメーション](docs/MONSTER_QUEST_V52_HOPPING_WALK_JA.md)。
+> **Monster Quest v5.3**: 探索・ボス戦・旧戦闘で画像を縮ませていた内側余白を廃止し、64×64の全身画像をそのまま接地表示。画面の端でも全身が収まる位置に補正する。デザイン工房と合成プレビューも狭い画面幅で縮小表示。前進・後退時の自動ぴょんぴょん移動は維持。詳細は [v5.3全身表示修正](docs/MONSTER_QUEST_V53_NO_CROPPING_JA.md)。
 
 Two **independently installable Android apps** in one repository:
 

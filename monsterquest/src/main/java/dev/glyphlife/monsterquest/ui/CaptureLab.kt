@@ -300,19 +300,27 @@ fun CaptureLab(
                 Text("合成後の姿を確認", style = MaterialTheme.typography.titleMedium)
                 Text("${target.species}　属性${target.element} / 進化${target.stage}" +
                     "　HP${target.maxHp}・攻撃${target.attack}")
-                Row(horizontalArrangement = Arrangement.spacedBy(16.dp)) {
-                    Column {
-                        Text("ゲーム：64×64")
-                        MonsterStaticSprite(target, Modifier.size(160.dp),
-                            artworkStore, artworkRevision)
-                    }
-                    Column {
-                        Text("Glyph：13×13")
-                        MonsterPortrait(
-                            pixels = artworkStore.glyphFor(target),
-                            element = target.element,
-                            modifier = Modifier.size(120.dp)
-                        )
+                // On compact phones a fixed 160 + 120 + gap dp row extends
+                // outside the visible panel. Scale both previews together.
+                BoxWithConstraints(Modifier.fillMaxWidth()) {
+                    val gap=12.dp
+                    val available=(maxWidth-gap).coerceAtLeast(0.dp)
+                    val gameSize=minOf(160.dp,available*.56f)
+                    val glyphSize=minOf(120.dp,available-gameSize)
+                    Row(horizontalArrangement=Arrangement.spacedBy(gap)) {
+                        Column {
+                            Text("ゲーム：64×64")
+                            MonsterStaticSprite(target,Modifier.size(gameSize),
+                                artworkStore,artworkRevision)
+                        }
+                        Column {
+                            Text("Glyph：13×13")
+                            MonsterPortrait(
+                                pixels=artworkStore.glyphFor(target),
+                                element=target.element,
+                                modifier=Modifier.size(glyphSize)
+                            )
+                        }
                     }
                 }
                 Text("確定後もこの形を維持します。画像パーツは親から継承します。" +

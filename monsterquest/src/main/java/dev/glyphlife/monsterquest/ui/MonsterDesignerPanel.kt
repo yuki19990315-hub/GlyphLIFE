@@ -5,6 +5,7 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import dev.glyphlife.monsterquest.data.MonsterArtworkStore
@@ -141,12 +142,17 @@ fun MonsterDesignerPanel(
         }
         Text("選択中：案${selectedVariant+1} / 進化$stage / ${model.species}",
             style=MaterialTheme.typography.titleMedium)
-        MonsterArtworkView(
-            monster=model,
-            store=store,
-            revision=revision,
-            modifier=Modifier.size(256.dp)
-        )
+        // A 256dp image overflows a 320dp phone once panel/card padding is
+        // taken into account. Keep the square proportional to its parent.
+        BoxWithConstraints(Modifier.fillMaxWidth()) {
+            val previewSize=minOf(256.dp,maxWidth)
+            MonsterArtworkView(
+                monster=model,
+                store=store,
+                revision=revision,
+                modifier=Modifier.size(previewSize).align(Alignment.Center)
+            )
+        }
         Text("GBA風64×64の全身ドット絵。透過色を含めて最大16色、" +
             "ドットグリッドに沿って表示します。256px表示は4倍の整数拡大です。",
             style=MaterialTheme.typography.bodySmall)

@@ -318,17 +318,25 @@ fun JourneyExploreScreen(
                 run.steps+fraction
             JourneyBackdrop(run.floor,scenePosition,Modifier.fillMaxSize())
 
-            // Monster sprites are independently full-body fitted to 64px and
-            // further letterboxed inside the field. Never crop big boss wings.
+            // Use the entire square sprite viewport. Insetting via padding
+            // *inside* a fixed-size Image previously squashed its content to
+            // a smaller rectangle and made large monsters look truncated.
+            // Move the whole square instead, with the opaque feet aligned to
+            // the backdrop's 79%-height ground line.
             val spriteSize=if(boss)
                 minOf(maxWidth*.23f,if(tiny)76.dp else 104.dp)
                 else minOf(maxWidth*.32f,if(tiny)100.dp else 143.dp)
             val bossSize=minOf(maxWidth*.31f,if(tiny)111.dp else 158.dp)
-            val spriteBottom=stageHeight*.16f
+            val foeSize=if(boss)bossSize else spriteSize
+            val heroGroundOffset=MonsterViewport.floorOffset(
+                stageHeight.value,spriteSize.value).dp
+            val enemyGroundOffset=MonsterViewport.floorOffset(
+                stageHeight.value,foeSize.value).dp
             val heroCenter=if(boss)
                 maxWidth*BossBarrageRules.screenX(run.bossPosition)
                 else maxWidth*.20f
-            val heroLeft=(heroCenter-spriteSize/2).coerceAtLeast(0.dp)
+            val heroLeft=MonsterViewport.clampLeft(
+                heroCenter.value,spriteSize.value,maxWidth.value).dp
             val walkingHop=if(!battling && heldDirection!=0)
                 BossBarrageRules.travelHop(journey.travelMs,heldDirection)
                 else 0f
@@ -336,26 +344,27 @@ fun JourneyExploreScreen(
                 companion,store,revision,
                 Modifier.size(spriteSize)
                     .align(Alignment.BottomStart)
-                    .offset(x=heroLeft)
-                    .padding(bottom=spriteBottom)
-                    .offset(y=if(boss)
-                        -(stageHeight*.14f)*BossBarrageRules.hopHeight(run)
-                        else -18.dp*walkingHop),
+                    .offset(
+                        x=heroLeft,
+                        y=-heroGroundOffset+(if(boss)
+                            -(stageHeight*.14f)*BossBarrageRules.hopHeight(run)
+                            else -18.dp*walkingHop)
+                    ),
                 bossRelicKind=RelicRules.visualKind(
                     state,state.companion.id))
             if(enemy!=null) {
                 if(rare) {
-                    Box(Modifier.size(bossSize)
+                    Box(Modifier.size(foeSize)
                         .align(Alignment.BottomEnd)
-                        .padding(end=7.dp,bottom=spriteBottom)
+                        .offset(x=(-6).dp,y=-enemyGroundOffset)
                         .border(2.dp,RunGold.copy(alpha=.58f),
                             RoundedCornerShape(90.dp)))
                 }
                 MonsterArtworkView(
                     enemy,store,revision,
-                    Modifier.size(if(boss)bossSize else spriteSize)
+                    Modifier.size(foeSize)
                         .align(Alignment.BottomEnd)
-                        .padding(end=6.dp,bottom=spriteBottom),
+                        .offset(x=(-6).dp,y=-enemyGroundOffset),
                     facingRight=false)
             } else {
                 Text(if(journey.shrinePending)"✦ 精霊の祠" else "▶ 冒険中",
