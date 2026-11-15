@@ -258,6 +258,11 @@ class QuestStorage(context: Context) {
         .put("autoCapture",j.autoCapture)
         .put("lastAutoCaptureId",j.lastAutoCaptureId)
         .put("travelMs",j.travelMs)
+        .put("burstGauge",j.burstGauge)
+        .put("burstUses",j.burstUses)
+        .put("shrinePending",j.shrinePending)
+        .put("lastShrineFloor",j.lastShrineFloor)
+        .put("shrinesVisited",j.shrinesVisited)
 
     private fun readJourney(o:JSONObject):JourneyState=JourneyState(
         classic=o.optBoolean("classic",false),
@@ -267,7 +272,12 @@ class QuestStorage(context: Context) {
         totalCaptures=o.optInt("totalCaptures",0).coerceIn(0,999999),
         autoCapture=o.optBoolean("autoCapture",false),
         lastAutoCaptureId=o.optString("lastAutoCaptureId","").take(100),
-        travelMs=o.optInt("travelMs",0).coerceIn(0,2_000_000_000)
+        travelMs=o.optInt("travelMs",0).coerceIn(0,2_000_000_000),
+        burstGauge=o.optInt("burstGauge",0).coerceIn(0,JourneyRules.BURST_COST),
+        burstUses=o.optInt("burstUses",0).coerceIn(0,999999),
+        shrinePending=o.optBoolean("shrinePending",false),
+        lastShrineFloor=o.optInt("lastShrineFloor",0).coerceIn(0,999),
+        shrinesVisited=o.optInt("shrinesVisited",0).coerceIn(0,999999)
     )
 
     private fun writeTapRun(r:TapRun):JSONObject=JSONObject()

@@ -150,6 +150,20 @@ object TapAdventure {
         return state.copy(tapRun=hit)
     }
 
+    /** Finisher deliberately goes through the same victory pipeline as a tap.
+     * It cannot mint duplicate loot or skip a boss's normal clear logic. */
+    fun finisher(state:QuestState,damage:Int,rng:Random=Random.Default):QuestState {
+        val run=state.tapRun
+        val foe=run.enemy ?: return state
+        if(run.phase !in listOf(TapPhase.FIGHT,TapPhase.BOSS) ||
+            damage<=0 || run.enemyHp<=0)return state
+        val remaining=(run.enemyHp-damage).coerceAtLeast(0)
+        val landed=state.copy(tapRun=run.copy(
+            enemyHp=remaining,combo=run.combo+1,
+            message="✦ 奥義発動！ ${damage}ダメージ！"))
+        return if(remaining==0)win(landed,foe,rng) else landed
+    }
+
     fun useSkill(state:QuestState,ownerId:String,
                  rng:Random=Random.Default,bonus:Boolean=false):QuestState {
         val old=state.tapRun

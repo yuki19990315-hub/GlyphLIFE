@@ -658,6 +658,12 @@ class MonsterQuestActivity : ComponentActivity() {
                                     onBranch={route->
                                         update(JourneyRules.chooseBranch(state,route))
                                     },
+                                    onShrine={choice->
+                                        update(JourneyRules.chooseShrine(state,choice))
+                                    },
+                                    onBurst={
+                                        update(JourneyRules.burst(state))
+                                    },
                                     onAutoCapture={
                                         update(JourneyRules.toggleAutoCapture(state))
                                     },

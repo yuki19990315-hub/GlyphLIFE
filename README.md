@@ -1,5 +1,7 @@
 # GlyphLIFE v0.14 / Monster Quest v3.0.1
 
+> **Monster Quest v4.9**: 長押し探索の移動・攻撃ボタンを画面下に固定し、奥義ゲージと祠の三択イベント、ボスの左右予告を実装。旧セーブを保持。仕様は [v4.9探索改善](docs/MONSTER_QUEST_V49_EXPEDITION_JA.md)。
+
 Two **independently installable Android apps** in one repository:
 
 - **GlyphLIFE** (`app/`, `dev.glyphlife.app`): Nothing Phone (4a) Pro pet care, 13×13 Glyph animation editor, optional AI, fluid simulation, NFC ring mode switching and a companion gallery.

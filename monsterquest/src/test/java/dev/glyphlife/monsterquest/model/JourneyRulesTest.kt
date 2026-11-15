@@ -161,4 +161,82 @@ class JourneyRulesTest {
         assertEquals(100,ElementalRules.percentage("闇","雷"))
         assertEquals("有利 +25%",ElementalRules.label("光","闇"))
     }
+
+    @Test fun shrineStopsAutoTravelUntilChosenAndNeverRepeatsOnSameFloor() {
+        val start=fresh().copy(playerHp=35,
+            tapRun=TapRun(floor=2,steps=3,distance=9))
+        val discovered=JourneyRules.pressRight(start,unlucky)
+        assertTrue(discovered.journey.shrinePending)
+        assertEquals(3,discovered.tapRun.steps)
+        assertEquals(discovered,JourneyRules.tick(discovered,1,160,lucky))
+        assertEquals(discovered,JourneyRules.pressRight(discovered,lucky))
+        assertEquals(discovered,JourneyRules.chooseShrine(discovered,-1))
+
+        val healed=JourneyRules.chooseShrine(discovered,0)
+        assertEquals(87,healed.playerHp)
+        assertEquals(1,healed.journey.shrinesVisited)
+        assertEquals(2,healed.journey.lastShrineFloor)
+        assertFalse(healed.journey.shrinePending)
+        assertFalse(JourneyRules.pressRight(healed,unlucky).journey.shrinePending)
+    }
+
+    @Test fun shrineRiskAndSuppliesAreBoundedAndDoNotDuplicate() {
+        val start=fresh().copy(playerHp=11,captureOrbs=98,
+            tapRun=TapRun(floor=6,steps=4),
+            journey=JourneyState(shrinePending=true))
+        val orbs=JourneyRules.chooseShrine(start,1)
+        assertEquals(99,orbs.captureOrbs)
+        assertEquals(98,start.captureOrbs)
+        assertEquals(orbs,JourneyRules.chooseShrine(orbs,1))
+
+        val risk=JourneyRules.chooseShrine(start,2)
+        assertEquals(1,risk.playerHp)
+        assertEquals(2,risk.summonStones)
+        assertEquals(6,risk.journey.lastShrineFloor)
+    }
+
+    @Test fun normalHitsChargeFinisherAndFinisherKeepsVictoryRewards() {
+        val monster=foe("burst",500)
+        var s=fresh().copy(tapRun=TapRun(phase=TapPhase.FIGHT,
+            enemy=monster,enemyHp=500))
+        assertEquals(s,JourneyRules.burst(s,lucky))
+        repeat(7){s=JourneyRules.pressRight(s,unlucky)}
+        assertEquals(100,s.journey.burstGauge)
+        assertTrue(s.tapRun.enemyHp<500)
+        val used=JourneyRules.burst(s,unlucky)
+        assertEquals(0,used.journey.burstGauge)
+        assertEquals(1,used.journey.burstUses)
+        assertTrue(used.tapRun.enemyHp<s.tapRun.enemyHp)
+        assertEquals(used,JourneyRules.burst(used,lucky))
+
+        val almost=used.copy(tapRun=used.tapRun.copy(enemyHp=1),
+            journey=used.journey.copy(burstGauge=100))
+        val victory=JourneyRules.burst(almost,unlucky)
+        assertEquals(TapPhase.WALK,victory.tapRun.phase)
+        assertEquals(1,victory.defeated)
+        assertEquals(1,victory.journey.chain)
+        assertEquals(2,victory.journey.burstUses)
+        assertEquals(0,victory.journey.burstGauge)
+        assertEquals(victory,JourneyRules.burst(victory,lucky))
+    }
+
+    @Test fun bossPerfectDodgeChargesBurstAndDefeatResetsIt() {
+        val monster=foe("guardian",200).copy(isBoss=true,attack=20)
+        val boss=fresh().copy(tapRun=TapRun(floor=5,
+            phase=TapPhase.BOSS,enemy=monster,enemyHp=200,
+            attackTimerMs=1,bossTarget=1,lane=-1),
+            journey=JourneyState(burstGauge=50))
+        val avoided=JourneyRules.tick(boss,0,100,unlucky)
+        assertEquals(80,avoided.journey.burstGauge)
+        assertEquals(3,avoided.tapRun.weakpointTaps)
+        assertEquals(boss.playerHp,avoided.playerHp)
+
+        val danger=boss.copy(playerHp=1,
+            tapRun=boss.tapRun.copy(lane=0),
+            journey=JourneyState(burstGauge=100))
+        val dead=JourneyRules.tick(danger,0,100,unlucky)
+        assertEquals(1,dead.tapRun.floor)
+        assertEquals(1,dead.tapRun.deaths)
+        assertEquals(0,dead.journey.burstGauge)
+    }
 }

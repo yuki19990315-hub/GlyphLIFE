@@ -187,7 +187,8 @@ fun JourneyExploreScreen(
     heldDirection:Int,onDirection:(Int)->Unit,onPress:(Int)->Unit,
     onCapture:()->Unit,onHeal:()->Unit,
     onSkill:(String,Boolean)->Unit,onDodge:(Int)->Unit,
-    onBranch:(Int)->Unit,onAutoCapture:()->Unit,
+    onBranch:(Int)->Unit,onShrine:(Int)->Unit,onBurst:()->Unit,
+    onAutoCapture:()->Unit,
     onBuySupply:(String)->Unit,onClassic:()->Unit
 ) {
     val run=state.tapRun
@@ -210,9 +211,8 @@ fun JourneyExploreScreen(
     val target=HuntRules.selected(state)
 
     Column(Modifier.fillMaxSize().background(RunInk)
-        .verticalScroll(rememberScrollState())
-        .padding(horizontal=10.dp,vertical=8.dp),
-        verticalArrangement=Arrangement.spacedBy(9.dp)
+        .padding(horizontal=10.dp,vertical=6.dp),
+        verticalArrangement=Arrangement.spacedBy(6.dp)
     ) {
         Row(Modifier.fillMaxWidth(),
             horizontalArrangement=Arrangement.SpaceBetween,
@@ -253,7 +253,7 @@ fun JourneyExploreScreen(
         }
 
         BoxWithConstraints(Modifier.fillMaxWidth()
-            .height(255.dp)
+            .height(214.dp)
             .clip(RoundedCornerShape(11.dp))
             .border(2.dp,Color(0xFF728BA6),RoundedCornerShape(11.dp))
         ) {
@@ -298,7 +298,8 @@ fun JourneyExploreScreen(
                         .padding(end=6.dp,bottom=34.dp),
                     facingRight=false)
             } else {
-                Text("▶ 冒険中",color=RunText,
+                Text(if(journey.shrinePending)"✦ 精霊の祠" else "▶ 冒険中",
+                    color=if(journey.shrinePending)RunGold else RunText,
                     fontWeight=FontWeight.Bold,
                     modifier=Modifier.align(Alignment.CenterEnd)
                         .padding(end=22.dp)
@@ -341,7 +342,9 @@ fun JourneyExploreScreen(
                     Text(if(boss) {
                         if(run.weakpointTaps>0)
                             "JUST DODGE!  攻撃×3"
-                        else "大技まで "+String.format("%.1f",run.attackTimerMs/1000f)+"秒"
+                        else "⚠ "+(if(run.bossTarget>0)"右" else "左")+
+                            "側に攻撃！ 逆へ回避 / "+
+                            String.format("%.1f",run.attackTimerMs/1000f)+"秒"
                     } else
                         "攻撃まで "+String.format("%.1f",run.attackTimerMs/1000f)+"秒"+
                         "　"+ElementalRules.label(
@@ -381,6 +384,11 @@ fun JourneyExploreScreen(
             }
         }
 
+        // Information can scroll, but the two direction buttons and the
+        // battle actions below MUST stay visible on compact phone screens.
+        Column(Modifier.weight(1f).fillMaxWidth()
+            .verticalScroll(rememberScrollState()),
+            verticalArrangement=Arrangement.spacedBy(7.dp)) {
         Row(Modifier.fillMaxWidth()
             .background(RunPanel,RoundedCornerShape(8.dp))
             .border(1.dp,Color(0xFF425B78),RoundedCornerShape(8.dp))
@@ -442,6 +450,34 @@ fun JourneyExploreScreen(
                 color=RunGold,style=MaterialTheme.typography.labelMedium)
         }
 
+        if(showSkills && battling) {
+            PartySkillButtons(state,run.skillCooldowns,
+                enabled=!ChallengeRules.active(state),onUse=onSkill)
+        }
+        Row(Modifier.fillMaxWidth(),
+            verticalAlignment=Alignment.CenterVertically,
+            horizontalArrangement=Arrangement.spacedBy(8.dp)) {
+            FilterChip(selected=journey.autoCapture,
+                onClick=onAutoCapture,
+                label={Text(if(journey.autoCapture)"自動捕獲 ON"
+                    else "自動捕獲 OFF",
+                    style=MaterialTheme.typography.labelSmall)})
+            Text("敵HP35%以下で各遭遇1回だけ捕獲を試す",
+                color=RunCyan,style=MaterialTheme.typography.labelSmall,
+                modifier=Modifier.weight(1f))
+        }
+        Row(Modifier.fillMaxWidth(),
+            horizontalArrangement=Arrangement.SpaceBetween) {
+            Text("最高連勝 "+journey.bestChain,
+                color=RunCyan,style=MaterialTheme.typography.labelSmall)
+            Text("捕獲 "+journey.totalCaptures+" / 発見 "+state.catalog.size,
+                color=RunCyan,style=MaterialTheme.typography.labelSmall)
+        }
+        Text("祠 "+journey.shrinesVisited+" / 奥義 "+journey.burstUses+
+            "回  · 右長押し：前進と自動攻撃。左：退却・回避",
+            color=Color(0xFF92A8C3),style=MaterialTheme.typography.labelSmall)
+        }
+
         if(run.phase==TapPhase.BRANCH) {
             Text("◆ 分かれ道：次の行き先を選択",color=RunGold,
                 style=MaterialTheme.typography.titleSmall)
@@ -453,7 +489,30 @@ fun JourneyExploreScreen(
                     Text(title,color=RunText,style=MaterialTheme.typography.bodySmall)
                 }
             }
+        } else if(journey.shrinePending) {
+            Text("✦ 精霊の祠：1つだけ加護を選ぼう",color=RunGold,
+                style=MaterialTheme.typography.titleSmall)
+            listOf("✚ 癒し：HPを回復","◉ 物資：捕獲玉+2",
+                "◆ 契約：HPを捧げて結晶+2").forEachIndexed{index,title ->
+                OutlinedButton(onClick={onShrine(index)},
+                    modifier=Modifier.fillMaxWidth().height(44.dp)) {
+                    Text(title,color=RunText,
+                        style=MaterialTheme.typography.bodySmall)
+                }
+            }
         }else {
+            Row(Modifier.fillMaxWidth(),
+                verticalAlignment=Alignment.CenterVertically,
+                horizontalArrangement=Arrangement.spacedBy(7.dp)) {
+                LinearProgressIndicator(
+                    progress={journey.burstGauge.toFloat()/JourneyRules.BURST_COST},
+                    color=if(journey.burstGauge==JourneyRules.BURST_COST)
+                        RunGold else Color(0xFFB995E5),
+                    trackColor=Color(0xFF29364A),
+                    modifier=Modifier.weight(1f).height(6.dp))
+                Text("奥義 ${journey.burstGauge}%",color=RunGold,
+                    style=MaterialTheme.typography.labelSmall)
+            }
             Row(Modifier.fillMaxWidth(),
                 horizontalArrangement=Arrangement.spacedBy(9.dp)) {
                 JourneyHoldButton("◀",
@@ -482,12 +541,12 @@ fun JourneyExploreScreen(
             }
 
             Row(Modifier.fillMaxWidth(),
-                horizontalArrangement=Arrangement.spacedBy(7.dp),
+                horizontalArrangement=Arrangement.spacedBy(5.dp),
                 verticalAlignment=Alignment.CenterVertically) {
                 Button(onClick=onCapture,
                     enabled=run.phase==TapPhase.FIGHT &&
                         state.captureOrbs>0 && state.captures.size<100,
-                    modifier=Modifier.weight(1.2f).height(50.dp),
+                    modifier=Modifier.weight(1.5f).height(46.dp),
                     colors=ButtonDefaults.buttonColors(
                         containerColor=Color(0xFF376F69))) {
                     Text("◉ 捕獲 "+TapAdventure.captureChance(state)+"%",
@@ -498,46 +557,24 @@ fun JourneyExploreScreen(
                 OutlinedButton(onClick=onHeal,
                     enabled=state.potions>0 &&
                         state.playerHp<TalentRules.maxHp(state),
-                    modifier=Modifier.weight(.75f).height(50.dp)) {
+                    modifier=Modifier.weight(.7f).height(46.dp)) {
                     Text("✚ "+state.potions,
                         style=MaterialTheme.typography.labelMedium)
                 }
+                Button(onClick=onBurst,
+                    enabled=battling && journey.burstGauge>=JourneyRules.BURST_COST,
+                    modifier=Modifier.weight(1f).height(46.dp),
+                    colors=ButtonDefaults.buttonColors(containerColor=Color(0xFF7759A4))) {
+                    Text("✦ 奥義",color=RunText,
+                        style=MaterialTheme.typography.labelSmall)
+                }
                 OutlinedButton(onClick={showSkills=!showSkills},
                     enabled=battling,
-                    modifier=Modifier.weight(1f).height(50.dp)) {
-                    Text(if(showSkills)"スキル閉じる" else "✦ スキル",
+                    modifier=Modifier.weight(.8f).height(46.dp)) {
+                    Text(if(showSkills)"閉じる" else "技",
                         style=MaterialTheme.typography.labelSmall)
                 }
             }
-            if(showSkills && battling) {
-                PartySkillButtons(state,run.skillCooldowns,
-                    enabled=!ChallengeRules.active(state),
-                    onUse=onSkill)
-            }
-            Row(Modifier.fillMaxWidth(),
-                verticalAlignment=Alignment.CenterVertically,
-                horizontalArrangement=Arrangement.spacedBy(8.dp)) {
-                FilterChip(selected=journey.autoCapture,
-                    onClick=onAutoCapture,
-                    label={Text(if(journey.autoCapture)"自動捕獲 ON"
-                        else "自動捕獲 OFF",
-                        style=MaterialTheme.typography.labelSmall)})
-                Text("敵HP35%以下で各遭遇1回だけ捕獲を試す",
-                    color=RunCyan,style=MaterialTheme.typography.labelSmall,
-                    modifier=Modifier.weight(1f))
-            }
         }
-        Row(Modifier.fillMaxWidth(),
-            horizontalArrangement=Arrangement.SpaceBetween) {
-            Text("最高連勝 "+journey.bestChain,
-                color=RunCyan,style=MaterialTheme.typography.labelSmall)
-            Text("捕獲 "+journey.totalCaptures+" / 発見 "+state.catalog.size,
-                color=RunCyan,style=MaterialTheme.typography.labelSmall)
-        }
-        Text("右を長押し：移動・自動攻撃。離すと停止。"+
-            "左：後退／戦闘から退却。ボスは回避とスキルを駆使！",
-            color=Color(0xFF92A8C3),
-            style=MaterialTheme.typography.labelSmall)
-        Spacer(Modifier.height(18.dp))
     }
 }

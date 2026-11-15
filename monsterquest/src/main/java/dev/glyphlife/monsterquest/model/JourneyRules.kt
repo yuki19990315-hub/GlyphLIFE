@@ -20,7 +20,14 @@ data class JourneyState(
     val autoCapture:Boolean=false,
     val lastAutoCaptureId:String="",
     val travelMs:Int=0,
-    val bonusText:String=""
+    val bonusText:String="",
+    /** Stored across encounters, lost only when the expedition fails. */
+    val burstGauge:Int=0,
+    val burstUses:Int=0,
+    /** A discovered shrine halts auto-walking until the player decides. */
+    val shrinePending:Boolean=false,
+    val lastShrineFloor:Int=0,
+    val shrinesVisited:Int=0
 )
 
 object JourneyRules {
@@ -28,6 +35,55 @@ object JourneyRules {
     const val ATTACK_INTERVAL_MS=390
     const val BACK_INTERVAL_MS=210
     const val CHAIN_REWARD_EVERY=5
+    const val BURST_COST=100
+
+    private fun shrineDue(state:QuestState):Boolean =
+        state.tapRun.phase==TapPhase.WALK &&
+            state.tapRun.floor%4==2 && state.tapRun.steps>=3 &&
+            state.journey.lastShrineFloor!=state.tapRun.floor &&
+            !state.journey.shrinePending
+
+    /** Choice is explicit: holding right must never select a shrine reward. */
+    fun chooseShrine(state:QuestState,choice:Int):QuestState {
+        if(!state.journey.shrinePending || choice !in 0..2 ||
+            state.tapRun.phase!=TapPhase.WALK)return state
+        val floor=state.tapRun.floor
+        val visited=state.journey.copy(shrinePending=false,
+            lastShrineFloor=floor,shrinesVisited=state.journey.shrinesVisited+1,
+            repeatMs=0)
+        return when(choice) {
+            0 -> state.copy(
+                playerHp=(state.playerHp+50+floor).coerceAtMost(TalentRules.maxHp(state)),
+                journey=visited,
+                tapRun=state.tapRun.copy(message="精霊の祠：傷を癒やした！ HP回復"))
+            1 -> state.copy(
+                captureOrbs=(state.captureOrbs+2).coerceAtMost(99),
+                journey=visited,
+                tapRun=state.tapRun.copy(message="精霊の祠：捕獲玉+2を入手！"))
+            else -> {
+                val cost=(TalentRules.maxHp(state)/4).coerceAtLeast(10)
+                state.copy(
+                    playerHp=(state.playerHp-cost).coerceAtLeast(1),
+                    summonStones=(state.summonStones+2).coerceAtMost(999),
+                    journey=visited,
+                    tapRun=state.tapRun.copy(message=
+                        "古い契約：HP-${minOf(cost,state.playerHp-1)} / 召喚結晶+2！"))
+            }
+        }
+    }
+
+    /** A charged finisher works against bosses as well as ordinary foes. */
+    fun burst(state:QuestState,rng:Random=Random.Default):QuestState {
+        if(state.journey.burstGauge<BURST_COST ||
+            state.tapRun.phase !in listOf(TapPhase.FIGHT,TapPhase.BOSS) ||
+            ChallengeRules.active(state))return state
+        val foe=state.tapRun.enemy ?: return state
+        val powered=state.copy(journey=state.journey.copy(
+            burstGauge=0,burstUses=state.journey.burstUses+1,repeatMs=0))
+        val impact=32+state.companion.level.coerceAtMost(80)*2+
+            (state.journey.chain*2).coerceAtMost(48)+foe.maxHp/12
+        return record(state,TapAdventure.finisher(powered,impact,rng))
+    }
 
     fun toggleAutoCapture(state:QuestState):QuestState=
         state.copy(journey=state.journey.copy(
@@ -52,6 +108,7 @@ object JourneyRules {
 
         if(to.deaths>from.deaths)
             return now.copy(journey=prev.copy(repeatMs=0,chain=0,
+                burstGauge=0,shrinePending=false,
                 bonusText="リトライ！ 仲間・装備・成長はそのまま。"))
 
         val wasFighting=from.phase in listOf(TapPhase.FIGHT,TapPhase.BOSS)
@@ -75,7 +132,7 @@ object JourneyRules {
                     (now.tapRun.gold+bonusGold).coerceAtMost(999999),
                     message=if(reward)now.tapRun.message+"　"+rewardText
                         else now.tapRun.message),
-                journey=prev.copy(
+                journey=now.journey.copy(
                     chain=chain,bestChain=maxOf(prev.bestChain,chain),
                     repeatMs=0,bonusText=rewardText)
             )
@@ -95,15 +152,26 @@ object JourneyRules {
     }
 
     fun pressRight(state:QuestState,rng:Random=Random.Default):QuestState {
-        if(ChallengeRules.active(state) || state.tapRun.phase==TapPhase.BRANCH)
+        if(ChallengeRules.active(state) || state.tapRun.phase==TapPhase.BRANCH ||
+            state.journey.shrinePending)
             return state
+        if(shrineDue(state))return state.copy(
+            journey=state.journey.copy(shrinePending=true,repeatMs=0),
+            tapRun=state.tapRun.copy(message=
+                "✦ 精霊の祠を発見！ 自分に合った加護を選ぼう"))
         val result=TapAdventure.tap(state,rng)
-        val progressed=record(state,result)
+        val landed=state.tapRun.phase in listOf(TapPhase.FIGHT,TapPhase.BOSS) &&
+            result.tapRun.enemyHp<state.tapRun.enemyHp
+        val charged=if(landed)result.copy(journey=result.journey.copy(
+            burstGauge=(result.journey.burstGauge+15).coerceAtMost(BURST_COST)))
+            else result
+        val progressed=record(state,charged)
         return progressed.copy(journey=progressed.journey.copy(repeatMs=0))
     }
 
     fun pressLeft(state:QuestState):QuestState {
         if(ChallengeRules.active(state))return state
+        if(state.journey.shrinePending)return state
         val run=state.tapRun
         return when(run.phase) {
             TapPhase.BOSS -> TapAdventure.dodge(state,-1)
@@ -165,10 +233,16 @@ object JourneyRules {
     fun tick(state:QuestState,direction:Int,elapsedMs:Int,
              rng:Random=Random.Default):QuestState {
         if(elapsedMs<=0 || state.journey.classic ||
+            state.journey.shrinePending ||
             ChallengeRules.active(state))return state
         val dt=elapsedMs.coerceIn(1,160)
         val attacked=TapAdventure.tick(state,dt,rng)
-        val clocked=record(state,attacked)
+        val justDodged=state.tapRun.phase==TapPhase.BOSS &&
+            state.tapRun.weakpointTaps==0 && attacked.tapRun.weakpointTaps>0
+        val charged=if(justDodged)attacked.copy(journey=attacked.journey.copy(
+            burstGauge=(attacked.journey.burstGauge+30).coerceAtMost(BURST_COST)))
+            else attacked
+        val clocked=record(state,charged)
         // Automation is opt-in and tries at most once per distinct monster.
         // It cannot consume orbs on a boss or on a full roster.
         val canAuto=clocked.journey.autoCapture &&
@@ -191,7 +265,7 @@ object JourneyRules {
         // 100-monster roster ten times a second. Paused game time is free.
         if(dir==0 && phase==TapPhase.WALK && pre==state)return state
         val travelMs=(journey.travelMs+dt).coerceAtMost(2_000_000_000)
-        if(dir==0 || phase==TapPhase.BRANCH ||
+        if(dir==0 || phase==TapPhase.BRANCH || pre.journey.shrinePending ||
             (dir<0 && phase==TapPhase.BOSS)) {
             return pre.copy(journey=journey.copy(repeatMs=0,travelMs=travelMs))
         }
