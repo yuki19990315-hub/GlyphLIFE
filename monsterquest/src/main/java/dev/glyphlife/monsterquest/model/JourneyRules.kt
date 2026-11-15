@@ -5,7 +5,9 @@ import kotlin.random.Random
 /**
  * Short-session, one-finger RPG journey. This is NOT a platformer:
  * left/right are the only travel inputs, and holding right automatically
- * walks/attacks. All enemy generation, loot, growth and captures use the
+ * walks/attacks outside boss battles. Bosses use independent movement and
+ * attack inputs so projectiles can be dodged without an unintended strike.
+ * All enemy generation, loot, growth and captures use the
  * existing TapAdventure engine; the old dungeon save continues unchanged.
  */
 data class JourneyState(
@@ -159,10 +161,26 @@ object JourneyRules {
             journey=state.journey.copy(shrinePending=true,repeatMs=0),
             tapRun=state.tapRun.copy(message=
                 "✦ 精霊の祠を発見！ 自分に合った加護を選ぼう"))
-        val result=if(state.tapRun.phase==TapPhase.BOSS &&
-            state.tapRun.bossPosition<BossBarrageRules.ATTACK_X)
+        val result=if(state.tapRun.phase==TapPhase.BOSS)
             BossBarrageRules.move(state,1)
             else TapAdventure.tap(state,rng)
+        return afterStrike(state,result)
+    }
+
+    /** Attack deliberately stays separate from boss movement. The hero's
+     * little hop is a travel animation, not a jump or an invulnerability key. */
+    fun pressAttack(state:QuestState,rng:Random=Random.Default):QuestState {
+        if(ChallengeRules.active(state) ||
+            state.tapRun.phase !in listOf(TapPhase.FIGHT,TapPhase.BOSS) ||
+            state.journey.shrinePending)return state
+        if(state.tapRun.phase==TapPhase.BOSS &&
+            state.tapRun.bossPosition<BossBarrageRules.ATTACK_X)
+            return state.copy(tapRun=state.tapRun.copy(message=
+                "まだ攻撃が届かない！ 右に進んで間合いを詰めよう"))
+        return afterStrike(state,TapAdventure.tap(state,rng))
+    }
+
+    private fun afterStrike(state:QuestState,result:QuestState):QuestState {
         val landed=state.tapRun.phase in listOf(TapPhase.FIGHT,TapPhase.BOSS) &&
             result.tapRun.enemyHp<state.tapRun.enemyHp
         val charged=if(landed)result.copy(journey=result.journey.copy(
@@ -274,8 +292,7 @@ object JourneyRules {
             return retreat(pre).copy(journey=journey.copy(
                 repeatMs=0,chain=0,travelMs=travelMs))
         val threshold=when {
-            phase==TapPhase.BOSS && (dir<0 ||
-                pre.tapRun.bossPosition<BossBarrageRules.ATTACK_X) ->
+            phase==TapPhase.BOSS ->
                 BossBarrageRules.MOVE_INTERVAL_MS
             dir<0 -> BACK_INTERVAL_MS
             else -> phaseInterval(phase)

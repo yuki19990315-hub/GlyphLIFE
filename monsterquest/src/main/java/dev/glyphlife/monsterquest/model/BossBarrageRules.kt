@@ -53,7 +53,7 @@ object BossBarrageRules {
             bossHopMs=if(run.bossHopMs<=MOVE_INTERVAL_MS)HOP_DURATION_MS
                 else run.bossHopMs,
             message=if(next>=ATTACK_X)
-                "攻撃射程！ ▶で攻撃、◀で跳ねながら後退"
+                "攻撃射程！ 中央の攻撃ボタンで戦いながら、前後に跳ねて回避"
                 else "◀▶でぴょんぴょん移動！ 弾の着弾場所を避けよう"))
     }
 

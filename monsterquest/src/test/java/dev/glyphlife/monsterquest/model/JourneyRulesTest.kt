@@ -147,11 +147,33 @@ class JourneyRulesTest {
         repeat(8){approached=JourneyRules.pressRight(approached,lucky)}
         assertTrue(approached.tapRun.bossPosition>=BossBarrageRules.ATTACK_X)
         assertEquals(500,approached.tapRun.enemyHp)
-        val attacked=JourneyRules.pressRight(approached,lucky)
+        val atEdge=JourneyRules.pressRight(approached,lucky)
+        assertEquals(500,atEdge.tapRun.enemyHp)
+        val attacked=JourneyRules.pressAttack(atEdge,lucky)
         assertEquals(TapPhase.BOSS,attacked.tapRun.phase)
         assertEquals(s.tapRun.floor,attacked.tapRun.floor)
         assertTrue(attacked.tapRun.enemyHp<500)
         assertEquals(s.bossRelics,attacked.bossRelics)
+    }
+
+    @Test fun bossTravelHopsAndMovementNeverSecretlyAttack() {
+        val boss=foe("ancient",800).copy(isBoss=true)
+        var state=fresh().copy(tapRun=TapRun(floor=5,
+            phase=TapPhase.BOSS,enemy=boss,enemyHp=800))
+        val tooFar=JourneyRules.pressAttack(state,lucky)
+        assertEquals(800,tooFar.tapRun.enemyHp)
+        assertEquals(state.tapRun.bossPosition,tooFar.tapRun.bossPosition)
+        assertTrue(tooFar.tapRun.message.contains("届かない"))
+
+        repeat(15) { state=JourneyRules.pressRight(state,lucky) }
+        assertEquals(800,state.tapRun.enemyHp)
+        assertEquals(BossBarrageRules.MAX_X,state.tapRun.bossPosition)
+        val hit=JourneyRules.pressAttack(state,lucky)
+        assertTrue(hit.tapRun.enemyHp<800)
+        assertEquals(state.tapRun.bossPosition,hit.tapRun.bossPosition)
+        val hopped=JourneyRules.pressLeft(hit)
+        assertTrue(hopped.tapRun.bossPosition<hit.tapRun.bossPosition)
+        assertEquals(hit.tapRun.enemyHp,hopped.tapRun.enemyHp)
     }
 
     @Test fun catchRateAndElementMatchupsAreExplicitAndConsistent() {

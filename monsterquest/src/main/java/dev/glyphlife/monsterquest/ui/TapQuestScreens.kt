@@ -16,6 +16,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.drawscope.DrawScope
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
@@ -35,19 +36,29 @@ enum class QuestTab(val label:String,val symbol:String) {
 
 @Composable
 fun QuestBottomNavigation(tab:QuestTab,onTab:(QuestTab)->Unit) {
-    NavigationBar(containerColor=Color(0xFF131D33),tonalElevation=5.dp) {
+    Row(Modifier.fillMaxWidth().height(68.dp)
+        .background(Brush.verticalGradient(listOf(
+            Color(0xFF1B3345),Color(0xFF071A2A))))
+        .border(width=1.dp,color=Color(0xFF987549)),
+        verticalAlignment=Alignment.CenterVertically) {
         QuestTab.entries.forEach { item ->
-            NavigationBarItem(
-                selected=tab==item,
-                onClick={onTab(item)},
-                icon={ Text(item.symbol,style=MaterialTheme.typography.titleLarge) },
-                label={Text(item.label)},
-                colors=NavigationBarItemDefaults.colors(
-                    selectedIconColor=Gold, selectedTextColor=Gold,
-                    indicatorColor=Color(0xFF3E4266),
-                    unselectedIconColor=Color(0xFFABB8CC),
-                    unselectedTextColor=Color(0xFFABB8CC))
-            )
+            val selected=tab==item
+            Column(Modifier.weight(1f).fillMaxHeight()
+                .padding(3.dp)
+                .background(if(selected)Color(0xFF344752) else Color.Transparent,
+                    RoundedCornerShape(6.dp))
+                .border(if(selected)1.dp else 0.dp,
+                    if(selected)Gold else Color.Transparent,
+                    RoundedCornerShape(6.dp))
+                .clickable {onTab(item)},
+                horizontalAlignment=Alignment.CenterHorizontally,
+                verticalArrangement=Arrangement.Center) {
+                Text(item.symbol,color=if(selected)Gold else Blue,
+                    style=MaterialTheme.typography.titleLarge)
+                Text(item.label,color=if(selected)Gold else Color(0xFFAFBBC6),
+                    style=MaterialTheme.typography.labelSmall,
+                    fontWeight=if(selected)FontWeight.Bold else FontWeight.Normal)
+            }
         }
     }
 }

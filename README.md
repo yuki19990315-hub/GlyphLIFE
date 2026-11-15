@@ -1,6 +1,6 @@
 # GlyphLIFE v0.14 / Monster Quest v3.0.1
 
-> **Monster Quest v5.3**: 探索・ボス戦・旧戦闘で画像を縮ませていた内側余白を廃止し、64×64の全身画像をそのまま接地表示。画面の端でも全身が収まる位置に補正する。デザイン工房と合成プレビューも狭い画面幅で縮小表示。前進・後退時の自動ぴょんぴょん移動は維持。詳細は [v5.3全身表示修正](docs/MONSTER_QUEST_V53_NO_CROPPING_JA.md)。
+> **Monster Quest v5.4**: 承認された金縁×紺色のピクセルRPG案を探索・ボス戦へ実装。森の遺跡／月夜のボスステージ、上部のステータス・敵HPパネル、固定の「後退・攻撃・前進」、奥義ゲージ・捕獲・回復・技の導線、金縁のボトムナビへ刷新。ボスは攻撃と移動を分離し、前進／後退中だけ自動ぴょんぴょん移動。見切れ防止の全身スプライト表示は継続。詳細は [v5.4探索・ボスUI](docs/MONSTER_QUEST_V54_UI_JA.md)。
 
 Two **independently installable Android apps** in one repository:
 

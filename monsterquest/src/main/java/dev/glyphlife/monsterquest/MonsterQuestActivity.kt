@@ -532,10 +532,12 @@ class MonsterQuestActivity : ComponentActivity() {
             ) {
                 Scaffold(
                     topBar={
-                        Surface(tonalElevation=2.dp,color=Color(0xFF121B30)) {
-                            Text("MONSTER QUEST / v4.8.0",Modifier.padding(14.dp),
-                                style=MaterialTheme.typography.titleMedium,
-                                color=Color(0xFFFFD990))
+                        if(selectedTab!=QuestTab.EXPLORE) {
+                            Surface(tonalElevation=2.dp,color=Color(0xFF121B30)) {
+                                Text("MONSTER QUEST / v5.4.0",Modifier.padding(14.dp),
+                                    style=MaterialTheme.typography.titleMedium,
+                                    color=Color(0xFFFFD990))
+                            }
                         }
                     },
                     bottomBar={
@@ -642,6 +644,12 @@ class MonsterQuestActivity : ComponentActivity() {
                                             val next=if(direction>0)
                                                 JourneyRules.pressRight(state)
                                             else JourneyRules.pressLeft(state)
+                                            if(next!=state)update(next)
+                                        }
+                                    },
+                                    onAttack={
+                                        if(!ChallengeRules.active(state)) {
+                                            val next=JourneyRules.pressAttack(state)
                                             if(next!=state)update(next)
                                         }
                                     },

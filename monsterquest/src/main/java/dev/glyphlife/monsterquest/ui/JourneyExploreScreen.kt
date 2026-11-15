@@ -1,5 +1,6 @@
 package dev.glyphlife.monsterquest.ui
 
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -17,22 +18,82 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.FilterQuality
 import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import dev.glyphlife.monsterquest.R
 import dev.glyphlife.monsterquest.data.MonsterArtworkStore
 import dev.glyphlife.monsterquest.model.*
 import kotlin.math.min
 
-private val RunGold=Color(0xFFFFD58B)
+private val RunGold=Color(0xFFF8D58E)
 private val RunCyan=Color(0xFF8BD9EE)
-private val RunInk=Color(0xFF0A1525)
-private val RunPanel=Color(0xFF172641)
-private val RunText=Color(0xFFEAF4FF)
+private val RunInk=Color(0xFF07131D)
+private val RunPanel=Color(0xFF10283A)
+private val RunText=Color(0xFFFFF0D1)
+private val RunBrass=Color(0xFF99764A)
+private val RunRed=Color(0xFFDA6674)
+
+private val QuestFrameShape=RoundedCornerShape(8.dp)
+
+@Composable
+private fun QuestEmblem(label:String,modifier:Modifier=Modifier) {
+    Box(modifier.size(43.dp)
+        .background(Brush.verticalGradient(listOf(Color(0xFF314355),RunInk)),
+            RoundedCornerShape(6.dp))
+        .border(2.dp,RunGold,RoundedCornerShape(6.dp)),
+        contentAlignment=Alignment.Center) {
+        Text(label,color=RunGold,fontSize=25.sp,fontWeight=FontWeight.Black)
+    }
+}
+
+@Composable
+private fun QuestMiniMeter(label:String,value:String,progress:Float,
+    fill:Color,modifier:Modifier=Modifier) {
+    Column(modifier,verticalArrangement=Arrangement.spacedBy(3.dp)) {
+        Row(Modifier.fillMaxWidth(),horizontalArrangement=Arrangement.SpaceBetween) {
+            Text(label,color=RunGold,fontSize=10.sp,fontWeight=FontWeight.Bold)
+            Text(value,color=RunText,fontSize=10.sp,fontWeight=FontWeight.Bold)
+        }
+        LinearProgressIndicator(progress={progress.coerceIn(0f,1f)},
+            modifier=Modifier.fillMaxWidth().height(9.dp)
+                .border(1.dp,RunBrass, RoundedCornerShape(2.dp)),
+            color=fill,trackColor=Color(0xFF112032))
+    }
+}
+
+@Composable
+private fun QuestBattleButton(title:String,sub:String,onClick:()->Unit,
+    enabled:Boolean,modifier:Modifier=Modifier,
+    highlight:Boolean=false,height:Dp=70.dp) {
+    val stroke=if(enabled && highlight)RunGold else RunBrass
+    Button(onClick=onClick,enabled=enabled,
+        modifier=modifier.height(height)
+            .border(2.dp,stroke,QuestFrameShape),
+        shape=QuestFrameShape,
+        contentPadding=PaddingValues(horizontal=2.dp,vertical=2.dp),
+        colors=ButtonDefaults.buttonColors(
+            containerColor=if(highlight)Color(0xFF67412B) else Color(0xFF14364A),
+            disabledContainerColor=Color(0xFF182C37),
+            disabledContentColor=Color(0xFF84919B))) {
+        Column(horizontalAlignment=Alignment.CenterHorizontally,
+            verticalArrangement=Arrangement.Center) {
+            Text(title,color=if(enabled)RunText else Color(0xFF84919B),
+                fontSize=if(highlight)17.sp else 14.sp,
+                fontWeight=FontWeight.Black,maxLines=1)
+            Text(sub,color=if(enabled)RunGold else Color(0xFF84919B),
+                fontSize=10.sp,maxLines=1)
+        }
+    }
+}
 
 /** Continuous projectile telegraphs; the hero automatically hops while
  * advancing or retreating, so there is no explicit jump button. */
@@ -183,14 +244,15 @@ private fun JourneyHoldButton(
     val latestDirection=rememberUpdatedState(onDirection)
     val latestPress=rememberUpdatedState(onPress)
     val isHeld=held==dir
-    val base=if(dir>0)Color(0xFFBD8C41) else Color(0xFF355B7B)
-    val surface=if(isHeld)base.copy(alpha=.9f) else base.copy(alpha=.67f)
+    val top=if(dir>0)Color(0xFF315A66) else Color(0xFF273F57)
+    val bottom=if(dir>0)Color(0xFF103241) else Color(0xFF112238)
     Box(modifier.height(buttonHeight)
-        .clip(RoundedCornerShape(12.dp))
-        .background(if(enabled)surface else Color(0xFF2D3543))
-        .border(if(isHeld)2.dp else 1.dp,
-            if(isHeld)RunGold else Color(0xFF70869D),
-            RoundedCornerShape(12.dp))
+        .clip(QuestFrameShape)
+        .background(Brush.verticalGradient(
+            if(enabled)listOf(if(isHeld)RunBrass else top,bottom)
+            else listOf(Color(0xFF24333E),Color(0xFF14212A))))
+        .border(if(isHeld)3.dp else 2.dp,
+            if(isHeld)RunGold else RunBrass,QuestFrameShape)
         .pointerInput(dir,enabled) {
             if(!enabled)return@pointerInput
             awaitEachGesture {
@@ -209,14 +271,14 @@ private fun JourneyHoldButton(
             }
         },contentAlignment=Alignment.Center) {
         Row(verticalAlignment=Alignment.CenterVertically,
-            horizontalArrangement=Arrangement.spacedBy(10.dp)) {
-            Text(symbol,color=RunText,fontSize=30.sp,
+            horizontalArrangement=Arrangement.spacedBy(4.dp)) {
+            Text(symbol,color=RunGold,fontSize=22.sp,
                 fontWeight=FontWeight.Black)
             Column(horizontalAlignment=Alignment.CenterHorizontally) {
-                Text(title,color=RunText,fontWeight=FontWeight.Bold,
+                Text(title,color=RunText,fontWeight=FontWeight.Black,
                     style=MaterialTheme.typography.titleSmall)
-                Text(hint,color=RunText.copy(alpha=.78f),
-                    style=MaterialTheme.typography.labelSmall)
+                Text(hint,color=RunGold.copy(alpha=.85f),fontSize=9.sp,
+                    maxLines=1)
             }
         }
     }
@@ -229,6 +291,7 @@ private fun JourneyHoldButton(
 fun JourneyExploreScreen(
     state:QuestState,store:MonsterArtworkStore,revision:Int,
     heldDirection:Int,onDirection:(Int)->Unit,onPress:(Int)->Unit,
+    onAttack:()->Unit,
     onCapture:()->Unit,onHeal:()->Unit,
     onSkill:(String,Boolean)->Unit,
     onBranch:(Int)->Unit,onShrine:(Int)->Unit,onBurst:()->Unit,
@@ -257,54 +320,65 @@ fun JourneyExploreScreen(
     BoxWithConstraints(Modifier.fillMaxSize().background(RunInk)) {
     val small=maxHeight<660.dp
     val tiny=maxHeight<560.dp
-    val stageHeight=if(tiny)144.dp else if(small)177.dp else 214.dp
-    val controlHeight=if(tiny)62.dp else if(small)72.dp else 85.dp
+    val stageHeight=if(tiny)158.dp else if(small)203.dp else 251.dp
+    val controlHeight=if(tiny)57.dp else if(small)65.dp else 76.dp
     Column(Modifier.fillMaxSize()
-        .padding(horizontal=10.dp,vertical=6.dp),
-        verticalArrangement=Arrangement.spacedBy(6.dp)
+        .padding(horizontal=9.dp,vertical=5.dp),
+        verticalArrangement=Arrangement.spacedBy(5.dp)
     ) {
-        Row(Modifier.fillMaxWidth(),
+        Row(Modifier.fillMaxWidth()
+            .background(Brush.horizontalGradient(
+                listOf(Color(0xFF1E3345),Color(0xFF0B1F30))),QuestFrameShape)
+            .border(1.dp,RunBrass,QuestFrameShape)
+            .padding(horizontal=7.dp,vertical=5.dp),
             horizontalArrangement=Arrangement.SpaceBetween,
             verticalAlignment=Alignment.CenterVertically) {
-            Column {
-                Text("QUEST / JOURNEY",color=RunGold,
-                    style=MaterialTheme.typography.titleMedium,
-                    fontWeight=FontWeight.Black)
-                Text("進むほど強くなる敵に挑戦",
-                    color=RunCyan,style=MaterialTheme.typography.labelSmall)
+            QuestEmblem("♜")
+            Column(Modifier.weight(1f).padding(start=8.dp)) {
+                Text("MONSTER QUEST",color=RunGold,
+                    fontSize=16.sp,fontWeight=FontWeight.Black,
+                    letterSpacing=1.2.sp,maxLines=1)
+                Text("${state.companion.species}  ·  LV ${state.companion.level}",
+                    color=RunCyan,fontSize=10.sp,maxLines=1)
             }
-            TextButton(onClick=onClassic) {
-                Text("旧タップ操作",color=RunCyan,
-                    style=MaterialTheme.typography.labelSmall)
+            Column(horizontalAlignment=Alignment.End) {
+                Text("✦ ${state.summonStones}",color=RunGold,
+                    fontSize=14.sp,fontWeight=FontWeight.Bold)
+                Text("● ${run.gold} G",color=RunText,fontSize=10.sp)
             }
         }
 
         Row(Modifier.fillMaxWidth(),
-            horizontalArrangement=Arrangement.spacedBy(7.dp),
+            horizontalArrangement=Arrangement.spacedBy(5.dp),
             verticalAlignment=Alignment.CenterVertically) {
-            Surface(color=Color(0xFF283C59),
-                shape=RoundedCornerShape(6.dp)) {
-                Text(if(boss)"BOSS FLOOR "+run.floor
-                    else "FLOOR "+run.floor,
-                    Modifier.padding(horizontal=11.dp,vertical=6.dp),
+            Surface(color=Color(0xFF263B50),
+                shape=RoundedCornerShape(5.dp),
+                border=androidx.compose.foundation.BorderStroke(1.dp,RunBrass)) {
+                Text(if(boss)"☠ BOSS  ${run.floor}F"
+                    else "◆  第${run.floor}階層",
+                    Modifier.padding(horizontal=8.dp,vertical=5.dp),
                     color=RunGold,fontWeight=FontWeight.Bold,
                     style=MaterialTheme.typography.labelMedium)
             }
-            Surface(color=Color(0xFF193E43),
-                shape=RoundedCornerShape(6.dp)) {
-                Text("距離 "+run.distance,
-                    Modifier.padding(horizontal=10.dp,vertical=6.dp),
-                    color=RunText,style=MaterialTheme.typography.labelMedium)
+            Surface(color=Color(0xFF19353D),
+                shape=RoundedCornerShape(5.dp)) {
+                Text("進行 ${run.distance}",
+                    Modifier.padding(horizontal=8.dp,vertical=5.dp),
+                    color=RunCyan,style=MaterialTheme.typography.labelMedium)
             }
             Spacer(Modifier.weight(1f))
-            Text("BEST "+run.bestFloor+"F",color=RunCyan,
-                style=MaterialTheme.typography.labelSmall)
+            Text("BEST ${run.bestFloor}F",color=RunGold,fontSize=10.sp)
+            TextButton(onClick=onClassic,
+                contentPadding=PaddingValues(horizontal=4.dp,vertical=0.dp),
+                modifier=Modifier.height(30.dp)) {
+                Text("旧操作",color=RunCyan,fontSize=9.sp)
+            }
         }
 
         BoxWithConstraints(Modifier.fillMaxWidth()
             .height(stageHeight)
-            .clip(RoundedCornerShape(11.dp))
-            .border(2.dp,Color(0xFF728BA6),RoundedCornerShape(11.dp))
+            .clip(QuestFrameShape)
+            .border(3.dp,RunGold,QuestFrameShape)
         ) {
             val fraction=when {
                 run.phase!=TapPhase.WALK -> 0f
@@ -316,7 +390,28 @@ fun JourneyExploreScreen(
             }
             val scenePosition=(run.floor-1)*TapAdventure.STEPS_PER_FLOOR+
                 run.steps+fraction
-            JourneyBackdrop(run.floor,scenePosition,Modifier.fillMaxSize())
+            Image(painter=painterResource(id=if(boss)R.drawable.mq_moon_ruins
+                else R.drawable.mq_forest_ruins),contentDescription=null,
+                contentScale=ContentScale.Crop,filterQuality=FilterQuality.None,
+                modifier=Modifier.fillMaxSize())
+            // A still scenic illustration should feel deep during travel;
+            // procedural foreground shadows shift without cropping monsters.
+            Canvas(Modifier.fillMaxSize()) {
+                drawRect(brush=Brush.horizontalGradient(listOf(
+                    Color(0xBB06151D),Color.Transparent,
+                    Color.Transparent,Color(0x8806151D))),
+                    size=size)
+                drawRect(Color(0x3300101C),
+                    topLeft=Offset(0f,size.height*.83f),
+                    size=Size(size.width,size.height*.17f))
+                for(i in 0..7) {
+                    val drift=(scenePosition*3f+i*17f)%100f
+                    drawRect(RunGold.copy(alpha=.19f),
+                        topLeft=Offset(size.width*(drift/100f),
+                            size.height*((i*13+11)%63)/100f),
+                        size=Size(2f,2f))
+                }
+            }
 
             // Use the entire square sprite viewport. Insetting via padding
             // *inside* a fixed-size Image previously squashed its content to
@@ -324,9 +419,9 @@ fun JourneyExploreScreen(
             // Move the whole square instead, with the opaque feet aligned to
             // the backdrop's 79%-height ground line.
             val spriteSize=if(boss)
-                minOf(maxWidth*.23f,if(tiny)76.dp else 104.dp)
-                else minOf(maxWidth*.32f,if(tiny)100.dp else 143.dp)
-            val bossSize=minOf(maxWidth*.31f,if(tiny)111.dp else 158.dp)
+                minOf(maxWidth*.26f,if(tiny)75.dp else 112.dp)
+                else minOf(maxWidth*.34f,if(tiny)100.dp else 150.dp)
+            val bossSize=minOf(maxWidth*.36f,if(tiny)112.dp else 165.dp)
             val foeSize=if(boss)bossSize else spriteSize
             val heroGroundOffset=MonsterViewport.floorOffset(
                 stageHeight.value,spriteSize.value).dp
@@ -357,8 +452,7 @@ fun JourneyExploreScreen(
                     Box(Modifier.size(foeSize)
                         .align(Alignment.BottomEnd)
                         .offset(x=(-6).dp,y=-enemyGroundOffset)
-                        .border(2.dp,RunGold.copy(alpha=.58f),
-                            RoundedCornerShape(90.dp)))
+                        .background(RunGold.copy(alpha=.08f)))
                 }
                 MonsterArtworkView(
                     enemy,store,revision,
@@ -383,80 +477,76 @@ fun JourneyExploreScreen(
             if(battling) {
                 Column(
                     Modifier.align(Alignment.TopCenter)
-                        .padding(start=6.dp,end=6.dp,top=7.dp)
-                        .background(Color(0xD70C1930),
-                            RoundedCornerShape(6.dp))
+                        .padding(start=12.dp,end=12.dp,top=8.dp)
+                        .fillMaxWidth(.82f)
+                        .background(Color(0xD90D1B2B),QuestFrameShape)
+                        .border(1.dp,RunBrass,QuestFrameShape)
                         .padding(horizontal=9.dp,vertical=5.dp),
-                    horizontalAlignment=Alignment.CenterHorizontally
+                    horizontalAlignment=Alignment.CenterHorizontally,
+                    verticalArrangement=Arrangement.spacedBy(3.dp)
                 ) {
-                    Text((if(boss)"♜ BOSS " else if(rare)"✦ RARE " else "⚔ ")+
-                        enemy!!.species,color=if(rare)RunGold else RunText,
-                        fontWeight=FontWeight.Bold,
-                        style=MaterialTheme.typography.labelSmall,maxLines=1)
-                    Text("敵HP "+run.enemyHp+"/"+enemy.maxHp,
-                        color=RunCyan,
-                        style=MaterialTheme.typography.labelSmall)
+                    Row(Modifier.fillMaxWidth(),
+                        horizontalArrangement=Arrangement.SpaceBetween) {
+                        Text((if(boss)"☠ BOSS  " else if(rare)"✦ RARE  " else "⚔ ")+
+                            enemy!!.species,color=RunGold,
+                            fontSize=11.sp,fontWeight=FontWeight.Black,maxLines=1)
+                        Text("${run.enemyHp}/${enemy.maxHp}",
+                            color=RunText,fontSize=10.sp)
+                    }
+                    LinearProgressIndicator(
+                        progress={run.enemyHp.toFloat()/enemy.maxHp.coerceAtLeast(1)},
+                        color=if(rare)RunGold else RunRed,
+                        trackColor=Color(0xFF364052),
+                        modifier=Modifier.fillMaxWidth().height(7.dp)
+                            .border(1.dp,RunBrass))
                 }
-                LinearProgressIndicator(
-                    progress={run.enemyHp.toFloat()/
-                        enemy!!.maxHp.coerceAtLeast(1)},
-                    color=if(rare)RunGold else Color(0xFFFF7794),
-                    trackColor=Color(0xFF24344D),
-                    modifier=Modifier.fillMaxWidth()
-                        .align(Alignment.TopCenter).height(4.dp))
             }
             if(battling) {
                 Surface(color=Color(0xDB0B1932),
                     shape=RoundedCornerShape(5.dp),
                     modifier=Modifier.align(Alignment.BottomCenter)
-                        .padding(bottom=8.dp)) {
+                        .padding(bottom=7.dp)) {
                     Text(if(boss) {
                         if(run.weakpointTaps>0)
-                            "✦ 回避成功！ 最前列で攻撃×3"
+                            "✦ 回避成功！ 前線で攻撃チャンス！"
                         else if(run.bossBullets.isNotEmpty())
-                            "⚠ 着弾予告中！ 赤い地点から移動"
+                            "⚠ 弾幕が来る！ 前後に跳ねてかわそう"
                         else "弾幕まで "+String.format("%.1f",
-                            run.bossWaveCooldownMs/1000f)+"秒  ·  最前列で攻撃"
+                            run.bossWaveCooldownMs/1000f)+"秒  ·  接近して攻撃"
                     } else
-                        "攻撃まで "+String.format("%.1f",run.attackTimerMs/1000f)+"秒"+
-                        "　"+ElementalRules.label(
+                        "⚔ "+ElementalRules.label(
                             state.companion.element,enemy!!.element),
                         Modifier.padding(horizontal=7.dp,vertical=4.dp),
                         color=RunGold,
-                        style=MaterialTheme.typography.labelSmall)
+                        fontSize=10.sp)
                 }
             }
         }
 
-        // Dense RPG stat panels sit UNDER the short action scene, like the
-        // reference's information-first silhouette, but remain original.
-        Row(Modifier.fillMaxWidth(),
-            horizontalArrangement=Arrangement.spacedBy(8.dp),
+        // Golden RPG status bar from the approved concept. It stays visible
+        // while less important collection and supply details can scroll.
+        Row(Modifier.fillMaxWidth()
+            .background(RunPanel,QuestFrameShape)
+            .border(1.dp,RunBrass,QuestFrameShape)
+            .padding(horizontal=9.dp,vertical=7.dp),
+            horizontalArrangement=Arrangement.spacedBy(10.dp),
             verticalAlignment=Alignment.CenterVertically) {
-            Column(Modifier.weight(1f)) {
-                LinearProgressIndicator(
-                    progress={state.playerHp.toFloat()/
-                        TalentRules.maxHp(state).coerceAtLeast(1)},
-                    modifier=Modifier.fillMaxWidth().height(9.dp),
-                    color=Color(0xFF7AD7B3),
-                    trackColor=Color(0xFF253850))
-                Text("HP "+state.playerHp+"/"+TalentRules.maxHp(state),
-                    color=RunText,style=MaterialTheme.typography.labelSmall)
-            }
-            Column(Modifier.weight(1f)) {
-                val xp=state.companionXp.toFloat()/
-                    GrowthRules.xpNeeded(state.companion.level).coerceAtLeast(1)
-                LinearProgressIndicator(
-                    progress={xp.coerceIn(0f,1f)},
-                    modifier=Modifier.fillMaxWidth().height(9.dp),
-                    color=RunGold,trackColor=Color(0xFF253850))
-                Text("Lv"+state.companion.level+
-                    "  EXP "+state.companionXp,color=RunText,
-                    style=MaterialTheme.typography.labelSmall)
+            QuestMiniMeter("❤  HP",
+                "${state.playerHp}/${TalentRules.maxHp(state)}",
+                state.playerHp.toFloat()/TalentRules.maxHp(state).coerceAtLeast(1),
+                Color(0xFF72C6A5),Modifier.weight(1.25f))
+            QuestMiniMeter("✦  EXP", "Lv${state.companion.level}",
+                state.companionXp.toFloat()/
+                    GrowthRules.xpNeeded(state.companion.level).coerceAtLeast(1),
+                RunCyan,Modifier.weight(.9f))
+            Column(horizontalAlignment=Alignment.CenterHorizontally) {
+                Text("連勝",color=RunCyan,fontSize=9.sp)
+                Text("×${journey.chain}",color=RunGold,
+                    fontSize=16.sp,fontWeight=FontWeight.Black)
             }
         }
 
-        // Information can scroll, but the two direction buttons and the
+        // Information can scroll, but the direction and action buttons
         // battle actions below MUST stay visible on compact phone screens.
         Column(Modifier.weight(1f).fillMaxWidth()
             .verticalScroll(rememberScrollState()),
@@ -557,7 +647,7 @@ fun JourneyExploreScreen(
                 color=RunCyan,style=MaterialTheme.typography.labelSmall)
         }
         Text("祠 "+journey.shrinesVisited+" / 奥義 "+journey.burstUses+
-            "回  · 右長押し：前進と自動攻撃。左：退却・回避",
+            "回  ·  移動すると自動で跳ねる。ボスは近づいて中央の攻撃ボタン！",
             color=Color(0xFF92A8C3),style=MaterialTheme.typography.labelSmall)
         }
 
@@ -584,68 +674,74 @@ fun JourneyExploreScreen(
                 }
             }
         }else {
-            Row(Modifier.fillMaxWidth(),
+            Row(Modifier.fillMaxWidth()
+                .background(Color(0xFF101F31),RoundedCornerShape(5.dp))
+                .padding(horizontal=5.dp,vertical=4.dp),
                 verticalAlignment=Alignment.CenterVertically,
                 horizontalArrangement=Arrangement.spacedBy(7.dp)) {
+                Text("✦ 奥義ゲージ",color=RunGold,
+                    fontSize=10.sp,fontWeight=FontWeight.Bold)
                 LinearProgressIndicator(
                     progress={journey.burstGauge.toFloat()/JourneyRules.BURST_COST},
                     color=if(journey.burstGauge==JourneyRules.BURST_COST)
-                        RunGold else Color(0xFFB995E5),
+                        RunGold else Color(0xFFA5A4F0),
                     trackColor=Color(0xFF29364A),
-                    modifier=Modifier.weight(1f).height(6.dp))
-                Text("奥義 ${journey.burstGauge}%",color=RunGold,
-                    style=MaterialTheme.typography.labelSmall)
+                    modifier=Modifier.weight(1f).height(8.dp)
+                        .border(1.dp,RunBrass))
+                Text("${journey.burstGauge}%",color=RunGold,
+                    fontSize=10.sp)
             }
             Row(Modifier.fillMaxWidth(),
-                horizontalArrangement=Arrangement.spacedBy(9.dp)) {
+                horizontalArrangement=Arrangement.spacedBy(5.dp)) {
                 JourneyHoldButton("◀",
                     if(run.phase==TapPhase.FIGHT)"にげる" else
                         if(boss)"後退" else "もどる",
-                    if(run.phase==TapPhase.FIGHT)"2歩後退" else
-                        if(boss)"後ろへ走る" else "左に移動",
+                    if(run.phase==TapPhase.FIGHT)"退却" else "ぴょん",
                     -1,heldDirection,!ChallengeRules.active(state),
                     onDirection,onPress,Modifier.weight(1f),controlHeight)
+                QuestBattleButton("⚔ 攻撃",
+                    if(boss && run.bossPosition<BossBarrageRules.ATTACK_X)
+                        "射程外" else if(battling)"たたかう" else "敵がいない",
+                    onAttack,battling&&!ChallengeRules.active(state) &&
+                        (!boss||run.bossPosition>=BossBarrageRules.ATTACK_X),
+                    Modifier.weight(1.13f),highlight=true,height=controlHeight)
                 JourneyHoldButton("▶",
-                    if(boss)"前進/攻撃" else if(battling)"こうげき" else "すすむ",
-                    if(boss)"前進時に跳ねる" else
-                        if(battling)"長押しで連撃" else "長押しで冒険",
+                    if(boss)"前進" else if(battling)"連撃" else "進む",
+                    if(boss)"ぴょん" else if(battling)"自動攻撃" else "長押し",
                     1,heldDirection,!ChallengeRules.active(state),
-                    onDirection,onPress,Modifier.weight(1.34f),controlHeight)
+                    onDirection,onPress,Modifier.weight(1f),controlHeight)
             }
 
             Row(Modifier.fillMaxWidth(),
-                horizontalArrangement=Arrangement.spacedBy(5.dp),
+                horizontalArrangement=Arrangement.spacedBy(4.dp),
                 verticalAlignment=Alignment.CenterVertically) {
-                Button(onClick=onCapture,
-                    enabled=run.phase==TapPhase.FIGHT &&
-                        state.captureOrbs>0 && state.captures.size<100,
-                    modifier=Modifier.weight(1.5f).height(46.dp),
-                    colors=ButtonDefaults.buttonColors(
-                        containerColor=Color(0xFF376F69))) {
-                    Text("◉ 捕獲 "+TapAdventure.captureChance(state)+"%",
-                        color=RunText,
-                        style=MaterialTheme.typography.labelSmall,
-                        fontWeight=FontWeight.Bold)
-                }
+                QuestBattleButton("✦ 奥義",
+                    if(journey.burstGauge==JourneyRules.BURST_COST)"発動可能"
+                    else "${journey.burstGauge}%",
+                    onBurst,
+                    battling && journey.burstGauge>=JourneyRules.BURST_COST,
+                    Modifier.weight(1.15f),highlight=true,height=44.dp)
+                QuestBattleButton("◉ 捕獲",
+                    "${TapAdventure.captureChance(state)}%",
+                    onCapture,
+                    run.phase==TapPhase.FIGHT && state.captureOrbs>0 &&
+                        state.captures.size<100,
+                    Modifier.weight(1f),height=44.dp)
                 OutlinedButton(onClick=onHeal,
                     enabled=state.potions>0 &&
                         state.playerHp<TalentRules.maxHp(state),
-                    modifier=Modifier.weight(.7f).height(46.dp)) {
-                    Text("✚ "+state.potions,
-                        style=MaterialTheme.typography.labelMedium)
-                }
-                Button(onClick=onBurst,
-                    enabled=battling && journey.burstGauge>=JourneyRules.BURST_COST,
-                    modifier=Modifier.weight(1f).height(46.dp),
-                    colors=ButtonDefaults.buttonColors(containerColor=Color(0xFF7759A4))) {
-                    Text("✦ 奥義",color=RunText,
-                        style=MaterialTheme.typography.labelSmall)
+                    modifier=Modifier.weight(.72f).height(44.dp),
+                    contentPadding=PaddingValues(0.dp),
+                    shape=QuestFrameShape) {
+                    Text("✚ ${state.potions}",fontSize=11.sp)
                 }
                 OutlinedButton(onClick={showSkills=!showSkills},
                     enabled=battling,
-                    modifier=Modifier.weight(.8f).height(46.dp)) {
+                    modifier=Modifier.weight(.72f).height(44.dp),
+                    contentPadding=PaddingValues(0.dp),
+                    shape=QuestFrameShape) {
                     Text(if(showSkills)"閉じる" else "技",
-                        style=MaterialTheme.typography.labelSmall)
+                        fontSize=11.sp)
                 }
             }
         }
