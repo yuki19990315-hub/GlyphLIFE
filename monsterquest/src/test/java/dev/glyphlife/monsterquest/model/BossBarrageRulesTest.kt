@@ -24,9 +24,12 @@ class BossBarrageRulesTest {
         repeat(7){state=JourneyRules.pressRight(state,Random(5))}
         assertEquals(76,state.tapRun.bossPosition)
         state=JourneyRules.pressRight(state,Random(5))
+        assertEquals(82,state.tapRun.bossPosition)
+        assertEquals("Movement should never deal a hidden hit",450,state.tapRun.enemyHp)
+        state=JourneyRules.pressAttack(state,Random(5))
         assertTrue(state.tapRun.enemyHp<450)
         state=JourneyRules.pressLeft(state)
-        assertEquals(70,state.tapRun.bossPosition)
+        assertEquals(76,state.tapRun.bossPosition)
         assertEquals(TapPhase.BOSS,state.tapRun.phase)
         repeat(30){state=JourneyRules.pressLeft(state)}
         assertEquals(BossBarrageRules.MIN_X,state.tapRun.bossPosition)
