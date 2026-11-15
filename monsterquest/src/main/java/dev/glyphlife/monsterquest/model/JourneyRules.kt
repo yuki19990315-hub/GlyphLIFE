@@ -184,10 +184,6 @@ object JourneyRules {
         }.let{if(it==state)state else it.copy(journey=it.journey.copy(repeatMs=0))}
     }
 
-    fun jump(state:QuestState):QuestState =
-        if(ChallengeRules.active(state) || state.journey.shrinePending)state
-        else BossBarrageRules.jump(state)
-
     private fun retreat(state:QuestState):QuestState {
         val run=state.tapRun
         if(run.phase!=TapPhase.FIGHT)return state

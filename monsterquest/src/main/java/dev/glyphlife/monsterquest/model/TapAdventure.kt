@@ -17,10 +17,9 @@ data class TapRun(
     val guardHits:Int=0,
     val venomCharges:Int=0,
     val bossTarget:Int=-1, val lane:Int=0, val weakpointTaps:Int=0,
-    /** Free horizontal position and jump arc; legacy lane remains classic-only. */
+    /** Free horizontal position and automatic hopping during movement. */
     val bossPosition:Int=BossBarrageRules.START_X,
-    val bossJumpMs:Int=0,
-    val bossJumpCooldownMs:Int=0,
+    val bossHopMs:Int=0,
     val bossBullets:List<BossBarrageBullet> = emptyList(),
     val bossWaveCooldownMs:Int=BossBarrageRules.FIRST_WAVE_MS,
     val bossWaveIndex:Int=0,
@@ -123,7 +122,7 @@ object TapAdventure {
                 bossTarget=if(rng.nextBoolean())1 else -1,
                 weakpointTaps=0,
                 bossPosition=BossBarrageRules.START_X,
-                bossJumpMs=0,bossJumpCooldownMs=0,bossBullets=emptyList(),
+                bossHopMs=0,bossBullets=emptyList(),
                 bossWaveCooldownMs=BossBarrageRules.FIRST_WAVE_MS,
                 bossWaveIndex=0,bossWaveTouched=false,bossVolleysDodged=0,
                 message=if(boss)"★ BOSS「"+monster.species+"」！ 前後移動で弾幕を避けよう"

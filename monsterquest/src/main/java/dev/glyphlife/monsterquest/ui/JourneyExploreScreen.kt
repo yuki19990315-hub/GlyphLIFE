@@ -34,8 +34,8 @@ private val RunInk=Color(0xFF0A1525)
 private val RunPanel=Color(0xFF172641)
 private val RunText=Color(0xFFEAF4FF)
 
-/** Continuous horizontal telegraphs, plus a clearly distinct overhead shot.
- * Ground projectiles can be jumped; blue high shots must be ducked or outrun. */
+/** Continuous projectile telegraphs; the hero automatically hops while
+ * advancing or retreating, so there is no explicit jump button. */
 @Composable
 private fun BossBarrageLayer(run:TapRun,modifier:Modifier=Modifier) {
     Canvas(modifier) {
@@ -178,7 +178,7 @@ private fun JourneyHoldButton(
     symbol:String,title:String,hint:String,dir:Int,
     held:Int,enabled:Boolean,onDirection:(Int)->Unit,
     onPress:(Int)->Unit,modifier:Modifier=Modifier,
-    buttonHeight:Dp=85.dp,stacked:Boolean=false
+    buttonHeight:Dp=85.dp
 ) {
     val latestDirection=rememberUpdatedState(onDirection)
     val latestPress=rememberUpdatedState(onPress)
@@ -208,14 +208,7 @@ private fun JourneyHoldButton(
                 }
             }
         },contentAlignment=Alignment.Center) {
-        if(stacked) {
-            Column(horizontalAlignment=Alignment.CenterHorizontally) {
-                Text(symbol,color=RunText,fontSize=25.sp,
-                    fontWeight=FontWeight.Black)
-                Text(title,color=RunText,fontWeight=FontWeight.Bold,
-                    style=MaterialTheme.typography.labelSmall,maxLines=1)
-            }
-        }else Row(verticalAlignment=Alignment.CenterVertically,
+        Row(verticalAlignment=Alignment.CenterVertically,
             horizontalArrangement=Arrangement.spacedBy(10.dp)) {
             Text(symbol,color=RunText,fontSize=30.sp,
                 fontWeight=FontWeight.Black)
@@ -239,7 +232,6 @@ fun JourneyExploreScreen(
     onCapture:()->Unit,onHeal:()->Unit,
     onSkill:(String,Boolean)->Unit,
     onBranch:(Int)->Unit,onShrine:(Int)->Unit,onBurst:()->Unit,
-    onJump:()->Unit,
     onAutoCapture:()->Unit,
     onBuySupply:(String)->Unit,onClassic:()->Unit
 ) {
@@ -337,6 +329,9 @@ fun JourneyExploreScreen(
                 maxWidth*BossBarrageRules.screenX(run.bossPosition)
                 else maxWidth*.20f
             val heroLeft=(heroCenter-spriteSize/2).coerceAtLeast(0.dp)
+            val walkingHop=if(!battling && heldDirection!=0)
+                BossBarrageRules.travelHop(journey.travelMs,heldDirection)
+                else 0f
             MonsterArtworkView(
                 companion,store,revision,
                 Modifier.size(spriteSize)
@@ -344,10 +339,8 @@ fun JourneyExploreScreen(
                     .offset(x=heroLeft)
                     .padding(bottom=spriteBottom)
                     .offset(y=if(boss)
-                        -(stageHeight*.32f)*BossBarrageRules.jumpHeight(run)
-                        else if(heldDirection!=0 && !battling)
-                            (if((journey.travelMs/140)%2==0)-3 else 0).dp
-                        else 0.dp),
+                        -(stageHeight*.14f)*BossBarrageRules.hopHeight(run)
+                        else -18.dp*walkingHop),
                 bossRelicKind=RelicRules.visualKind(
                     state,state.companion.id))
             if(enemy!=null) {
@@ -522,7 +515,7 @@ fun JourneyExploreScreen(
 
         if(boss) {
             Surface(color=Color(0xFF26334F),shape=RoundedCornerShape(8.dp)) {
-                Text("↔ 前後に自由移動 ＋ ▲ジャンプ。"+
+                Text("↔ 前進・後退で自動的にぴょんぴょん移動。"+
                     (if(run.bossPosition>=BossBarrageRules.ATTACK_X)
                         "射程内！攻撃可能" else "接近すると攻撃可能")+
                     " ·  回避成功 ${run.bossVolleysDodged}回",
@@ -602,28 +595,13 @@ fun JourneyExploreScreen(
                     if(run.phase==TapPhase.FIGHT)"2歩後退" else
                         if(boss)"後ろへ走る" else "左に移動",
                     -1,heldDirection,!ChallengeRules.active(state),
-                    onDirection,onPress,Modifier.weight(1f),controlHeight,boss)
-                if(boss) {
-                    Button(onClick=onJump,
-                        enabled=run.bossJumpMs==0 && run.bossJumpCooldownMs==0 &&
-                            !ChallengeRules.active(state),
-                        modifier=Modifier.weight(1f).height(controlHeight),
-                        contentPadding=PaddingValues(horizontal=3.dp,vertical=4.dp),
-                        colors=ButtonDefaults.buttonColors(
-                            containerColor=Color(0xFF536FAA))) {
-                        Column(horizontalAlignment=Alignment.CenterHorizontally) {
-                            Text("▲",fontSize=24.sp,fontWeight=FontWeight.Black)
-                            Text("ジャンプ",style=MaterialTheme.typography.labelSmall,
-                                maxLines=1)
-                        }
-                    }
-                }
+                    onDirection,onPress,Modifier.weight(1f),controlHeight)
                 JourneyHoldButton("▶",
                     if(boss)"前進/攻撃" else if(battling)"こうげき" else "すすむ",
-                    if(boss)"最前列で連撃" else
+                    if(boss)"前進時に跳ねる" else
                         if(battling)"長押しで連撃" else "長押しで冒険",
                     1,heldDirection,!ChallengeRules.active(state),
-                    onDirection,onPress,Modifier.weight(1.22f),controlHeight,boss)
+                    onDirection,onPress,Modifier.weight(1.34f),controlHeight)
             }
 
             Row(Modifier.fillMaxWidth(),

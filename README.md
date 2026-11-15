@@ -1,6 +1,6 @@
 # GlyphLIFE v0.14 / Monster Quest v3.0.1
 
-> **Monster Quest v5.1**: ボス戦の5地点移動を廃止し、左右の自由移動＋ジャンプで避ける弾幕アクションに再設計。赤い地上弾はジャンプ、青い空中弾は着地や移動で回避。長押し前進で射程に入って攻撃する、片手でも遊べる操作。旧セーブとドット絵素材は保持。詳細は [v5.1ジャンプ回避](docs/MONSTER_QUEST_V51_JUMP_BARRAGE_JA.md)。
+> **Monster Quest v5.2**: 『ひまつぶクエスト』の軽快な移動表現を参考に、前進・後退で主人公が自動的にぴょんぴょん弾む。ジャンプ専用ボタンは廃止。ボス戦は左右長押しで移動し、着弾を避けて射程内から攻撃する。旧セーブと64×64ドット絵を保持。詳細は [v5.2移動アニメーション](docs/MONSTER_QUEST_V52_HOPPING_WALK_JA.md)。
 
 Two **independently installable Android apps** in one repository:
 

@@ -290,8 +290,7 @@ class QuestStorage(context: Context) {
         .put("bossTarget",r.bossTarget).put("lane",r.lane)
         .put("weakpointTaps",r.weakpointTaps)
         .put("bossPosition",r.bossPosition)
-        .put("bossJumpMs",r.bossJumpMs)
-        .put("bossJumpCooldownMs",r.bossJumpCooldownMs)
+        .put("bossHopMs",r.bossHopMs)
         .put("bossWaveCooldownMs",r.bossWaveCooldownMs)
         .put("bossWaveIndex",r.bossWaveIndex)
         .put("bossWaveTouched",r.bossWaveTouched)
@@ -328,10 +327,8 @@ class QuestStorage(context: Context) {
             bossPosition=o.optInt("bossPosition",
                 BossBarrageRules.START_X).coerceIn(
                     BossBarrageRules.MIN_X,BossBarrageRules.MAX_X),
-            bossJumpMs=o.optInt("bossJumpMs",0).coerceIn(
-                0,BossBarrageRules.JUMP_DURATION_MS),
-            bossJumpCooldownMs=o.optInt("bossJumpCooldownMs",0).coerceIn(
-                0,BossBarrageRules.JUMP_COOLDOWN_MS),
+            bossHopMs=o.optInt("bossHopMs",0).coerceIn(
+                0,BossBarrageRules.HOP_DURATION_MS),
             bossWaveCooldownMs=o.optInt("bossWaveCooldownMs",
                 BossBarrageRules.FIRST_WAVE_MS).coerceIn(0,5000),
             bossWaveIndex=o.optInt("bossWaveIndex",0).coerceIn(0,999999),
