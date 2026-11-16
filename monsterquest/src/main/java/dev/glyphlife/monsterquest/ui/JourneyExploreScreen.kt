@@ -506,7 +506,10 @@ fun JourneyExploreScreen(
                         .width(bubbleWidth))
                 // Move combat messages from the scrolling lower panel into
                 // a wrapped, edge-safe bubble above the in-scene battle hint.
-                if(stageMessage.isNotBlank()) {
+                // On the shortest displays, alternate the combat log with
+                // numeric hit markers rather than stacking them over sprites.
+                if(stageMessage.isNotBlank() &&
+                    enemyDamage==null && playerDamage==null) {
                     Box(Modifier.align(Alignment.BottomCenter)
                         .padding(start=8.dp,end=8.dp,bottom=42.dp)
                         .fillMaxWidth()
