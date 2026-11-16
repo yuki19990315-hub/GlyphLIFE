@@ -69,6 +69,10 @@ fun Companion.gameArtFamily(): String =
 
 data class QuestState(
     val companion: Companion = Companion(),
+    /** Player equipment slots; owned items and selection survive every road reset. */
+    val roadGearOwned:Set<String> = RoadGearRules.starterOwned,
+    val roadWeapon:String = RoadGearRules.STARTER_WEAPON,
+    val roadArmor:String = RoadGearRules.STARTER_ARMOR,
     /** Tower and arena are separate from the main exploration session. */
     val challenge: ChallengeState = ChallengeState(),
     /** Collectible boss equipment and its unique one-owner assignments. */

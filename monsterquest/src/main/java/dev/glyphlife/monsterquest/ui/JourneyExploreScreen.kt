@@ -725,29 +725,11 @@ fun JourneyExploreScreen(
                 Text("${journey.burstGauge}%",color=RunGold,
                     fontSize=10.sp)
             }
-            Row(Modifier.fillMaxWidth(),
-                horizontalArrangement=Arrangement.spacedBy(5.dp)) {
-                JourneyHoldButton("◀",
-                    "もどる", "距離を取る",
-                    -1,heldDirection,!ChallengeRules.active(state),
-                    onDirection,onPress,Modifier.weight(1f),controlHeight)
-                JourneyHoldButton("▶",
-                    if(battling)"たたかう" else "すすむ",
-                    if(battling)"接触で自動攻撃" else "長押しで前進",
-                    1,heldDirection,!ChallengeRules.active(state),
-                    onDirection,onPress,Modifier.weight(1f),controlHeight)
-            }
-
+            // Action buttons stay ABOVE movement, keeping their hit boxes
+            // independent of held gestures on the lower one-third zones.
             Row(Modifier.fillMaxWidth(),
                 horizontalArrangement=Arrangement.spacedBy(4.dp),
                 verticalAlignment=Alignment.CenterVertically) {
-                QuestBattleButton("✦ 奥義",
-                    if(journey.burstGauge==JourneyRules.BURST_COST)"発動可能"
-                    else "${journey.burstGauge}%",
-                    onBurst,
-                    battling && journey.burstGauge>=JourneyRules.BURST_COST &&
-                        MinuteRoadRules.inRange(state),
-                    Modifier.weight(1.15f),highlight=true,height=44.dp)
                 QuestBattleButton("◉ 捕獲",
                     "${TapAdventure.captureChance(state)}%",
                     onCapture,
@@ -757,19 +739,39 @@ fun JourneyExploreScreen(
                 OutlinedButton(onClick=onHeal,
                     enabled=state.potions>0 &&
                         state.playerHp<TalentRules.maxHp(state),
-                    modifier=Modifier.weight(.72f).height(44.dp),
+                    modifier=Modifier.weight(1f).height(44.dp),
                     contentPadding=PaddingValues(0.dp),
                     shape=QuestFrameShape) {
-                    Text("✚ ${state.potions}",fontSize=11.sp)
+                    Text("✚ 回復 ×${state.potions}",fontSize=11.sp)
                 }
                 OutlinedButton(onClick={showSkills=!showSkills},
                     enabled=battling,
-                    modifier=Modifier.weight(.72f).height(44.dp),
+                    modifier=Modifier.weight(1f).height(44.dp),
                     contentPadding=PaddingValues(0.dp),
                     shape=QuestFrameShape) {
                     Text(if(showSkills)"閉じる" else "技",
                         fontSize=11.sp)
                 }
+            }
+            Row(Modifier.fillMaxWidth(),
+                horizontalArrangement=Arrangement.spacedBy(4.dp),
+                verticalAlignment=Alignment.CenterVertically) {
+                JourneyHoldButton("◀",
+                    "もどる", "長押しで後退",
+                    -1,heldDirection,!ChallengeRules.active(state),
+                    onDirection,onPress,Modifier.weight(1f),controlHeight)
+                QuestBattleButton("✦ 奥義",
+                    if(journey.burstGauge==JourneyRules.BURST_COST)"発動可能"
+                    else "${journey.burstGauge}%",
+                    onBurst,
+                    battling && journey.burstGauge>=JourneyRules.BURST_COST &&
+                        MinuteRoadRules.inRange(state),
+                    Modifier.weight(1f),highlight=true,height=controlHeight)
+                JourneyHoldButton("▶",
+                    if(battling)"たたかう" else "すすむ",
+                    if(battling)"自動攻撃" else "長押しで前進",
+                    1,heldDirection,!ChallengeRules.active(state),
+                    onDirection,onPress,Modifier.weight(1f),controlHeight)
             }
         }
     }
