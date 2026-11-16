@@ -127,6 +127,7 @@ object MinuteRoadRules {
     }
 
     fun capture(state:QuestState,rng:Random=Random.Default):QuestState {
+        if(ChallengeRules.active(state))return state
         val s=prepare(state)
         if(!inRange(s))return s
         return finishAction(s,JourneyRules.capture(s,rng))
@@ -147,6 +148,7 @@ object MinuteRoadRules {
 
     fun skill(state:QuestState,ownerId:String,bonus:Boolean=false,
               rng:Random=Random.Default):QuestState {
+        if(ChallengeRules.active(state))return state
         val s=prepare(state)
         if(!inRange(s))return s
         return finishAction(s,TapAdventure.useSkill(s,ownerId,rng,bonus))

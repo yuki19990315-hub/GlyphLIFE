@@ -20,6 +20,8 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.ui.unit.dp
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.LifecycleEventObserver
 import dev.glyphlife.monsterquest.data.QuestStorage
 import dev.glyphlife.monsterquest.data.MonsterArtworkStore
 import dev.glyphlife.monsterquest.model.*
@@ -89,6 +91,33 @@ class MonsterQuestActivity : ComponentActivity() {
             var selectedTab by remember { mutableStateOf(QuestTab.HOME) }
             var journeyHeld by remember { mutableIntStateOf(0) }
             LaunchedEffect(selectedTab) { journeyHeld=0 }
+            // A composition may remain alive while the Activity is stopped.
+            // Pause all clocks and release a held direction on backgrounding,
+            // then flush the latest state (including uncheckpointed taps).
+            val gameLifecycle=this@MonsterQuestActivity.lifecycle
+            var gameVisible by remember {
+                mutableStateOf(gameLifecycle.currentState.isAtLeast(
+                    Lifecycle.State.STARTED))
+            }
+            val latestSave by rememberUpdatedState(state)
+            DisposableEffect(gameLifecycle) {
+                val observer=LifecycleEventObserver { _,event ->
+                    when(event) {
+                        Lifecycle.Event.ON_START -> gameVisible=true
+                        Lifecycle.Event.ON_STOP -> {
+                            gameVisible=false
+                            journeyHeld=0
+                            storage.save(latestSave,synchronous=true)
+                        }
+                        else -> Unit
+                    }
+                }
+                gameLifecycle.addObserver(observer)
+                onDispose {
+                    gameLifecycle.removeObserver(observer)
+                    storage.save(latestSave,synchronous=true)
+                }
+            }
             var aiArtEnabled by remember { mutableStateOf(false) }
             var status by remember { mutableStateOf("オフラインで遊べます") }
             var aiKey by remember { mutableStateOf("") }
@@ -437,8 +466,10 @@ class MonsterQuestActivity : ComponentActivity() {
 
             // Battle time advances independently from taps. Pausing Explore
             // pauses the clock; one 100-ms tick can trigger at most one strike.
-            LaunchedEffect(selectedTab,state.tapRun.phase,state.tapRun.enemy?.id) {
-                if(selectedTab==QuestTab.EXPLORE && state.journey.classic &&
+            LaunchedEffect(selectedTab,state.tapRun.phase,state.tapRun.enemy?.id,
+                gameVisible) {
+                if(gameVisible && selectedTab==QuestTab.EXPLORE &&
+                    state.journey.classic &&
                     state.tapRun.phase in listOf(TapPhase.FIGHT,TapPhase.BOSS)) {
                     while(true) {
                         kotlinx.coroutines.delay(100L)
@@ -458,8 +489,9 @@ class MonsterQuestActivity : ComponentActivity() {
 
             // One single 100ms loop owns both arcade movement and enemy
             // retaliation; never run a second legacy combat timer alongside it.
-            LaunchedEffect(selectedTab,state.journey.classic) {
-                if(selectedTab==QuestTab.EXPLORE && !state.journey.classic) {
+            LaunchedEffect(selectedTab,state.journey.classic,gameVisible) {
+                if(gameVisible && selectedTab==QuestTab.EXPLORE &&
+                    !state.journey.classic) {
                     var checkpoint=0
                     while(true) {
                         kotlinx.coroutines.delay(100L)
@@ -491,9 +523,10 @@ class MonsterQuestActivity : ComponentActivity() {
             // Only the visible challenge screen advances time; backgrounding
             // or switching tabs pauses both modes without catch-up damage.
             LaunchedEffect(
-                selectedTab,state.challenge.mode,state.challenge.opponent?.id
+                selectedTab,state.challenge.mode,state.challenge.opponent?.id,
+                gameVisible
             ) {
-                if(selectedTab==QuestTab.CHALLENGE &&
+                if(gameVisible && selectedTab==QuestTab.CHALLENGE &&
                     ChallengeRules.active(state)) {
                     while(true) {
                         kotlinx.coroutines.delay(100L)

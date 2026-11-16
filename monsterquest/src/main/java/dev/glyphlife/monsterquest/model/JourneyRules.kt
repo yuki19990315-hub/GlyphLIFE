@@ -106,8 +106,9 @@ object JourneyRules {
     }
 
     fun toggleAutoCapture(state:QuestState):QuestState=
-        state.copy(journey=state.journey.copy(
-            autoCapture=!state.journey.autoCapture))
+        if(ChallengeRules.active(state))state else
+            state.copy(journey=state.journey.copy(
+                autoCapture=!state.journey.autoCapture))
 
     fun phaseInterval(phase:TapPhase):Int = when(phase) {
         TapPhase.WALK -> WALK_INTERVAL_MS
@@ -262,7 +263,8 @@ object JourneyRules {
             repeatMs=0,bonusText="✦ 新しい個体を捕獲！"))
     }
 
-    fun heal(state:QuestState):QuestState=TapAdventure.heal(state)
+    fun heal(state:QuestState):QuestState=
+        if(ChallengeRules.active(state))state else TapAdventure.heal(state)
 
     /**
      * Only one clock runs in the active exploration tab.
