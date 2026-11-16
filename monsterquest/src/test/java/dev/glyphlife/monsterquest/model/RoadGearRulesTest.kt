@@ -44,7 +44,9 @@ class RoadGearRulesTest {
         assertEquals(15,RelicRules.stats(s).critical)
         s=RoadGearRules.equip(s,"steel_guard")
         assertEquals(2,RoadGearRules.activeSkills(s).size)
-        assertEquals(0,RelicRules.stats(s).critical)
+        // The storm saber itself retains +4% critical; only its +7%
+        // matching-coat set effect is removed when armor changes.
+        assertEquals(4,RelicRules.stats(s).critical)
         assertEquals(1,RelicRules.stats(s).charge)
     }
 
