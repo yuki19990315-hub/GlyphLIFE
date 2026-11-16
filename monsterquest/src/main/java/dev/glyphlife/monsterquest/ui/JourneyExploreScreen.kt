@@ -278,6 +278,14 @@ fun JourneyExploreScreen(
     var damageSequence by remember { mutableIntStateOf(0) }
     var enemyDamage by remember { mutableStateOf<StageDamageEvent?>(null) }
     var playerDamage by remember { mutableStateOf<StageDamageEvent?>(null) }
+    var stageMessage by remember { mutableStateOf("") }
+    LaunchedEffect(battling,run.message) {
+        if(battling && run.message.isNotBlank()) {
+            stageMessage=run.message
+            delay(2200)
+            stageMessage=""
+        } else stageMessage=""
+    }
     LaunchedEffect(enemy?.id,run.enemyHp) {
         if(battling && enemy!=null && lastEnemyId==enemy.id &&
             run.enemyHp<lastEnemyHp) {
@@ -498,7 +506,7 @@ fun JourneyExploreScreen(
                         .width(bubbleWidth))
                 // Move combat messages from the scrolling lower panel into
                 // a wrapped, edge-safe bubble above the in-scene battle hint.
-                if(run.message.isNotBlank()) {
+                if(stageMessage.isNotBlank()) {
                     Box(Modifier.align(Alignment.BottomCenter)
                         .padding(start=8.dp,end=8.dp,bottom=42.dp)
                         .fillMaxWidth()
@@ -506,7 +514,7 @@ fun JourneyExploreScreen(
                         .border(1.dp,RunBrass,QuestFrameShape)
                         .padding(horizontal=6.dp,vertical=4.dp),
                         contentAlignment=Alignment.Center) {
-                        Text(run.message,color=RunText,fontSize=10.sp,
+                        Text(stageMessage,color=RunText,fontSize=10.sp,
                             maxLines=2,overflow=TextOverflow.Ellipsis,
                             textAlign=TextAlign.Center)
                     }
