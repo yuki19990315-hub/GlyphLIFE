@@ -263,6 +263,16 @@ class QuestStorage(context: Context) {
         .put("shrinePending",j.shrinePending)
         .put("lastShrineFloor",j.lastShrineFloor)
         .put("shrinesVisited",j.shrinesVisited)
+        .put("roadPosition",j.roadPosition)
+        .put("roadBestPosition",j.roadBestPosition)
+        .put("roadEnemyPosition",j.roadEnemyPosition)
+        .put("roadBossClearedPosition",j.roadBossClearedPosition)
+        .put("roadFreeStats",j.roadFreeStats)
+        .put("roadPower",j.roadPower)
+        .put("roadVitality",j.roadVitality)
+        .put("roadSpeed",j.roadSpeed)
+        .put("roadWisdom",j.roadWisdom)
+        .put("roadLuck",j.roadLuck)
 
     private fun readJourney(o:JSONObject):JourneyState=JourneyState(
         classic=o.optBoolean("classic",false),
@@ -277,7 +287,17 @@ class QuestStorage(context: Context) {
         burstUses=o.optInt("burstUses",0).coerceIn(0,999999),
         shrinePending=o.optBoolean("shrinePending",false),
         lastShrineFloor=o.optInt("lastShrineFloor",0).coerceIn(0,999),
-        shrinesVisited=o.optInt("shrinesVisited",0).coerceIn(0,999999)
+        shrinesVisited=o.optInt("shrinesVisited",0).coerceIn(0,999999),
+        roadPosition=o.optInt("roadPosition",-1).coerceIn(-1,99999),
+        roadBestPosition=o.optInt("roadBestPosition",0).coerceIn(0,99999),
+        roadEnemyPosition=o.optInt("roadEnemyPosition",-1).coerceIn(-1,100000),
+        roadBossClearedPosition=o.optInt("roadBossClearedPosition",0).coerceIn(0,99999),
+        roadFreeStats=o.optInt("roadFreeStats",0).coerceIn(0,9999),
+        roadPower=o.optInt("roadPower",0).coerceIn(0,9999),
+        roadVitality=o.optInt("roadVitality",0).coerceIn(0,9999),
+        roadSpeed=o.optInt("roadSpeed",0).coerceIn(0,9999),
+        roadWisdom=o.optInt("roadWisdom",0).coerceIn(0,9999),
+        roadLuck=o.optInt("roadLuck",0).coerceIn(0,9999)
     )
 
     private fun writeTapRun(r:TapRun):JSONObject=JSONObject()

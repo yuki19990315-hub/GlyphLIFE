@@ -29,7 +29,20 @@ data class JourneyState(
     /** A discovered shrine halts auto-walking until the player decides. */
     val shrinePending:Boolean=false,
     val lastShrineFloor:Int=0,
-    val shrinesVisited:Int=0
+    val shrinesVisited:Int=0,
+    /** Continuous one-road exploration; -1 migrates an older floor-based save. */
+    val roadPosition:Int=-1,
+    val roadBestPosition:Int=0,
+    /** World position of the active enemy, or -1 when the road is clear. */
+    val roadEnemyPosition:Int=-1,
+    val roadBossClearedPosition:Int=0,
+    /** Five freely assigned points per new level in the continuous-road mode. */
+    val roadFreeStats:Int=0,
+    val roadPower:Int=0,
+    val roadVitality:Int=0,
+    val roadSpeed:Int=0,
+    val roadWisdom:Int=0,
+    val roadLuck:Int=0
 )
 
 object JourneyRules {

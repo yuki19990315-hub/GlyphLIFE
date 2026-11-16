@@ -132,6 +132,20 @@ object TapAdventure {
         )
     }
 
+    /** Reuse the original Monster Quest encounter/loot pipeline in the
+     * continuous road mode. The road owns movement and encounter positions;
+     * no floor branches or discrete tap-to-walk transitions are involved. */
+    fun roadEncounter(state:QuestState,boss:Boolean,
+                      rng:Random=Random.Default):QuestState {
+        val drawn=if(boss)null else HuntRules.draw(state,rng)
+        val form=if(boss)bosses[rng.nextInt(bosses.size)]
+            else if(drawn!=null)Triple(drawn.species,drawn.element,
+                MonsterDesign.bodyType(drawn))
+            else mobs[rng.nextInt(mobs.size)]
+        val artId=drawn?.artSourceId.orEmpty()
+        return encounter(state,form,boss,rng,artId)
+    }
+
     private fun attack(state:QuestState,rng:Random):QuestState {
         val run=state.tapRun
         val foe=run.enemy ?: return state.copy(tapRun=run.copy(phase=TapPhase.WALK))
@@ -141,11 +155,15 @@ object TapAdventure {
         val talent=TalentRules.teamStats(state)
         val critical=rng.nextInt(100)<
             (12+relic.critical+talent.critical+
+                (if(state.journey.roadPosition>=0)
+                    state.journey.roadLuck/3 else 0)+
                 (run.combo/8).coerceAtMost(8)).coerceAtMost(80)
         val weak=run.phase==TapPhase.BOSS && run.weakpointTaps>0
         val venom=if(run.venomCharges>0)8 else 0
         val base=(6+state.companion.level.coerceIn(1,50)/3+
             state.attackUpgrade*2+support+relic.attack+talent.attack+
+            (if(state.journey.roadPosition>=0)
+                state.journey.roadPower else 0)+
             rng.nextInt(5))
         val element=ElementalRules.percentage(state.companion.element,foe.element)
         val amount=(base*element/100).coerceAtLeast(1) *

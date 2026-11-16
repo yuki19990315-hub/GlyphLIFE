@@ -464,7 +464,7 @@ class MonsterQuestActivity : ComponentActivity() {
                     while(true) {
                         kotlinx.coroutines.delay(100L)
                         val before=state
-                        val next=JourneyRules.tick(before,journeyHeld,100)
+                        val next=MinuteRoadRules.tick(before,journeyHeld,100)
                         if(next!=before) {
                             val saved=next.copy(inBattle=
                                 next.tapRun.phase in listOf(TapPhase.FIGHT,TapPhase.BOSS) ||
@@ -642,23 +642,23 @@ class MonsterQuestActivity : ComponentActivity() {
                                     onPress={ direction ->
                                         if(!ChallengeRules.active(state)) {
                                             val next=if(direction>0)
-                                                JourneyRules.pressRight(state)
-                                            else JourneyRules.pressLeft(state)
+                                                MinuteRoadRules.pressRight(state)
+                                            else MinuteRoadRules.pressLeft(state)
                                             if(next!=state)update(next)
                                         }
                                     },
                                     onAttack={
                                         if(!ChallengeRules.active(state)) {
-                                            val next=JourneyRules.pressAttack(state)
+                                            val next=MinuteRoadRules.pressRight(state)
                                             if(next!=state)update(next)
                                         }
                                     },
                                     onCapture={
-                                        update(JourneyRules.capture(state))
+                                        update(MinuteRoadRules.capture(state))
                                     },
                                     onHeal={update(JourneyRules.heal(state))},
                                     onSkill={owner,bonus->
-                                        update(JourneyRules.useSkill(state,owner,bonus))
+                                        update(MinuteRoadRules.skill(state,owner,bonus))
                                     },
                                     onBranch={route->
                                         update(JourneyRules.chooseBranch(state,route))
@@ -667,10 +667,13 @@ class MonsterQuestActivity : ComponentActivity() {
                                         update(JourneyRules.chooseShrine(state,choice))
                                     },
                                     onBurst={
-                                        update(JourneyRules.burst(state))
+                                        update(MinuteRoadRules.burst(state))
                                     },
                                     onAutoCapture={
                                         update(JourneyRules.toggleAutoCapture(state))
+                                    },
+                                    onAllocateStat={stat->
+                                        update(MinuteRoadRules.allocate(state,stat))
                                     },
                                     onBuySupply={kind->
                                         if(!ChallengeRules.active(state))

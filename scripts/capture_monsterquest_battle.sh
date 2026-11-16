@@ -6,11 +6,11 @@ set -euo pipefail
 
 found_battle=0
 for step in $(seq 1 24); do
-  # 1080x2400 @420dpi: center of the right-hand '進む' control.
+  # 1080x2400 @420dpi: right-hand 'すすむ / たたかう' control.
   adb shell input tap 890 1975
   sleep 0.4
   adb shell uiautomator dump /sdcard/monsterquest-battle.xml >/dev/null 2>&1 || true
-  if adb shell cat /sdcard/monsterquest-battle.xml 2>/dev/null | grep -q '連撃'; then
+  if adb shell cat /sdcard/monsterquest-battle.xml 2>/dev/null | grep -q 'たたかう'; then
     found_battle=1
     echo "Battle reached after ${step} steps"
     break
@@ -29,7 +29,7 @@ adb pull /sdcard/monsterquest-battle.xml monsterquest/build/ui-screenshot/battle
 # Trigger one strike while the first encounter is still alive. The resulting
 # snapshot verifies that floating damage and the combat log are *inside* the
 # clipped upper stage, not below it or off the right edge.
-adb shell input tap 535 1970
+adb shell input tap 890 1975
 sleep 0.25
 adb shell screencap -p /sdcard/monsterquest-damage-popup.png
 adb pull /sdcard/monsterquest-damage-popup.png monsterquest/build/ui-screenshot/damage-popup.png

@@ -93,7 +93,8 @@ object TalentRules {
             critical=(own.critical+allies.sumOf{it.critical}).coerceAtMost(35)
         )
     }
-    fun maxHp(s:QuestState):Int=100+teamStats(s).hp
+    fun maxHp(s:QuestState):Int=100+teamStats(s).hp+
+        (if(s.journey.roadPosition>=0)s.journey.roadVitality*4 else 0)
 
     fun label(slot:StatSlot):String =
         (when(slot.kind) {
