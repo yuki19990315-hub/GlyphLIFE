@@ -4,6 +4,17 @@ import org.junit.Assert.assertTrue
 import org.junit.Test
 
 class MonsterViewportTest {
+    @Test fun pixelStageKeepsExactSixteenByNineWithoutStretchingOnWideScreens() {
+        for ((width,limit) in listOf(240f to 158f,320f to 202f,
+                390f to 252f,800f to 252f,1280f to 252f)) {
+            val (stageWidth,stageHeight)=MonsterViewport.stageSize(width,limit)
+            assertTrue("overflows available width",stageWidth<=width)
+            assertTrue("overflows height limit",stageHeight<=limit)
+            assertTrue("stage aspect ratio differs from 16:9",
+                kotlin.math.abs(stageWidth/stageHeight-16f/9f)<.0001f)
+        }
+    }
+
     @Test fun monsterStaysInsideArenaAtBossMovementExtremes() {
         for (width in listOf(240f, 280f, 320f, 390f, 480f)) {
             val sprite = minOf(width * .31f, 158f)

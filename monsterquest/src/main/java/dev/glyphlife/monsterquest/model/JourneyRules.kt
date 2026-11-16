@@ -79,6 +79,11 @@ object JourneyRules {
         if(state.journey.burstGauge<BURST_COST ||
             state.tapRun.phase !in listOf(TapPhase.FIGHT,TapPhase.BOSS) ||
             ChallengeRules.active(state))return state
+        // The same boss melee range applies to the charged finisher. Without
+        // this check players could bypass the forward/back dodge arena by
+        // spending a stored gauge from the far edge of the screen.
+        if(state.tapRun.phase==TapPhase.BOSS &&
+            state.tapRun.bossPosition<BossBarrageRules.ATTACK_X)return state
         val foe=state.tapRun.enemy ?: return state
         val powered=state.copy(journey=state.journey.copy(
             burstGauge=0,burstUses=state.journey.burstUses+1,repeatMs=0))

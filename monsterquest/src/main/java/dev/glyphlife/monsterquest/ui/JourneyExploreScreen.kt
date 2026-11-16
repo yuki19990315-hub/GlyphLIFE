@@ -20,6 +20,12 @@ import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.disabled
+import androidx.compose.ui.semantics.onClick
+import androidx.compose.ui.semantics.role
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.Dp
@@ -133,88 +139,6 @@ private fun BossBarrageLayer(run:TapRun,modifier:Modifier=Modifier) {
     }
 }
 
-/** Original pixel stage for a horizontally scrolling, one-finger RPG.
- * Background alone scrolls: there is deliberately no jump or platformer
- * collision, so a player can focus on their captured monsters and strategy.
- */
-@Composable
-private fun JourneyBackdrop(floor:Int,position:Float,modifier:Modifier=Modifier) {
-    val biome=((floor-1).coerceAtLeast(0)/5)%5
-    Canvas(modifier) {
-        val sky=listOf(Color(0xFF102C40),Color(0xFF1B263E),
-            Color(0xFF112D3A),Color(0xFF2D1F3D),Color(0xFF242036))[biome]
-        val back=listOf(Color(0xFF1C4555),Color(0xFF2B3F58),
-            Color(0xFF1D4B56),Color(0xFF473153),Color(0xFF40334D))[biome]
-        val trees=listOf(Color(0xFF31596B),Color(0xFF3C506A),
-            Color(0xFF276064),Color(0xFF5B3A60),Color(0xFF4A4262))[biome]
-        val tile=listOf(Color(0xFF435E61),Color(0xFF4B5A6D),
-            Color(0xFF3D6C67),Color(0xFF684A69),Color(0xFF6A5567))[biome]
-        val ux=size.width/64f
-        val uy=size.height/64f
-        val u=minOf(ux,uy)
-        val h=size.height
-        fun block(x:Float,y:Float,w:Float,hh:Float,color:Color) =
-            drawRect(color,topLeft=Offset(x*ux,y*uy),
-                size=Size(w*ux,hh*uy))
-        drawRect(sky)
-        // A distinct moon/sky light, not a copied sprite from another game.
-        drawCircle(RunGold.copy(alpha=.35f),
-            radius=u*6.5f,center=Offset(size.width*.78f,h*.18f))
-        drawCircle(Color(0xFFFBE9BD).copy(alpha=.55f),
-            radius=u*4.1f,center=Offset(size.width*.78f,h*.18f))
-        for(i in 0 until 17) {
-            val x=((i*13+9)%64).toFloat()
-            val y=((i*7+3)%22).toFloat()
-            block(x,y,1f,1f,Color(0xFFE0F5FF).copy(alpha=.30f))
-        }
-        val slow=(position*2f)%78f
-        for(i in -1..6) {
-            val x=i*18f-slow*.35f
-            block(x,27f,8f,23f,back)
-            block(x+4f,22f,5f,28f,back)
-            block(x+8f,29f,8f,21f,back)
-            block(x+5f,19f,2f,6f,sky)
-        }
-        val shift=(position*5f)%82f
-        for(i in -1..6) {
-            val x=i*16f-shift*.65f
-            if(biome%2==0) {
-                block(x+4f,36f,3f,18f,Color(0xFF203A43))
-                block(x,32f,11f,10f,trees)
-                block(x+2f,27f,7f,12f,trees)
-                block(x+5f,23f,2f,14f,trees)
-            } else {
-                block(x+3f,28f,10f,26f,trees)
-                block(x+1f,27f,14f,3f,tile)
-                block(x+6f,19f,3f,9f,trees)
-                block(x+5f,17f,5f,3f,tile)
-                block(x+6f,35f,4f,3f,back)
-            }
-        }
-        val floorY=h*.79f
-        drawRect(Color(0xFF172B3B),
-            topLeft=Offset(0f,floorY),
-            size=Size(size.width,h-floorY))
-        drawRect(tile,topLeft=Offset(0f,floorY),
-            size=Size(size.width,u*2.3f))
-        drawRect(Color(0xFFE1B96D).copy(alpha=.35f),
-            topLeft=Offset(0f,floorY),
-            size=Size(size.width,u*.48f))
-        val pathShift=(position*7f)%10f
-        for(i in -1..9) {
-            block(i*10f-pathShift,58f,8f,1.5f,
-                Color(0xFF314D57).copy(alpha=.75f))
-            block(i*10f+1f-pathShift,63f,4f,1.6f,
-                Color(0xFF2B404A))
-        }
-        if(floor%5==0) {
-            // The red obelisk hints at the next major boss encounter.
-            block(57f,26f,3f,27f,Color(0xFF5E344F).copy(alpha=.65f))
-            block(58f,23f,1f,15f,Color(0xFFE56F9A).copy(alpha=.65f))
-        }
-    }
-}
-
 @Composable
 private fun JourneyStat(label:String,value:String,color:Color,modifier:Modifier=Modifier) {
     Column(modifier,verticalArrangement=Arrangement.spacedBy(1.dp)) {
@@ -248,6 +172,15 @@ private fun JourneyHoldButton(
             else listOf(Color(0xFF24333E),Color(0xFF14212A))))
         .border(if(isHeld)3.dp else 2.dp,
             if(isHeld)RunGold else RunBrass,QuestFrameShape)
+        .semantics {
+            role=Role.Button
+            contentDescription="$title。$hint"
+            if(!enabled)disabled()
+            else onClick {
+                latestPress.value(dir)
+                true
+            }
+        }
         .pointerInput(dir,enabled) {
             if(!enabled)return@pointerInput
             awaitEachGesture {
@@ -316,8 +249,11 @@ fun JourneyExploreScreen(
     BoxWithConstraints(Modifier.fillMaxSize().background(RunInk)) {
     val small=maxHeight<660.dp
     val tiny=maxHeight<560.dp
-    val stageHeight=minOf(maxWidth*9f/16f,
-        if(tiny)158.dp else if(small)202.dp else 252.dp)
+    val (stageWidthValue,stageHeightValue)=MonsterViewport.stageSize(
+        maxWidth.value,
+        (if(tiny)158.dp else if(small)202.dp else 252.dp).value)
+    val stageWidth=stageWidthValue.dp
+    val stageHeight=stageHeightValue.dp
     val controlHeight=if(tiny)57.dp else if(small)65.dp else 76.dp
     Column(Modifier.fillMaxSize()
         .padding(horizontal=9.dp,vertical=5.dp),
@@ -372,8 +308,9 @@ fun JourneyExploreScreen(
             }
         }
 
-        BoxWithConstraints(Modifier.fillMaxWidth()
+        BoxWithConstraints(Modifier.width(stageWidth)
             .height(stageHeight)
+            .align(Alignment.CenterHorizontally)
             .clip(QuestFrameShape)
             .border(3.dp,RunGold,QuestFrameShape)
         ) {
@@ -698,10 +635,13 @@ fun JourneyExploreScreen(
                 horizontalArrangement=Arrangement.spacedBy(4.dp),
                 verticalAlignment=Alignment.CenterVertically) {
                 QuestBattleButton("✦ 奥義",
-                    if(journey.burstGauge==JourneyRules.BURST_COST)"発動可能"
+                    if(boss && run.bossPosition<BossBarrageRules.ATTACK_X)
+                        "接近して発動"
+                    else if(journey.burstGauge==JourneyRules.BURST_COST)"発動可能"
                     else "${journey.burstGauge}%",
                     onBurst,
-                    battling && journey.burstGauge>=JourneyRules.BURST_COST,
+                    battling && journey.burstGauge>=JourneyRules.BURST_COST &&
+                        (!boss || run.bossPosition>=BossBarrageRules.ATTACK_X),
                     Modifier.weight(1.15f),highlight=true,height=44.dp)
                 QuestBattleButton("◉ 捕獲",
                     "${TapAdventure.captureChance(state)}%",

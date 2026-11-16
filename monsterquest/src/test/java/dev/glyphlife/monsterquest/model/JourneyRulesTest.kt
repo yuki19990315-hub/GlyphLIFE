@@ -176,6 +176,19 @@ class JourneyRulesTest {
         assertEquals(hit.tapRun.enemyHp,hopped.tapRun.enemyHp)
     }
 
+    @Test fun chargedBossFinisherRespectsTheSameApproachDistanceAsAttack() {
+        val enemy=foe("boss-far",900).copy(isBoss=true)
+        var state=fresh().copy(tapRun=TapRun(floor=5,phase=TapPhase.BOSS,
+            enemy=enemy,enemyHp=900),journey=JourneyState(burstGauge=100))
+        assertEquals("Finisher cannot hit across the arena",
+            state,JourneyRules.burst(state,lucky))
+        repeat(8) { state=JourneyRules.pressRight(state,lucky) }
+        assertTrue(state.tapRun.bossPosition>=BossBarrageRules.ATTACK_X)
+        val used=JourneyRules.burst(state,lucky)
+        assertTrue(used.tapRun.enemyHp<state.tapRun.enemyHp)
+        assertEquals(0,used.journey.burstGauge)
+    }
+
     @Test fun catchRateAndElementMatchupsAreExplicitAndConsistent() {
         val monster=foe("water",100).copy(element="水")
         val s=fresh().copy(tapRun=TapRun(phase=TapPhase.FIGHT,

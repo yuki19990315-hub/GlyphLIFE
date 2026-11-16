@@ -83,6 +83,18 @@ jobs:
           "$SDKMANAGER" --install 'platforms;android-35' 'build-tools;35.0.0'
       - name: Build standalone Monster Quest APK
         run: gradle --no-daemon :monsterquest:assembleDebug
+      # GitHub-hosted Linux runners can expose /dev/kvm but deny the runner
+      # account access. Without KVM this emulator boot took 15 minutes and
+      # the ADB screenshot command failed with a broken pipe.
+      - name: Enable emulator acceleration on the isolated CI runner
+        shell: bash
+        run: |
+          if [ -e /dev/kvm ]; then
+            sudo chmod a+rw /dev/kvm
+            test -r /dev/kvm && test -w /dev/kvm
+          else
+            echo 'KVM device unavailable; the emulator may be slow'
+          fi
       - name: Boot emulator and photograph the genuine Compose UI
         uses: reactivecircus/android-emulator-runner@v2
         with:
@@ -90,6 +102,7 @@ jobs:
           target: google_apis
           arch: x86_64
           profile: pixel_6
+          emulator-boot-timeout: 480
           disable-animations: true
           script: |
             adb shell wm size 1080x2400
