@@ -287,6 +287,10 @@ fun JourneyExploreScreen(
         } else stageMessage=""
     }
     LaunchedEffect(enemy?.id,run.enemyHp) {
+        if(lastEnemyId!=enemy?.id) {
+            enemyDamage=null
+            playerDamage=null
+        }
         if(battling && enemy!=null && lastEnemyId==enemy.id &&
             run.enemyHp<lastEnemyHp) {
             damageSequence++
