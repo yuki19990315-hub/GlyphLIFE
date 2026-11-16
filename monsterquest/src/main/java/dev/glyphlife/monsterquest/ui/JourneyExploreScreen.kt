@@ -516,7 +516,7 @@ fun JourneyExploreScreen(
                 Surface(color=Color(0xDB0B1932),
                     shape=RoundedCornerShape(5.dp),
                     modifier=Modifier.align(Alignment.BottomCenter)
-                        .fillMaxWidth().padding(horizontal=8.dp,bottom=7.dp)) {
+                        .fillMaxWidth().padding(start=8.dp,end=8.dp,bottom=7.dp)) {
                     Text(if(boss) {
                         if(run.weakpointTaps>0)
                             "✦ 回避成功！ 前線で攻撃チャンス！"
