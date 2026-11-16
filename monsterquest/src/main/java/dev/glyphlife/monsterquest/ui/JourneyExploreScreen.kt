@@ -248,6 +248,7 @@ fun JourneyExploreScreen(
     onSkill:(String,Boolean)->Unit,
     onBranch:(Int)->Unit,onShrine:(Int)->Unit,onBurst:()->Unit,
     onAutoCapture:()->Unit,
+    onAllocateStat:(String)->Unit,
     onBuySupply:(String)->Unit,onClassic:()->Unit
 ) {
     val run=state.tapRun
@@ -581,6 +582,39 @@ fun JourneyExploreScreen(
                 RunText,Modifier.weight(.75f))
             JourneyStat("連続勝利","×"+journey.chain,
                 if(journey.chain>=5)RunGold else RunCyan,Modifier.weight(1f))
+        }
+
+        if(journey.roadFreeStats>0 || journey.roadPower+journey.roadVitality+
+            journey.roadSpeed+journey.roadWisdom+journey.roadLuck>0) {
+            Column(Modifier.fillMaxWidth()
+                .background(RunPanel,RoundedCornerShape(8.dp))
+                .border(1.dp,RunBrass,RoundedCornerShape(8.dp))
+                .padding(7.dp),verticalArrangement=Arrangement.spacedBy(5.dp)) {
+                Text("ステータス自由割り振り · 残り${journey.roadFreeStats}pt",
+                    color=RunGold,fontWeight=FontWeight.Bold,fontSize=12.sp)
+                Row(Modifier.fillMaxWidth(),
+                    horizontalArrangement=Arrangement.spacedBy(4.dp)) {
+                    listOf(
+                        Triple("力","power",journey.roadPower),
+                        Triple("体","vitality",journey.roadVitality),
+                        Triple("速","speed",journey.roadSpeed),
+                        Triple("知","wisdom",journey.roadWisdom),
+                        Triple("運","luck",journey.roadLuck)
+                    ).forEach { (label,key,value)->
+                        Column(Modifier.weight(1f),
+                            horizontalAlignment=Alignment.CenterHorizontally) {
+                            Text("$label $value",color=RunText,fontSize=10.sp)
+                            OutlinedButton(onClick={onAllocateStat(key)},
+                                enabled=journey.roadFreeStats>0,
+                                modifier=Modifier.fillMaxWidth().height(32.dp),
+                                contentPadding=PaddingValues(0.dp),
+                                shape=QuestFrameShape) {
+                                Text("+",color=RunGold,fontSize=14.sp)
+                            }
+                        }
+                    }
+                }
+            }
         }
 
         if(journey.bonusText.isNotBlank()) {

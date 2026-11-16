@@ -55,7 +55,12 @@ object MinuteRoadRules {
     }
 
     private fun finishAction(before:QuestState,result:QuestState):QuestState {
-        val recorded=JourneyRules.record(before,result)
+        val rewarded=JourneyRules.record(before,result)
+        val gained=(rewarded.companion.level-before.companion.level)
+            .coerceAtLeast(0)
+        val recorded=if(gained>0)rewarded.copy(journey=rewarded.journey.copy(
+            roadFreeStats=(rewarded.journey.roadFreeStats+gained*5)
+                .coerceAtMost(9999)))else rewarded
         if(recorded.tapRun.deaths>before.tapRun.deaths) {
             return recorded.copy(journey=recorded.journey.copy(
                 roadPosition=0,roadEnemyPosition=-1,repeatMs=0,
@@ -135,6 +140,7 @@ object MinuteRoadRules {
         val powered=s.copy(journey=s.journey.copy(
             burstGauge=0,burstUses=s.journey.burstUses+1))
         val damage=32+s.companion.level.coerceAtMost(80)*2+
+            s.journey.roadWisdom*3+
             (s.journey.chain*2).coerceAtMost(48)+foe.maxHp/12
         return finishAction(s,TapAdventure.finisher(powered,damage,rng))
     }
@@ -144,6 +150,26 @@ object MinuteRoadRules {
         val s=prepare(state)
         if(!inRange(s))return s
         return finishAction(s,TapAdventure.useSkill(s,ownerId,rng,bonus))
+    }
+
+    fun allocate(state:QuestState,stat:String):QuestState {
+        val s=prepare(state)
+        val j=s.journey
+        if(j.roadFreeStats<=0 || ChallengeRules.active(s))return s
+        val grown=when(stat) {
+            "power" -> if(j.roadPower<9999)j.copy(roadPower=j.roadPower+1)
+                else return s
+            "vitality" -> if(j.roadVitality<9999)
+                j.copy(roadVitality=j.roadVitality+1) else return s
+            "speed" -> if(j.roadSpeed<9999)j.copy(roadSpeed=j.roadSpeed+1)
+                else return s
+            "wisdom" -> if(j.roadWisdom<9999)j.copy(roadWisdom=j.roadWisdom+1)
+                else return s
+            "luck" -> if(j.roadLuck<9999)j.copy(roadLuck=j.roadLuck+1)
+                else return s
+            else -> return s
+        }
+        return s.copy(journey=grown.copy(roadFreeStats=j.roadFreeStats-1))
     }
 
     /** A single 100ms clock owns both held input and proximity combat. */
@@ -171,9 +197,10 @@ object MinuteRoadRules {
         val dir=direction.coerceIn(-1,1)
         if(dir==0)return if(pre==state)state else
             pre.copy(journey=pre.journey.copy(repeatMs=0))
-        val interval=if(dir<0)BACK_INTERVAL_MS
+        val speedBonus=(pre.journey.roadSpeed*4).coerceAtMost(120)
+        val interval=(if(dir<0)BACK_INTERVAL_MS
             else if(pre.tapRun.enemy!=null && inRange(pre))ATTACK_INTERVAL_MS
-            else WALK_INTERVAL_MS
+            else WALK_INTERVAL_MS)-speedBonus
         val charged=pre.journey.repeatMs+dt
         if(charged<interval)return pre.copy(journey=pre.journey.copy(
             repeatMs=charged,travelMs=(pre.journey.travelMs+dt)

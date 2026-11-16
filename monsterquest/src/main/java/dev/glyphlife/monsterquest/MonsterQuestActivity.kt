@@ -672,6 +672,9 @@ class MonsterQuestActivity : ComponentActivity() {
                                     onAutoCapture={
                                         update(JourneyRules.toggleAutoCapture(state))
                                     },
+                                    onAllocateStat={stat->
+                                        update(MinuteRoadRules.allocate(state,stat))
+                                    },
                                     onBuySupply={kind->
                                         if(!ChallengeRules.active(state))
                                             update(GrowthRules.buySupply(state,kind))

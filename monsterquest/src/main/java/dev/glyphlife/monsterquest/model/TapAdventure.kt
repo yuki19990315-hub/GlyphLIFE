@@ -155,11 +155,15 @@ object TapAdventure {
         val talent=TalentRules.teamStats(state)
         val critical=rng.nextInt(100)<
             (12+relic.critical+talent.critical+
+                (if(state.journey.roadPosition>=0)
+                    state.journey.roadLuck/3 else 0)+
                 (run.combo/8).coerceAtMost(8)).coerceAtMost(80)
         val weak=run.phase==TapPhase.BOSS && run.weakpointTaps>0
         val venom=if(run.venomCharges>0)8 else 0
         val base=(6+state.companion.level.coerceIn(1,50)/3+
             state.attackUpgrade*2+support+relic.attack+talent.attack+
+            (if(state.journey.roadPosition>=0)
+                state.journey.roadPower else 0)+
             rng.nextInt(5))
         val element=ElementalRules.percentage(state.companion.element,foe.element)
         val amount=(base*element/100).coerceAtLeast(1) *

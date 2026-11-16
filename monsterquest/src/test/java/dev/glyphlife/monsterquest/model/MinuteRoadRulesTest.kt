@@ -87,4 +87,22 @@ class MinuteRoadRulesTest {
         assertEquals(old.tapRun.enemy,migrated.tapRun.enemy)
         assertEquals(migrated,MinuteRoadRules.prepare(migrated))
     }
+
+    @Test fun levelsAwardFiveAssignableStatsAndChoicesArePersistableValues() {
+        val monster=WildMonster("exp","モコ","草",maxHp=60,attack=3)
+        val start=fresh().copy(
+            companionXp=GrowthRules.xpNeeded(8)-1,
+            tapRun=TapRun(phase=TapPhase.FIGHT,enemy=monster,enemyHp=1),
+            journey=JourneyState(roadPosition=5,roadBestPosition=5,
+                roadEnemyPosition=6))
+        val win=MinuteRoadRules.pressRight(start,clear)
+        assertEquals(TapPhase.WALK,win.tapRun.phase)
+        assertEquals(5,win.journey.roadFreeStats)
+        val power=MinuteRoadRules.allocate(win,"power")
+        assertEquals(4,power.journey.roadFreeStats)
+        assertEquals(1,power.journey.roadPower)
+        val vitality=MinuteRoadRules.allocate(power,"vitality")
+        assertEquals(TalentRules.maxHp(power)+4,TalentRules.maxHp(vitality))
+        assertEquals(vitality,MinuteRoadRules.allocate(vitality,"unknown"))
+    }
 }

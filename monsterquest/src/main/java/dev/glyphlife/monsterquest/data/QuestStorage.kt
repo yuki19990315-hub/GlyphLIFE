@@ -267,6 +267,12 @@ class QuestStorage(context: Context) {
         .put("roadBestPosition",j.roadBestPosition)
         .put("roadEnemyPosition",j.roadEnemyPosition)
         .put("roadBossClearedPosition",j.roadBossClearedPosition)
+        .put("roadFreeStats",j.roadFreeStats)
+        .put("roadPower",j.roadPower)
+        .put("roadVitality",j.roadVitality)
+        .put("roadSpeed",j.roadSpeed)
+        .put("roadWisdom",j.roadWisdom)
+        .put("roadLuck",j.roadLuck)
 
     private fun readJourney(o:JSONObject):JourneyState=JourneyState(
         classic=o.optBoolean("classic",false),
@@ -285,7 +291,13 @@ class QuestStorage(context: Context) {
         roadPosition=o.optInt("roadPosition",-1).coerceIn(-1,99999),
         roadBestPosition=o.optInt("roadBestPosition",0).coerceIn(0,99999),
         roadEnemyPosition=o.optInt("roadEnemyPosition",-1).coerceIn(-1,100000),
-        roadBossClearedPosition=o.optInt("roadBossClearedPosition",0).coerceIn(0,99999)
+        roadBossClearedPosition=o.optInt("roadBossClearedPosition",0).coerceIn(0,99999),
+        roadFreeStats=o.optInt("roadFreeStats",0).coerceIn(0,9999),
+        roadPower=o.optInt("roadPower",0).coerceIn(0,9999),
+        roadVitality=o.optInt("roadVitality",0).coerceIn(0,9999),
+        roadSpeed=o.optInt("roadSpeed",0).coerceIn(0,9999),
+        roadWisdom=o.optInt("roadWisdom",0).coerceIn(0,9999),
+        roadLuck=o.optInt("roadLuck",0).coerceIn(0,9999)
     )
 
     private fun writeTapRun(r:TapRun):JSONObject=JSONObject()
