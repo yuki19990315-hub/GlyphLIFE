@@ -33,11 +33,3 @@ adb shell input tap 535 1970
 sleep 0.25
 adb shell screencap -p /sdcard/monsterquest-damage-popup.png
 adb pull /sdcard/monsterquest-damage-popup.png monsterquest/build/ui-screenshot/damage-popup.png
-
-# A second viewport approximates a compact 360dp-wide phone screen. Keep
-# the entire scene and both edge-anchored notification containers in view.
-adb shell wm size 720x1600
-adb shell wm density 320
-sleep 0.6
-adb shell screencap -p /sdcard/monsterquest-battle-narrow.png
-adb pull /sdcard/monsterquest-battle-narrow.png monsterquest/build/ui-screenshot/battle-narrow.png
