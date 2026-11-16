@@ -99,7 +99,6 @@ class MonsterQuestActivity : ComponentActivity() {
                 mutableStateOf(gameLifecycle.currentState.isAtLeast(
                     Lifecycle.State.STARTED))
             }
-            val latestSave by rememberUpdatedState(state)
             DisposableEffect(gameLifecycle) {
                 val observer=LifecycleEventObserver { _,event ->
                     when(event) {
@@ -107,7 +106,9 @@ class MonsterQuestActivity : ComponentActivity() {
                         Lifecycle.Event.ON_STOP -> {
                             gameVisible=false
                             journeyHeld=0
-                            storage.save(latestSave,synchronous=true)
+                            // Read the MutableState delegate directly: a
+                            // final 100ms tick may not have recomposed yet.
+                            storage.save(state,synchronous=true)
                         }
                         else -> Unit
                     }
@@ -115,7 +116,7 @@ class MonsterQuestActivity : ComponentActivity() {
                 gameLifecycle.addObserver(observer)
                 onDispose {
                     gameLifecycle.removeObserver(observer)
-                    storage.save(latestSave,synchronous=true)
+                    storage.save(state,synchronous=true)
                 }
             }
             var aiArtEnabled by remember { mutableStateOf(false) }
