@@ -134,9 +134,9 @@ object MinuteRoadRules {
     }
 
     fun burst(state:QuestState,rng:Random=Random.Default):QuestState {
+        if(ChallengeRules.active(state))return state
         val s=prepare(state)
-        if(!inRange(s) || s.journey.burstGauge<JourneyRules.BURST_COST ||
-            ChallengeRules.active(s))return s
+        if(!inRange(s) || s.journey.burstGauge<JourneyRules.BURST_COST)return s
         val foe=s.tapRun.enemy ?: return s
         val powered=s.copy(journey=s.journey.copy(
             burstGauge=0,burstUses=s.journey.burstUses+1))
@@ -155,9 +155,10 @@ object MinuteRoadRules {
     }
 
     fun allocate(state:QuestState,stat:String):QuestState {
+        if(ChallengeRules.active(state))return state
         val s=prepare(state)
         val j=s.journey
-        if(j.roadFreeStats<=0 || ChallengeRules.active(s))return s
+        if(j.roadFreeStats<=0)return s
         val grown=when(stat) {
             "power" -> if(j.roadPower<9999)j.copy(roadPower=j.roadPower+1)
                 else return s

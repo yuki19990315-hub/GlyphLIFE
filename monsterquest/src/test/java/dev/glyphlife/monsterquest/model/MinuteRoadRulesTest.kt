@@ -131,7 +131,7 @@ class MinuteRoadRulesTest {
             challenge=ChallengeState(mode=ChallengeMode.TOWER),
             tapRun=TapRun(phase=TapPhase.FIGHT,enemy=foe,enemyHp=20),
             journey=JourneyState(roadPosition=2,roadEnemyPosition=3,
-                burstGauge=JourneyRules.BURST_COST))
+                burstGauge=JourneyRules.BURST_COST,roadFreeStats=2))
 
         assertEquals(paused,MinuteRoadRules.pressRight(paused,clear))
         assertEquals(paused,MinuteRoadRules.pressLeft(paused))
@@ -140,6 +140,7 @@ class MinuteRoadRulesTest {
         assertEquals(paused,MinuteRoadRules.burst(paused,clear))
         assertEquals(paused,JourneyRules.heal(paused))
         assertEquals(paused,JourneyRules.toggleAutoCapture(paused))
+        assertEquals(paused,MinuteRoadRules.allocate(paused,"power"))
         assertEquals(paused,MinuteRoadRules.tick(paused,1,100,clear))
     }
 
