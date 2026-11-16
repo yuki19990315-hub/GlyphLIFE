@@ -117,6 +117,9 @@ jobs:
             adb pull /sdcard/monsterquest-explore.png monsterquest/build/ui-screenshot/explore.png
             adb shell uiautomator dump /sdcard/monsterquest-screen.xml || true
             adb pull /sdcard/monsterquest-screen.xml monsterquest/build/ui-screenshot/accessibility.xml || true
+            # CI runner executes each YAML script line in its own shell.
+            # Keep the battle search loop together and save the enemy screenshot.
+            bash scripts/capture_monsterquest_battle.sh
       - uses: actions/upload-artifact@v4
         if: always()
         with:

@@ -1,0 +1,27 @@
+#!/usr/bin/env bash
+# Capture a genuinely active Monster Quest battle on the CI Android emulator.
+# android-emulator-runner executes every YAML `script:` line in a new shell,
+# so the full loop must live in this standalone executable Bash script.
+set -euo pipefail
+
+found_battle=0
+for step in $(seq 1 24); do
+  # 1080x2400 @420dpi: center of the right-hand '進む' control.
+  adb shell input tap 890 1975
+  sleep 0.4
+  adb shell uiautomator dump /sdcard/monsterquest-battle.xml >/dev/null 2>&1 || true
+  if adb shell cat /sdcard/monsterquest-battle.xml 2>/dev/null | grep -q '連撃'; then
+    found_battle=1
+    echo "Battle reached after ${step} steps"
+    break
+  fi
+done
+
+if [[ "$found_battle" -ne 1 ]]; then
+  echo '::error::Encounter not reached after 24 forward steps'
+  exit 1
+fi
+
+adb shell screencap -p /sdcard/monsterquest-battle.png
+adb pull /sdcard/monsterquest-battle.png monsterquest/build/ui-screenshot/battle.png
+adb pull /sdcard/monsterquest-battle.xml monsterquest/build/ui-screenshot/battle-accessibility.xml

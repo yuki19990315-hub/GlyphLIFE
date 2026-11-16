@@ -81,11 +81,16 @@ object CuratedMonsterArt {
                 Base64.getDecoder().decode(compressed[index]))).use { it.readBytes() }
             check(bytes.size==2048)
             val palette=palettes[index]
-            PixelSprite.fromArgb(64,64,IntArray(4096) { i ->
+            val original = PixelSprite.fromArgb(64,64,IntArray(4096) { i ->
                 val value=bytes[i/2].toInt() and 255
                 val color=if(i%2==0)value ushr 4 else value and 15
                 palette[color]
             })
+            // Several original v4.1 source images were truncated *before*
+            // packing. A display margin cannot reconstruct their missing
+            // noses, hands or tails. Use the hand-reviewed v5.6 full-body
+            // PNG masters for these indexes, retaining unaffected originals.
+            CuratedMonsterRepairs.find(index) ?: original
         }
     }
     private fun family(monster:WildMonster):Int {
