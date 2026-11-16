@@ -76,7 +76,7 @@ fun MinuteQuestRebuildScreen(
         animationSpec=tween(durationMillis=190),label="road-camera")
 
     BoxWithConstraints(Modifier.fillMaxSize().background(QuestInk)) {
-        val controlHeight=(maxHeight*.31f).coerceIn(106.dp,150.dp)
+        val controlHeight=(maxHeight*.31f).coerceIn(106.dp,220.dp)
         Column(Modifier.fillMaxSize()) {
             BoxWithConstraints(Modifier.fillMaxWidth().weight(1f)) {
                 val stageHeight=maxHeight
