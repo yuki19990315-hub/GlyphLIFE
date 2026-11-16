@@ -9,7 +9,7 @@ object EvolutionRules {
     fun requiredLevel(stage:Int):Int=GrowthRules.requiredLevel(stage)
 
     fun canEvolve(state:QuestState,id:String):Boolean {
-        if(state.inBattle)return false
+        if(RelicRules.isBattle(state))return false
         val monster=state.captures.find{it.id==id} ?: return false
         return !monster.isBoss && monster.stage in 1..2 &&
             monster.level>=requiredLevel(monster.stage) &&

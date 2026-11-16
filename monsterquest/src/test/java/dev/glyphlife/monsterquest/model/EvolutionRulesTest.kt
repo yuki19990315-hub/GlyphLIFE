@@ -46,4 +46,13 @@ class EvolutionRulesTest {
         assertFalse(EvolutionRules.canEvolve(state,one.id))
         assertFalse(EvolutionRules.canEvolve(state.copy(inBattle=false),"missing"))
     }
+
+    @Test fun cannotEvolveInRoadCombatEvenBeforeLegacyBattleFlagSync() {
+        val state=QuestState(captures=listOf(one.copy(level=20,victories=30)),
+            tapRun=TapRun(phase=TapPhase.FIGHT))
+        assertFalse(state.inBattle)
+        assertFalse(EvolutionRules.canEvolve(state,one.id))
+        assertFalse(EvolutionRules.canEvolve(state.copy(
+            tapRun=TapRun(phase=TapPhase.BOSS)),one.id))
+    }
 }

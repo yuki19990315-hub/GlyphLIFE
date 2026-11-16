@@ -407,14 +407,14 @@ object TapAdventure {
     }
 
     fun selectParty(state:QuestState,id:String):QuestState {
-        if(state.inBattle || state.captures.none { it.id==id })return state
+        if(RelicRules.isBattle(state) || state.captures.none { it.id==id })return state
         val ids=state.partyIds.filter { it!=id }
         return state.copy(partyIds=if(id in state.partyIds)ids
             else (ids+id).takeLast(3))
     }
 
     fun offlineSummon(state:QuestState,rng:Random=Random.Default):QuestState {
-        if(state.inBattle || state.summonStones<1 || state.captures.size>=100)return state
+        if(RelicRules.isBattle(state) || state.summonStones<1 || state.captures.size>=100)return state
         val bodies=MonsterBodyType.entries
         val body=bodies[rng.nextInt(bodies.size)]
         val elements=listOf("火","水","草","雷","光","闇")
@@ -428,7 +428,7 @@ object TapAdventure {
     fun registerSummon(
         state:QuestState,monster:WildMonster,generatedByAi:Boolean=false
     ):QuestState {
-        if(state.inBattle || state.summonStones<1 || state.captures.size>=100)return state
+        if(RelicRules.isBattle(state) || state.summonStones<1 || state.captures.size>=100)return state
         require(monster.species.isNotBlank() && monster.maxHp in 1..100_000)
         val owned=TalentRules.awaken(monster.copy(
             id=UUID.randomUUID().toString(),stage=1,isBoss=false,

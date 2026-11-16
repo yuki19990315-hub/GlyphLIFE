@@ -534,7 +534,7 @@ class MonsterQuestActivity : ComponentActivity() {
                     topBar={
                         if(selectedTab!=QuestTab.EXPLORE) {
                             Surface(tonalElevation=2.dp,color=Color(0xFF121B30)) {
-                                Text("MONSTER QUEST / v5.4.0",Modifier.padding(14.dp),
+                                Text("MONSTER QUEST / v5.7.0",Modifier.padding(14.dp),
                                     style=MaterialTheme.typography.titleMedium,
                                     color=Color(0xFFFFD990))
                             }

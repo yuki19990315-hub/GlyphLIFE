@@ -24,7 +24,7 @@ object HuntRules {
         targets(state).firstOrNull {it.id==state.huntTargetId}
 
     fun choose(state:QuestState,targetId:String):QuestState {
-        if(state.inBattle || ChallengeRules.active(state))return state
+        if(RelicRules.isBattle(state))return state
         if(targetId.isBlank())return state.copy(huntTargetId="")
         if(targets(state).none{it.id==targetId})return state
         return state.copy(huntTargetId=targetId)

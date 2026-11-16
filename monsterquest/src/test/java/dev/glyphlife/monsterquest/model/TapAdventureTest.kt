@@ -173,4 +173,17 @@ class TapAdventureTest {
         assertEquals(2,s.partyIds.size)
         assertEquals(s,TapAdventure.selectParty(s,"not-owned"))
     }
+
+    @Test fun roadCombatBlocksPartyChangesAndSummonsBeforeUiFlagSync() {
+        val owned=enemy().copy(id="owned")
+        val toSummon=enemy().copy(id="new",species="新しい仲間")
+        for(phase in listOf(TapPhase.FIGHT,TapPhase.BOSS)) {
+            val battling=start().copy(captures=listOf(owned),summonStones=2,
+                tapRun=TapRun(phase=phase))
+            assertFalse(battling.inBattle)
+            assertEquals(battling,TapAdventure.selectParty(battling,owned.id))
+            assertEquals(battling,TapAdventure.offlineSummon(battling,lucky))
+            assertEquals(battling,TapAdventure.registerSummon(battling,toSummon))
+        }
+    }
 }
