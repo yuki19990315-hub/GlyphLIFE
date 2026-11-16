@@ -499,7 +499,7 @@ fun JourneyExploreScreen(
                 // All combat popups are children of this clipped stage.
                 // Leave a safe zone below the enemy HP bar on short screens.
                 val bubbleWidth=minOf(128.dp,maxWidth*.36f)
-                val bubbleY=maxOf(58.dp,stageHeight*.38f)
+                val bubbleY=58.dp
                 StageDamageBubble(playerDamage,isEnemy=false,
                     modifier=Modifier.align(Alignment.TopStart)
                         .offset(x=8.dp,y=bubbleY)
@@ -531,7 +531,8 @@ fun JourneyExploreScreen(
                 Surface(color=Color(0xDB0B1932),
                     shape=RoundedCornerShape(5.dp),
                     modifier=Modifier.align(Alignment.BottomCenter)
-                        .fillMaxWidth().padding(start=8.dp,end=8.dp,bottom=7.dp)) {
+                        .padding(bottom=7.dp)
+                        .widthIn(max=stageWidth-16.dp)) {
                     Text(if(boss) {
                         if(run.weakpointTaps>0)
                             "✦ 回避成功！ 前線で攻撃チャンス！"
