@@ -70,6 +70,8 @@ fun QuestHome(
     onEvolve:(String)->Unit,
     onEquipRelic:(String,String)->Unit,
     onUnequipRelic:(String)->Unit,
+    onBuyRoadGear:(String)->Unit,
+    onEquipRoadGear:(String)->Unit,
     onBuyUpgrade:(String)->Unit,
     onBuySupply:(String)->Unit,
     onClaimAchievement:(String)->Unit,
@@ -302,6 +304,8 @@ fun QuestHome(
                     }
                 }
                 if(currentPanel==1) {
+                    RoadGearPanel(state,onBuyRoadGear,onEquipRoadGear)
+                    HorizontalDivider()
                     BossRelicPanel(state,onEquipRelic,onUnequipRelic)
                     HorizontalDivider()
                     Text("下記は64×64の見た目を編集する装備工房です。"+

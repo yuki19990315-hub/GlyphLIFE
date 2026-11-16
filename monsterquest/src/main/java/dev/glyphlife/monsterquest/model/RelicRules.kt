@@ -55,12 +55,13 @@ object RelicRules {
     }
     fun stats(state:QuestState):RelicStats {
         val list=activeRelics(state).mapNotNull{spec(it.kind)?.stats}
+        val gear=RoadGearRules.stats(state)
         return RelicStats(
-            attack=list.sumOf{it.attack}.coerceAtMost(25),
-            defense=list.sumOf{it.defense}.coerceAtMost(14),
-            critical=list.sumOf{it.critical}.coerceAtMost(32),
-            heal=list.sumOf{it.heal}.coerceAtMost(24),
-            charge=list.sumOf{it.charge}.coerceAtMost(3)
+            attack=(list.sumOf{it.attack}.coerceAtMost(25)+gear.attack).coerceAtMost(60),
+            defense=(list.sumOf{it.defense}.coerceAtMost(14)+gear.defense).coerceAtMost(30),
+            critical=(list.sumOf{it.critical}.coerceAtMost(32)+gear.critical).coerceAtMost(60),
+            heal=(list.sumOf{it.heal}.coerceAtMost(24)+gear.heal).coerceAtMost(40),
+            charge=(list.sumOf{it.charge}.coerceAtMost(3)+gear.charge).coerceAtMost(4)
         )
     }
 

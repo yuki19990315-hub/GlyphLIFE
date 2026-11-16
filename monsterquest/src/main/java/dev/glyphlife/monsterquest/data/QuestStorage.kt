@@ -29,8 +29,22 @@ class QuestStorage(context: Context) {
             val captures = (0 until capturesArray.length()).map {
                 TalentRules.awaken(wildFromJson(capturesArray.getJSONObject(it)))
             }
+            val ownedGear=(obj.optJSONArray("roadGearOwned")?.let { arr ->
+                (0 until arr.length()).mapNotNull { index ->
+                    arr.optString(index).takeIf { RoadGearRules.spec(it)!=null }
+                }.toSet()
+            } ?: emptySet())+RoadGearRules.starterOwned
             QuestState(
                 companion = pet,
+                roadGearOwned = ownedGear,
+                roadWeapon = obj.optString("roadWeapon",RoadGearRules.STARTER_WEAPON)
+                    .takeIf { RoadGearRules.spec(it)?.slot==RoadGearSlot.WEAPON &&
+                        it in ownedGear }
+                    ?: RoadGearRules.STARTER_WEAPON,
+                roadArmor = obj.optString("roadArmor",RoadGearRules.STARTER_ARMOR)
+                    .takeIf { RoadGearRules.spec(it)?.slot==RoadGearSlot.ARMOR &&
+                        it in ownedGear }
+                    ?: RoadGearRules.STARTER_ARMOR,
                 challenge = obj.optJSONObject("challenge")?.let(::readChallenge)
                     ?: ChallengeState(),
                 bossRelics = obj.optJSONArray("bossRelics")?.let { arr ->
@@ -107,6 +121,12 @@ class QuestStorage(context: Context) {
                 .put("extraSkillId",s.companion.extraSkillId)
                 .put("statSlots",writeStatSlots(s.companion.statSlots)))
             .put("challenge",writeChallenge(s.challenge))
+            .put("roadGearOwned",JSONArray().apply {
+                s.roadGearOwned.filter { RoadGearRules.spec(it)!=null }.sorted()
+                    .forEach { put(it) }
+            })
+            .put("roadWeapon",s.roadWeapon)
+            .put("roadArmor",s.roadArmor)
             .put("bossRelics",JSONArray().apply {
                 s.bossRelics.take(RelicRules.INVENTORY_LIMIT).forEach {
                     put(JSONObject().put("id",it.id).put("kind",it.kind)

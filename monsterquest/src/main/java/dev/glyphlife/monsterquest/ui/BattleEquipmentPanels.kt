@@ -17,6 +17,73 @@ import dev.glyphlife.monsterquest.model.*
 private val RelicGold=Color(0xFFFFD990)
 private val RelicBlue=Color(0xFF91CBFF)
 
+/** Player weapon + armor combinations unlock multiple simultaneous passives. */
+@Composable
+fun RoadGearPanel(
+    state:QuestState,
+    onBuy:(String)->Unit,
+    onEquip:(String)->Unit
+) {
+    val skills=RoadGearRules.activeSkills(state)
+    Column(verticalArrangement=Arrangement.spacedBy(8.dp)) {
+        Text("⚔ 武器・防具のセットスキル",color=RelicGold,
+            fontWeight=FontWeight.Bold,style=MaterialTheme.typography.titleMedium)
+        Text("武器と防具を各1つ装備。特定の組み合わせでは複数のパッシブスキルが"+
+            "同時に発動し、通常攻撃・防御・会心・技の再使用・勝利時回復に反映されます。",
+            color=RelicBlue,style=MaterialTheme.typography.bodySmall)
+        Text("所持金 ${state.tapRun.gold}G / 発動中："+
+            (if(skills.isEmpty())"セット効果なし"
+             else skills.joinToString("・") { it.name }),
+            color=RelicGold,style=MaterialTheme.typography.bodyMedium)
+        skills.forEach { skill ->
+            Text("✦ ${skill.name}：${skill.detail}",color=RelicBlue,
+                style=MaterialTheme.typography.labelMedium)
+        }
+        listOf(RoadGearSlot.WEAPON,RoadGearSlot.ARMOR).forEach { slot ->
+            val wearing=RoadGearRules.worn(state,slot)
+            Text((if(slot==RoadGearSlot.WEAPON)"武器" else "防具")+
+                "：${wearing?.name ?: "未装備"}",color=RelicGold,
+                style=MaterialTheme.typography.titleSmall)
+            RoadGearRules.catalog.filter{it.slot==slot}.forEach { gear ->
+                val owned=gear.id in state.roadGearOwned
+                val equipped=gear.id==wearing?.id
+                Card(colors=CardDefaults.cardColors(
+                    containerColor=if(equipped)Color(0xFF2B4660) else Color(0xFF192944))) {
+                    Row(Modifier.fillMaxWidth().padding(7.dp),
+                        verticalAlignment=Alignment.CenterVertically,
+                        horizontalArrangement=Arrangement.spacedBy(7.dp)) {
+                        Column(Modifier.weight(1f)) {
+                            Text(gear.name,color=RelicGold,
+                                style=MaterialTheme.typography.labelMedium)
+                            Text(listOfNotNull(
+                                gear.bonus.attack.takeIf{it>0}?.let{"攻撃+$it"},
+                                gear.bonus.defense.takeIf{it>0}?.let{"防御+$it"},
+                                gear.bonus.critical.takeIf{it>0}?.let{"会心+$it%"},
+                                gear.bonus.heal.takeIf{it>0}?.let{"勝利回復+$it"}
+                            ).joinToString(" / ").ifEmpty{"初期装備"},
+                                color=RelicBlue,style=MaterialTheme.typography.labelSmall)
+                        }
+                        OutlinedButton(onClick={
+                            if(owned)onEquip(gear.id) else onBuy(gear.id)
+                        },
+                            enabled=!RelicRules.isBattle(state) && !equipped &&
+                                (owned || state.tapRun.gold>=gear.price),
+                            contentPadding=PaddingValues(horizontal=8.dp)) {
+                            Text(if(equipped)"装備中" else if(owned)"装備"
+                                else "${gear.price}G",maxLines=1,
+                                style=MaterialTheme.typography.labelSmall)
+                        }
+                    }
+                }
+            }
+        }
+        Text("セット候補："+RoadGearRules.sets.joinToString(" / ") { set ->
+            (RoadGearRules.spec(set.weapon)?.name ?: "")+"＋"+
+                (RoadGearRules.spec(set.armor)?.name ?: "")
+        },color=RelicBlue,style=MaterialTheme.typography.labelSmall)
+    }
+}
+
 @Composable
 fun BossRelicPanel(
     state:QuestState,
@@ -45,7 +112,7 @@ fun BossRelicPanel(
             "　次の確定まで最大 "+
             (RelicRules.PITY_LIMIT-state.relicDryBosses)+"体",
             style=MaterialTheme.typography.labelMedium)
-        Text("現在のチーム効果：攻撃 +"+bonus.attack+
+        Text("現在の戦闘効果（武器・防具込み）：攻撃 +"+bonus.attack+
             " / 防御 +"+bonus.defense+" / 会心 +"+bonus.critical+"%"+
             " / 戦闘勝利HP +"+bonus.heal+
             " / スキル再使用加速 +"+bonus.charge,
