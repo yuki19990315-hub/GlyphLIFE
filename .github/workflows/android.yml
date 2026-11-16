@@ -117,6 +117,26 @@ jobs:
             adb pull /sdcard/monsterquest-explore.png monsterquest/build/ui-screenshot/explore.png
             adb shell uiautomator dump /sdcard/monsterquest-screen.xml || true
             adb pull /sdcard/monsterquest-screen.xml monsterquest/build/ui-screenshot/accessibility.xml || true
+            # The first screenshot has no enemy. Move one step per tap, then
+            # capture a REAL battle for sprite and side-clipping inspection.
+            # Never assume a successful APK build implies an encounter works.
+            found_battle=0
+            for step in $(seq 1 24); do
+              adb shell input tap 890 1975
+              sleep 0.4
+              adb shell uiautomator dump /sdcard/monsterquest-battle.xml >/dev/null 2>&1 || true
+              if adb shell cat /sdcard/monsterquest-battle.xml 2>/dev/null | grep -q '連撃'; then
+                found_battle=1
+                break
+              fi
+            done
+            if [ "$found_battle" -ne 1 ]; then
+              echo "::error::Encounter not reached after 24 forward steps"
+              exit 1
+            fi
+            adb shell screencap -p /sdcard/monsterquest-battle.png
+            adb pull /sdcard/monsterquest-battle.png monsterquest/build/ui-screenshot/battle.png
+            adb pull /sdcard/monsterquest-battle.xml monsterquest/build/ui-screenshot/battle-accessibility.xml
       - uses: actions/upload-artifact@v4
         if: always()
         with:
