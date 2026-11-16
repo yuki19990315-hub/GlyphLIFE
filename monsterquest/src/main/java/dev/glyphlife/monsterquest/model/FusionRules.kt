@@ -63,7 +63,7 @@ object FusionRules {
     }
 
     fun fuse(state: QuestState, firstId: String, secondId: String): QuestState {
-        require(!state.inBattle) { "戦闘中には合成できません" }
+        require(!RelicRules.isBattle(state)) { "戦闘中には合成できません" }
         require(firstId != secondId) { "異なる2匹を選んでください" }
         val a = state.captures.firstOrNull { it.id == firstId }
             ?: throw IllegalArgumentException("素材Aが見つかりません")

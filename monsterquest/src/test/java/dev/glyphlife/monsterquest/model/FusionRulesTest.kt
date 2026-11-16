@@ -53,6 +53,17 @@ class FusionRulesTest {
         } catch (_: IllegalArgumentException) {}
     }
 
+    @Test fun fusionRejectsRoadCombatWithoutLegacyBattleFlag() {
+        for(phase in listOf(TapPhase.FIGHT,TapPhase.BOSS)) {
+            val state=QuestState(captures=listOf(a,b),tapRun=TapRun(phase=phase))
+            assertFalse(state.inBattle)
+            try {
+                FusionRules.fuse(state,a.id,b.id)
+                fail("fusion during $phase")
+            } catch (_: IllegalArgumentException) {}
+        }
+    }
+
     @Test fun synthesizedElementRulesAreCommutative() {
         assertEquals("無", FusionRules.resultElement(a,b))
         assertEquals(FusionRules.resultElement(a,b), FusionRules.resultElement(b,a))

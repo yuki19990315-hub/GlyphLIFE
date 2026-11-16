@@ -159,7 +159,9 @@ class MainActivity : ComponentActivity() {
                         }
                         runCatching {
                             glyph.connect { glyphStatus = it }
-                            glyph.showFrame(frame)
+                            val levels = if (mode == 1) animation.current.levels else null
+                            if (levels != null) glyph.showBrightnessFrame(levels)
+                            else glyph.showFrame(frame)
                         }.onFailure { ringStatus = "Glyph出力失敗：${it.message}" }
                     }
                 }
@@ -380,7 +382,7 @@ class MainActivity : ComponentActivity() {
                             onExportAnimation = { shareJson(repo.encodeAnimation(animation)) },
                             onSavePng = {
                                 runCatching {
-                                    GlyphImage.savePng(this@MainActivity, animation.current.pixels)
+                                    GlyphImage.savePng(this@MainActivity, animation.current)
                                     notify("写真フォルダにPNGを保存しました")
                                 }.onFailure { notify("保存失敗：${it.message}") }
                             },

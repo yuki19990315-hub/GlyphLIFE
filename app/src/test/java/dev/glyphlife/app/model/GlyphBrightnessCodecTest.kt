@@ -34,4 +34,14 @@ class GlyphBrightnessCodecTest {
         try { GlyphBrightnessCodec.decode("gg".repeat(169)); fail("Invalid hex") }
         catch (_:IllegalArgumentException) {}
     }
+
+    @Test fun exportUsesGrayLevelsRatherThanDiscardingThem() {
+        val opaque=List(169) { GlyphMask.isPhysical(it) }
+        val levels=List(169) { i -> if(GlyphMask.isPhysical(i)) 64 else 0 }
+        val grayscale=GlyphFrame(opaque,levels=levels)
+        val binary=GlyphFrame(opaque)
+        assertEquals(64,GlyphBrightnessCodec.intensity(grayscale,84))
+        assertEquals(255,GlyphBrightnessCodec.intensity(binary,84))
+        assertEquals(0,GlyphBrightnessCodec.intensity(grayscale,0))
+    }
 }

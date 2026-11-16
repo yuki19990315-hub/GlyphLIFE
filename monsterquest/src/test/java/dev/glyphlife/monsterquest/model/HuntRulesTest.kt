@@ -96,6 +96,8 @@ class HuntRulesTest {
     @Test fun cannotChangeTargetWhileFighting() {
         val s=sample().copy(inBattle=true)
         assertEquals(s,HuntRules.choose(s,"moco"))
+        val road=sample().copy(tapRun=TapRun(phase=TapPhase.FIGHT))
+        assertEquals(road,HuntRules.choose(road,"moco"))
     }
 
     @Test fun aiSummonedSpeciesCanBeFocusedWithoutLosingArtSource() {
