@@ -8,6 +8,8 @@ import android.graphics.Color
 import android.graphics.Canvas
 import android.graphics.Paint
 import dev.glyphlife.app.model.GlyphAnimation
+import dev.glyphlife.app.model.GlyphBrightnessCodec
+import dev.glyphlife.app.model.GlyphFrame
 import android.net.Uri
 import android.os.Environment
 import android.provider.MediaStore
@@ -57,11 +59,14 @@ object GlyphImage {
         }
     }
 
-    fun savePng(context: Context, pixels: List<Boolean>): Uri {
-        require(pixels.size == PixelArt.COUNT)
+    fun savePng(context: Context, pixels: List<Boolean>): Uri =
+        savePng(context, GlyphFrame(pixels))
+
+    fun savePng(context: Context, frame: GlyphFrame): Uri {
         val bitmap = Bitmap.createBitmap(13, 13, Bitmap.Config.ARGB_8888)
-        pixels.forEachIndexed { i, on ->
-            bitmap.setPixel(i % 13, i / 13, if (on) Color.WHITE else Color.BLACK)
+        frame.pixels.indices.forEach { i ->
+            val level = GlyphBrightnessCodec.intensity(frame, i)
+            bitmap.setPixel(i % 13, i / 13, Color.rgb(level, level, level))
         }
         val enlarged = Bitmap.createScaledBitmap(bitmap, 520, 520, false)
         bitmap.recycle()
@@ -102,20 +107,21 @@ object GlyphImage {
         try {
             val canvas = Canvas(sheet)
             canvas.drawColor(Color.BLACK)
-            val white = Paint().apply {
-                color = Color.WHITE
+            val paint = Paint().apply {
                 style = Paint.Style.FILL
                 isAntiAlias = false
             }
             animation.frames.forEachIndexed { frameIndex, frame ->
                 val ox = (frameIndex % cols) * cellSize
                 val oy = (frameIndex / cols) * cellSize
-                frame.pixels.forEachIndexed { index, lit ->
-                    if (lit && GlyphMask.isPhysical(index)) {
+                frame.pixels.indices.forEach { index ->
+                    val level = GlyphBrightnessCodec.intensity(frame, index)
+                    if (level > 0) {
+                        paint.color = Color.rgb(level, level, level)
                         val x = ox + (index % 13) * scale
                         val y = oy + (index / 13) * scale
                         canvas.drawRect(x.toFloat(), y.toFloat(),
-                            (x + scale).toFloat(), (y + scale).toFloat(), white)
+                            (x + scale).toFloat(), (y + scale).toFloat(), paint)
                     }
                 }
             }

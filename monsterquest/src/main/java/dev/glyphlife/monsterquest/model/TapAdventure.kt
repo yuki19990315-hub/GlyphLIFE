@@ -108,7 +108,9 @@ object TapAdventure {
                 (if(rare)3+run.floor/10 else 0),
             stage=stage,isBoss=boss,artSourceId=artSourceId,
             lineage=if(rare)"rare" else "",
-            description=if(boss)"予告攻撃を左右に避け、弱点が見えたら連打しよう！"
+            description=if(boss && state.journey.roadPosition>=0)
+                "強敵に接近して自動攻撃。危険なときは左へ下がろう。"
+                else if(boss)"予告攻撃を左右に避け、弱点が見えたら連打しよう！"
                 else if(rare)"✦ 希少個体！ 強い基礎能力のまま捕獲できる。" else ""
         )
         return state.copy(
@@ -125,7 +127,9 @@ object TapAdventure {
                 bossHopMs=0,bossBullets=emptyList(),
                 bossWaveCooldownMs=BossBarrageRules.FIRST_WAVE_MS,
                 bossWaveIndex=0,bossWaveTouched=false,bossVolleysDodged=0,
-                message=if(boss)"★ BOSS「"+monster.species+"」！ 前後移動で弾幕を避けよう"
+                message=if(boss && state.journey.roadPosition>=0)
+                    "★ BOSS「"+monster.species+"」！ 右で攻撃、左で距離を取ろう"
+                    else if(boss)"★ BOSS「"+monster.species+"」！ 前後移動で弾幕を避けよう"
                         else (if(rare)"✦ 希少個体！ " else "")+
                             monster.species+"が出現！ 近づいて攻撃！"
             )
@@ -228,7 +232,11 @@ object TapAdventure {
                 attackTimerMs=NORMAL_ATTACK_INTERVAL_MS,
                 message="敵が時間経過で攻撃！ HP-"+harm+"。連打で反撃しよう"))
         }
-        val avoided=run.lane!=0 && run.lane!=run.bossTarget
+        // The classic boss arena has a dodge lane. The continuous road does
+        // not: there, stepping back out of melee range prevents a hit, and
+        // obsolete lane data from a migrated save must never dodge for free.
+        val roadMode=state.journey.roadPosition>=0
+        val avoided=!roadMode && run.lane!=0 && run.lane!=run.bossTarget
         val enraged=run.enemyHp<=foe.maxHp/2
         val raw=(foe.attack+(if(enraged)11 else 0)+
             rng.nextInt(6)-state.defenseUpgrade-
@@ -241,12 +249,13 @@ object TapAdventure {
         return state.copy(playerHp=hp,tapRun=run.copy(
             attackTimerMs=if(enraged)ENRAGED_ATTACK_INTERVAL_MS
                 else BOSS_ATTACK_INTERVAL_MS,
-            bossTarget=if(rng.nextBoolean())1 else -1,
+            bossTarget=if(roadMode)0 else if(rng.nextBoolean())1 else -1,
             bossCountdown=if(enraged)2 else 3,
             lane=0,weakpointTaps=if(avoided)3 else 0,
             guardHits=if(avoided)run.guardHits
                 else (run.guardHits-1).coerceAtLeast(0),
-            message=if(avoided)"ジャスト回避！ 弱点露出、次の3タップが3倍！"
+            message=if(roadMode)"ボスの一撃！ HP-"+harm+"。左へ下がれば射程外"
+                else if(avoided)"ジャスト回避！ 弱点露出、次の3タップが3倍！"
                 else "ボスの大技！ HP-"+harm+"。次は逆方向へ回避"))
     }
 
@@ -362,12 +371,16 @@ object TapAdventure {
             earnedHappiness=(state.earnedHappiness+1).coerceAtMost(20)
         )
         if(boss) {
-            val floor=(r.floor+1).coerceAtMost(MAX_FLOOR)
+            val roadMode=state.journey.roadPosition>=0
+            val floor=if(roadMode)r.floor
+                else (r.floor+1).coerceAtMost(MAX_FLOOR)
             val grown=GrowthRules.rewardBattle(next.copy(tapRun=r.copy(
-                floor=floor,bestFloor=maxOf(r.bestFloor,floor),steps=0,
+                floor=floor,bestFloor=maxOf(r.bestFloor,floor),
+                steps=if(roadMode)r.steps else 0,
                 gold=(r.gold+50+r.floor*10).coerceAtMost(999999),
                 phase=TapPhase.WALK,enemy=null,enemyHp=0,combo=0,
-                message="BOSS撃破！ 召喚結晶+2。"+floor+"Fへ！"
+                message=if(roadMode)"BOSS撃破！ 召喚結晶+2。一本道をさらに進もう！"
+                    else "BOSS撃破！ 召喚結晶+2。"+floor+"Fへ！"
             )),boss=true,floor=r.floor)
             return RelicRules.afterVictory(
                 RelicRules.reward(grown,foe,r.floor,rng),false)

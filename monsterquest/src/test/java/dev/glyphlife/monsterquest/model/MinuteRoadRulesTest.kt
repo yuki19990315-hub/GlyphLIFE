@@ -76,6 +76,42 @@ class MinuteRoadRulesTest {
         assertEquals(s.journey.roadPosition,hit.journey.roadPosition)
     }
 
+    @Test fun roadBossVictoryKeepsTheCurrentRoadAreaAndPosition() {
+        var s=fresh()
+        repeat(50){s=MinuteRoadRules.pressRight(s,clear)}
+        assertEquals(TapPhase.BOSS,s.tapRun.phase)
+        assertTrue(s.tapRun.enemy!!.description.contains("左へ下がろう"))
+        s=s.copy(tapRun=s.tapRun.copy(enemyHp=1))
+        val won=MinuteRoadRules.pressRight(s,clear)
+        assertEquals(TapPhase.WALK,won.tapRun.phase)
+        assertEquals(50,won.journey.roadPosition)
+        assertEquals(2,won.tapRun.floor)
+        assertEquals(50%TapAdventure.STEPS_PER_FLOOR,won.tapRun.steps)
+        assertEquals(51,won.journey.roadBossClearedPosition)
+        assertTrue(won.tapRun.message.contains("一本道"))
+    }
+
+    @Test fun roadBossDoesNotUseClassicDodgeLanes() {
+        var s=fresh().copy(journey=JourneyState(
+            roadPosition=50,roadBestPosition=50,roadEnemyPosition=51),
+            tapRun=TapRun(floor=2,phase=TapPhase.BOSS,
+                enemy=WildMonster("boss","月蝕の竜","闇",maxHp=500,
+                    attack=20,isBoss=true),enemyHp=500,
+                attackTimerMs=100,lane=-1,bossTarget=1))
+        val hp=s.playerHp
+        s=MinuteRoadRules.tick(s,0,100,clear)
+        assertTrue(s.playerHp<hp)
+        assertEquals(0,s.tapRun.weakpointTaps)
+        assertTrue(s.tapRun.message.contains("射程外"))
+
+        val away=MinuteRoadRules.pressLeft(s)
+        val safeHp=away.playerHp
+        var waited=away
+        repeat(50){waited=MinuteRoadRules.tick(waited,0,100,clear)}
+        assertEquals(safeHp,waited.playerHp)
+        assertEquals(49,waited.journey.roadPosition)
+    }
+
     @Test fun oldSaveMigratesWithoutDroppingActiveEnemy() {
         val old=fresh().copy(tapRun=TapRun(floor=4,steps=3,
             phase=TapPhase.FIGHT,
