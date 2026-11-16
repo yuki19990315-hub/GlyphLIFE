@@ -132,6 +132,20 @@ object TapAdventure {
         )
     }
 
+    /** Reuse the original Monster Quest encounter/loot pipeline in the
+     * continuous road mode. The road owns movement and encounter positions;
+     * no floor branches or discrete tap-to-walk transitions are involved. */
+    fun roadEncounter(state:QuestState,boss:Boolean,
+                      rng:Random=Random.Default):QuestState {
+        val drawn=if(boss)null else HuntRules.draw(state,rng)
+        val form=if(boss)bosses[rng.nextInt(bosses.size)]
+            else if(drawn!=null)Triple(drawn.species,drawn.element,
+                MonsterDesign.bodyType(drawn))
+            else mobs[rng.nextInt(mobs.size)]
+        val artId=drawn?.artSourceId.orEmpty()
+        return encounter(state,form,boss,rng,artId)
+    }
+
     private fun attack(state:QuestState,rng:Random):QuestState {
         val run=state.tapRun
         val foe=run.enemy ?: return state.copy(tapRun=run.copy(phase=TapPhase.WALK))

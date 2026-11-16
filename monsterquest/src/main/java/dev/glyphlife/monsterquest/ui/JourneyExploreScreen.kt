@@ -255,7 +255,8 @@ fun JourneyExploreScreen(
     val enemy=run.enemy
     val battling=run.phase in listOf(TapPhase.FIGHT,TapPhase.BOSS)
     val boss=run.phase==TapPhase.BOSS
-    val biome=PixelBiomeRules.zone(run.floor,boss)
+    val roadX=journey.roadPosition.coerceAtLeast(0)
+    val biome=PixelBiomeRules.zone(MinuteRoadRules.area(roadX),boss)
     val rare=enemy?.lineage=="rare"
     val companion=remember(state.companion) {
         WildMonster(id=state.companion.id,
@@ -360,24 +361,25 @@ fun JourneyExploreScreen(
             Surface(color=Color(0xFF263B50),
                 shape=RoundedCornerShape(5.dp),
                 border=androidx.compose.foundation.BorderStroke(1.dp,RunBrass)) {
-                Text(if(boss)"☠ BOSS  ${run.floor}F"
-                    else "◆ 第${run.floor}階層 · ${biome.displayName}",
+                Text(if(boss)"☠ BOSS · ${biome.displayName}"
+                    else "◆ エリア${MinuteRoadRules.area(roadX)} · ${biome.displayName}",
                     Modifier.padding(horizontal=8.dp,vertical=5.dp),
                     color=RunGold,fontWeight=FontWeight.Bold,
                     style=MaterialTheme.typography.labelMedium)
             }
             Surface(color=Color(0xFF19353D),
                 shape=RoundedCornerShape(5.dp)) {
-                Text("進行 ${run.distance}",
+                Text("${roadX*MinuteRoadRules.METERS_PER_STEP}m",
                     Modifier.padding(horizontal=8.dp,vertical=5.dp),
                     color=RunCyan,style=MaterialTheme.typography.labelMedium)
             }
             Spacer(Modifier.weight(1f))
-            Text("BEST ${run.bestFloor}F",color=RunGold,fontSize=10.sp)
+            Text("BEST ${journey.roadBestPosition*MinuteRoadRules.METERS_PER_STEP}m",
+                color=RunGold,fontSize=10.sp)
             TextButton(onClick=onClassic,
                 contentPadding=PaddingValues(horizontal=4.dp,vertical=0.dp),
                 modifier=Modifier.height(30.dp)) {
-                Text("旧操作",color=RunCyan,fontSize=9.sp)
+                Text("旧モード",color=RunCyan,fontSize=9.sp)
             }
         }
 
@@ -388,17 +390,13 @@ fun JourneyExploreScreen(
             .border(3.dp,RunGold,QuestFrameShape)
         ) {
             val fraction=when {
-                run.phase!=TapPhase.WALK -> 0f
-                heldDirection>0 ->
-                    journey.repeatMs.toFloat()/JourneyRules.WALK_INTERVAL_MS
+                heldDirection>0 && !battling ->
+                    journey.repeatMs.toFloat()/MinuteRoadRules.WALK_INTERVAL_MS
                 heldDirection<0 ->
-                    -journey.repeatMs.toFloat()/JourneyRules.BACK_INTERVAL_MS
+                    -journey.repeatMs.toFloat()/MinuteRoadRules.BACK_INTERVAL_MS
                 else -> 0f
             }
-            val scenePosition=(run.floor-1)*TapAdventure.STEPS_PER_FLOOR+
-                run.steps+fraction
-            val worldTravel=if(boss)run.bossPosition.toFloat()*3f
-                else scenePosition*14f
+            val worldTravel=(roadX+fraction)*14f
             PixelParallaxStage(biome,worldTravel,foreground=false,
                 modifier=Modifier.fillMaxSize())
 
@@ -416,9 +414,7 @@ fun JourneyExploreScreen(
                 stageHeight.value,spriteSize.value).dp
             val enemyGroundOffset=MonsterViewport.floorOffset(
                 stageHeight.value,foeSize.value).dp
-            val heroCenter=if(boss)
-                maxWidth*BossBarrageRules.screenX(run.bossPosition)
-                else maxWidth*.20f
+            val heroCenter=maxWidth*.22f
             val heroLeft=MonsterViewport.clampLeft(
                 heroCenter.value,spriteSize.value,maxWidth.value).dp
             val walkingHop=if(!battling && heldDirection!=0)
@@ -430,13 +426,12 @@ fun JourneyExploreScreen(
                     .align(Alignment.BottomStart)
                     .offset(
                         x=heroLeft,
-                        y=-heroGroundOffset+(if(boss)
-                            -(stageHeight*.14f)*BossBarrageRules.hopHeight(run)
-                            else -18.dp*walkingHop)
+                        y=-heroGroundOffset-18.dp*walkingHop
                     ),
                 bossRelicKind=RelicRules.visualKind(
                     state,state.companion.id))
-            if(enemy!=null) {
+            val foeDistance=journey.roadEnemyPosition-roadX
+            if(enemy!=null && foeDistance<=3) {
                 if(rare) {
                     Box(Modifier.size(foeSize)
                         .align(Alignment.BottomEnd)
@@ -450,8 +445,8 @@ fun JourneyExploreScreen(
                         .offset(x=(-6).dp,y=-enemyGroundOffset),
                     facingRight=false)
             } else {
-                Text(if(journey.shrinePending)"✦ 精霊の祠" else "▶ 冒険中",
-                    color=if(journey.shrinePending)RunGold else RunText,
+                Text(if(enemy!=null)"▶ 敵まで${foeDistance}歩" else "▶ 一本道を冒険中",
+                    color=RunText,
                     fontWeight=FontWeight.Bold,
                     modifier=Modifier.align(Alignment.CenterEnd)
                         .padding(end=22.dp)
@@ -464,7 +459,8 @@ fun JourneyExploreScreen(
             PixelParallaxStage(biome,worldTravel,foreground=true,
                 modifier=Modifier.fillMaxSize())
 
-            if(boss)BossBarrageLayer(run,Modifier.fillMaxSize())
+            // Road bosses are tougher melee encounters, not a separate
+            // projectile-dodging minigame. The same two inputs always work.
 
             if(battling) {
                 Column(
@@ -533,14 +529,7 @@ fun JourneyExploreScreen(
                     modifier=Modifier.align(Alignment.BottomCenter)
                         .padding(bottom=7.dp)
                         .widthIn(max=stageWidth-16.dp)) {
-                    Text(if(boss) {
-                        if(run.weakpointTaps>0)
-                            "✦ 回避成功！ 前線で攻撃チャンス！"
-                        else if(run.bossBullets.isNotEmpty())
-                            "⚠ 弾幕が来る！ 前後に跳ねてかわそう"
-                        else "弾幕まで "+String.format("%.1f",
-                            run.bossWaveCooldownMs/1000f)+"秒  ·  接近して攻撃"
-                    } else
+                    Text(if(boss) "⚔ ボスも右長押しで接近・自動攻撃" else
                         "⚔ "+ElementalRules.label(
                             state.companion.element,enemy!!.element),
                         Modifier.padding(horizontal=7.dp,vertical=4.dp),
@@ -611,12 +600,12 @@ fun JourneyExploreScreen(
             Text("◎ 追跡： "+target.species+"（通常遭遇の45%）",
                 color=RunCyan,style=MaterialTheme.typography.labelSmall)
         }
-        if(run.phase==TapPhase.WALK && run.steps<=1 &&
-            run.floor%4==0) {
+        if(run.phase==TapPhase.WALK && roadX>0 &&
+            roadX%100 in 0..2) {
             Surface(color=Color(0xFF26384D),shape=RoundedCornerShape(8.dp)) {
                 Column(Modifier.fillMaxWidth().padding(10.dp),
                     verticalArrangement=Arrangement.spacedBy(5.dp)) {
-                    Text("◇ 旅商人の小屋  /  "+run.floor+"F",
+                    Text("◇ 旅商人の小屋  /  ${roadX*10}m",
                         color=RunGold,fontWeight=FontWeight.Bold,
                         style=MaterialTheme.typography.titleSmall)
                     Text("遠征中の補給。所持金を使ってアイテムを購入！",
@@ -645,10 +634,7 @@ fun JourneyExploreScreen(
 
         if(boss) {
             Surface(color=Color(0xFF26334F),shape=RoundedCornerShape(8.dp)) {
-                Text("↔ 前進・後退で自動的にぴょんぴょん移動。"+
-                    (if(run.bossPosition>=BossBarrageRules.ATTACK_X)
-                        "射程内！攻撃可能" else "接近すると攻撃可能")+
-                    " ·  回避成功 ${run.bossVolleysDodged}回",
+                Text("強敵出現！ 右で近づき自動攻撃、左で距離を取れる。",
                     Modifier.fillMaxWidth().padding(9.dp),
                     color=RunCyan,style=MaterialTheme.typography.labelSmall)
             }
@@ -677,34 +663,12 @@ fun JourneyExploreScreen(
             Text("捕獲 "+journey.totalCaptures+" / 発見 "+state.catalog.size,
                 color=RunCyan,style=MaterialTheme.typography.labelSmall)
         }
-        Text("祠 "+journey.shrinesVisited+" / 奥義 "+journey.burstUses+
-            "回  ·  移動すると自動で跳ねる。ボスは近づいて中央の攻撃ボタン！",
+        Text("右を長押しで前進＆接触自動攻撃。連打で攻撃が速くなる。"+
+            " 左は後退。奥義 "+journey.burstUses+"回",
             color=Color(0xFF92A8C3),style=MaterialTheme.typography.labelSmall)
         }
 
-        if(run.phase==TapPhase.BRANCH) {
-            Text("◆ 分かれ道：次の行き先を選択",color=RunGold,
-                style=MaterialTheme.typography.titleSmall)
-            listOf("✚ 泉：HP回復","◇ 宝箱：捕獲玉＋アイテム",
-                "⚔ 危険な近道：強敵とレア報酬").forEachIndexed{index,title->
-                OutlinedButton(onClick={onBranch(index)},
-                    enabled=!ChallengeRules.active(state),
-                    modifier=Modifier.fillMaxWidth().height(48.dp)) {
-                    Text(title,color=RunText,style=MaterialTheme.typography.bodySmall)
-                }
-            }
-        } else if(journey.shrinePending) {
-            Text("✦ 精霊の祠：1つだけ加護を選ぼう",color=RunGold,
-                style=MaterialTheme.typography.titleSmall)
-            listOf("✚ 癒し：HPを回復","◉ 物資：捕獲玉+2",
-                "◆ 契約：HPを捧げて結晶+2").forEachIndexed{index,title ->
-                OutlinedButton(onClick={onShrine(index)},
-                    modifier=Modifier.fillMaxWidth().height(44.dp)) {
-                    Text(title,color=RunText,
-                        style=MaterialTheme.typography.bodySmall)
-                }
-            }
-        }else {
+        kotlin.run {
             Row(Modifier.fillMaxWidth()
                 .background(Color(0xFF101F31),RoundedCornerShape(5.dp))
                 .padding(horizontal=5.dp,vertical=4.dp),
@@ -725,20 +689,12 @@ fun JourneyExploreScreen(
             Row(Modifier.fillMaxWidth(),
                 horizontalArrangement=Arrangement.spacedBy(5.dp)) {
                 JourneyHoldButton("◀",
-                    if(run.phase==TapPhase.FIGHT)"にげる" else
-                        if(boss)"後退" else "もどる",
-                    if(run.phase==TapPhase.FIGHT)"退却" else "ぴょん",
+                    "もどる", "距離を取る",
                     -1,heldDirection,!ChallengeRules.active(state),
                     onDirection,onPress,Modifier.weight(1f),controlHeight)
-                QuestBattleButton("⚔ 攻撃",
-                    if(boss && run.bossPosition<BossBarrageRules.ATTACK_X)
-                        "射程外" else if(battling)"たたかう" else "敵がいない",
-                    onAttack,battling&&!ChallengeRules.active(state) &&
-                        (!boss||run.bossPosition>=BossBarrageRules.ATTACK_X),
-                    Modifier.weight(1.13f),highlight=true,height=controlHeight)
                 JourneyHoldButton("▶",
-                    if(boss)"前進" else if(battling)"連撃" else "進む",
-                    if(boss)"ぴょん" else if(battling)"自動攻撃" else "長押し",
+                    if(battling)"たたかう" else "すすむ",
+                    if(battling)"接触で自動攻撃" else "長押しで前進",
                     1,heldDirection,!ChallengeRules.active(state),
                     onDirection,onPress,Modifier.weight(1f),controlHeight)
             }
@@ -747,19 +703,17 @@ fun JourneyExploreScreen(
                 horizontalArrangement=Arrangement.spacedBy(4.dp),
                 verticalAlignment=Alignment.CenterVertically) {
                 QuestBattleButton("✦ 奥義",
-                    if(boss && run.bossPosition<BossBarrageRules.ATTACK_X)
-                        "接近して発動"
-                    else if(journey.burstGauge==JourneyRules.BURST_COST)"発動可能"
+                    if(journey.burstGauge==JourneyRules.BURST_COST)"発動可能"
                     else "${journey.burstGauge}%",
                     onBurst,
                     battling && journey.burstGauge>=JourneyRules.BURST_COST &&
-                        (!boss || run.bossPosition>=BossBarrageRules.ATTACK_X),
+                        MinuteRoadRules.inRange(state),
                     Modifier.weight(1.15f),highlight=true,height=44.dp)
                 QuestBattleButton("◉ 捕獲",
                     "${TapAdventure.captureChance(state)}%",
                     onCapture,
                     run.phase==TapPhase.FIGHT && state.captureOrbs>0 &&
-                        state.captures.size<100,
+                        state.captures.size<100 && MinuteRoadRules.inRange(state),
                     Modifier.weight(1f),height=44.dp)
                 OutlinedButton(onClick=onHeal,
                     enabled=state.potions>0 &&
