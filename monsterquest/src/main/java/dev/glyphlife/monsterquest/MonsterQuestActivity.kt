@@ -37,7 +37,7 @@ import dev.glyphlife.monsterquest.ui.CaptureLab
 import dev.glyphlife.monsterquest.ui.QuestTab
 import dev.glyphlife.monsterquest.ui.QuestBottomNavigation
 import dev.glyphlife.monsterquest.ui.QuestHome
-import dev.glyphlife.monsterquest.ui.JourneyExploreScreen
+import dev.glyphlife.monsterquest.ui.MinuteQuestRebuildScreen
 import dev.glyphlife.monsterquest.ui.TapExplorationScreen
 import dev.glyphlife.monsterquest.ui.QuestSummon
 import dev.glyphlife.monsterquest.ui.QuestFuture
@@ -568,14 +568,15 @@ class MonsterQuestActivity : ComponentActivity() {
                     topBar={
                         if(selectedTab!=QuestTab.EXPLORE) {
                             Surface(tonalElevation=2.dp,color=Color(0xFF121B30)) {
-                                Text("MONSTER QUEST / v5.8.0",Modifier.padding(14.dp),
+                                Text("MONSTER QUEST / v5.9.1",Modifier.padding(14.dp),
                                     style=MaterialTheme.typography.titleMedium,
                                     color=Color(0xFFFFD990))
                             }
                         }
                     },
                     bottomBar={
-                        QuestBottomNavigation(selectedTab) { selectedTab=it }
+                        if(selectedTab!=QuestTab.EXPLORE || state.journey.classic)
+                            QuestBottomNavigation(selectedTab) { selectedTab=it }
                     }
                 ) { padding ->
                     Box(Modifier.fillMaxSize().padding(padding)) {
@@ -674,7 +675,7 @@ class MonsterQuestActivity : ComponentActivity() {
                                 )
                             }
                             QuestTab.EXPLORE -> if(!state.journey.classic) {
-                                JourneyExploreScreen(
+                                MinuteQuestRebuildScreen(
                                     state=state,store=artworkStore,
                                     revision=artworkRevision,
                                     heldDirection=journeyHeld,
@@ -687,24 +688,12 @@ class MonsterQuestActivity : ComponentActivity() {
                                             if(next!=state)update(next)
                                         }
                                     },
-                                    onAttack={
-                                        if(!ChallengeRules.active(state)) {
-                                            val next=MinuteRoadRules.pressRight(state)
-                                            if(next!=state)update(next)
-                                        }
-                                    },
                                     onCapture={
                                         update(MinuteRoadRules.capture(state))
                                     },
                                     onHeal={update(JourneyRules.heal(state))},
                                     onSkill={owner,bonus->
                                         update(MinuteRoadRules.skill(state,owner,bonus))
-                                    },
-                                    onBranch={route->
-                                        update(JourneyRules.chooseBranch(state,route))
-                                    },
-                                    onShrine={choice->
-                                        update(JourneyRules.chooseShrine(state,choice))
                                     },
                                     onBurst={
                                         update(MinuteRoadRules.burst(state))
@@ -723,6 +712,10 @@ class MonsterQuestActivity : ComponentActivity() {
                                         journeyHeld=0
                                         update(state.copy(journey=
                                             state.journey.copy(classic=true,repeatMs=0)))
+                                    },
+                                    onHome={
+                                        journeyHeld=0
+                                        selectedTab=QuestTab.HOME
                                     }
                                 )
                             } else Column(Modifier.fillMaxSize()) {
