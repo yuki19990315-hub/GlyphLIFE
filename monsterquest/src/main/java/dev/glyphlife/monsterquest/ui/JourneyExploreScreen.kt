@@ -433,17 +433,22 @@ fun JourneyExploreScreen(
                     state,state.companion.id))
             val foeDistance=journey.roadEnemyPosition-roadX
             if(enemy!=null && foeDistance<=3) {
+                // Both characters occupy positions on the same world road:
+                // backing away scrolls the enemy off the right edge instead
+                // of leaving it glued to the HUD at a fixed screen offset.
+                val retreatOffset=maxWidth*.23f*
+                    (foeDistance-1).coerceIn(0,3).toFloat()
                 if(rare) {
                     Box(Modifier.size(foeSize)
                         .align(Alignment.BottomEnd)
-                        .offset(x=(-6).dp,y=-enemyGroundOffset)
+                        .offset(x=retreatOffset-6.dp,y=-enemyGroundOffset)
                         .background(RunGold.copy(alpha=.08f)))
                 }
                 MonsterArtworkView(
                     enemy,store,revision,
                     Modifier.size(foeSize)
                         .align(Alignment.BottomEnd)
-                        .offset(x=(-6).dp,y=-enemyGroundOffset),
+                        .offset(x=retreatOffset-6.dp,y=-enemyGroundOffset),
                     facingRight=false)
             } else {
                 Text(if(enemy!=null)"▶ 敵まで${foeDistance}歩" else "▶ 一本道を冒険中",
