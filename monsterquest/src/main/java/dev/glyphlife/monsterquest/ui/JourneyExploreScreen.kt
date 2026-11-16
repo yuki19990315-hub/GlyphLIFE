@@ -687,6 +687,7 @@ fun JourneyExploreScreen(
             verticalAlignment=Alignment.CenterVertically,
             horizontalArrangement=Arrangement.spacedBy(8.dp)) {
             FilterChip(selected=journey.autoCapture,
+                enabled=!ChallengeRules.active(state),
                 onClick=onAutoCapture,
                 label={Text(if(journey.autoCapture)"自動捕獲 ON"
                     else "自動捕獲 OFF",
@@ -733,11 +734,12 @@ fun JourneyExploreScreen(
                 QuestBattleButton("◉ 捕獲",
                     "${TapAdventure.captureChance(state)}%",
                     onCapture,
-                    run.phase==TapPhase.FIGHT && state.captureOrbs>0 &&
+                    !ChallengeRules.active(state) &&
+                        run.phase==TapPhase.FIGHT && state.captureOrbs>0 &&
                         state.captures.size<100 && MinuteRoadRules.inRange(state),
                     Modifier.weight(1f),height=44.dp)
                 OutlinedButton(onClick=onHeal,
-                    enabled=state.potions>0 &&
+                    enabled=!ChallengeRules.active(state) && state.potions>0 &&
                         state.playerHp<TalentRules.maxHp(state),
                     modifier=Modifier.weight(1f).height(44.dp),
                     contentPadding=PaddingValues(0.dp),
@@ -745,7 +747,7 @@ fun JourneyExploreScreen(
                     Text("✚ 回復 ×${state.potions}",fontSize=11.sp)
                 }
                 OutlinedButton(onClick={showSkills=!showSkills},
-                    enabled=battling,
+                    enabled=battling && !ChallengeRules.active(state),
                     modifier=Modifier.weight(1f).height(44.dp),
                     contentPadding=PaddingValues(0.dp),
                     shape=QuestFrameShape) {
@@ -764,7 +766,8 @@ fun JourneyExploreScreen(
                     if(journey.burstGauge==JourneyRules.BURST_COST)"発動可能"
                     else "${journey.burstGauge}%",
                     onBurst,
-                    battling && journey.burstGauge>=JourneyRules.BURST_COST &&
+                    battling && !ChallengeRules.active(state) &&
+                        journey.burstGauge>=JourneyRules.BURST_COST &&
                         MinuteRoadRules.inRange(state),
                     Modifier.weight(1f),highlight=true,height=controlHeight)
                 JourneyHoldButton("▶",

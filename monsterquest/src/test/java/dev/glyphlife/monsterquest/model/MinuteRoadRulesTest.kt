@@ -124,6 +124,26 @@ class MinuteRoadRulesTest {
         assertEquals(migrated,MinuteRoadRules.prepare(migrated))
     }
 
+    @Test fun challengeModeCannotConsumeExploreItemsOrAdvanceTheRoad() {
+        val foe=WildMonster("wild","モコ","草",maxHp=60,attack=5)
+        val paused=fresh().copy(
+            playerHp=45,potions=2,captureOrbs=3,
+            challenge=ChallengeState(mode=ChallengeMode.TOWER),
+            tapRun=TapRun(phase=TapPhase.FIGHT,enemy=foe,enemyHp=20),
+            journey=JourneyState(roadPosition=2,roadEnemyPosition=3,
+                burstGauge=JourneyRules.BURST_COST,roadFreeStats=2))
+
+        assertEquals(paused,MinuteRoadRules.pressRight(paused,clear))
+        assertEquals(paused,MinuteRoadRules.pressLeft(paused))
+        assertEquals(paused,MinuteRoadRules.capture(paused,clear))
+        assertEquals(paused,MinuteRoadRules.skill(paused,"hero",rng=clear))
+        assertEquals(paused,MinuteRoadRules.burst(paused,clear))
+        assertEquals(paused,JourneyRules.heal(paused))
+        assertEquals(paused,JourneyRules.toggleAutoCapture(paused))
+        assertEquals(paused,MinuteRoadRules.allocate(paused,"power"))
+        assertEquals(paused,MinuteRoadRules.tick(paused,1,100,clear))
+    }
+
     @Test fun levelsAwardFiveAssignableStatsAndChoicesArePersistableValues() {
         val monster=WildMonster("exp","モコ","草",maxHp=60,attack=3)
         val start=fresh().copy(

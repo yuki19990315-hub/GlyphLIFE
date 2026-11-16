@@ -111,7 +111,7 @@ class QuestStorage(context: Context) {
         }.getOrElse { QuestRules.start(Companion()) }
     }
 
-    fun save(s: QuestState) {
+    fun save(s: QuestState, synchronous:Boolean=false) {
         val data = JSONObject()
             .put("companion", JSONObject()
                 .put("id", s.companion.id).put("name", s.companion.name)
@@ -168,7 +168,10 @@ class QuestStorage(context: Context) {
         // apply() makes the new state available immediately and writes it
         // asynchronously; synchronous commit on EVERY rapid combat tap caused
         // frame stalls and missed input on slower Android flash storage.
-        prefs.edit().putString("session", data.toString()).apply()
+        val edit=prefs.edit().putString("session", data.toString())
+        // One synchronous checkpoint on backgrounding prevents losing the
+        // newest unsaved combat taps when Android later kills the process.
+        if(synchronous)edit.commit() else edit.apply()
     }
 
     private fun readCooldowns(value:JSONObject?):Map<String,Int> {
