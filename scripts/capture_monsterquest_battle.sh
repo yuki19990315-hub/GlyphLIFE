@@ -25,3 +25,11 @@ fi
 adb shell screencap -p /sdcard/monsterquest-battle.png
 adb pull /sdcard/monsterquest-battle.png monsterquest/build/ui-screenshot/battle.png
 adb pull /sdcard/monsterquest-battle.xml monsterquest/build/ui-screenshot/battle-accessibility.xml
+
+# Trigger one strike while the first encounter is still alive. The resulting
+# snapshot verifies that floating damage and the combat log are *inside* the
+# clipped upper stage, not below it or off the right edge.
+adb shell input tap 535 1970
+sleep 0.25
+adb shell screencap -p /sdcard/monsterquest-damage-popup.png
+adb pull /sdcard/monsterquest-damage-popup.png monsterquest/build/ui-screenshot/damage-popup.png

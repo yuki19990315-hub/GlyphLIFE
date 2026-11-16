@@ -28,11 +28,13 @@ import androidx.compose.ui.semantics.role
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import dev.glyphlife.monsterquest.data.MonsterArtworkStore
 import dev.glyphlife.monsterquest.model.*
+import kotlinx.coroutines.delay
 import kotlin.math.min
 
 private val RunGold=Color(0xFFF8D58E)
@@ -44,6 +46,28 @@ private val RunBrass=Color(0xFF99764A)
 private val RunRed=Color(0xFFDA6674)
 
 private val QuestFrameShape=RoundedCornerShape(8.dp)
+
+private data class StageDamageEvent(val amount:Int,val sequence:Int)
+
+/** Combat notifications are children of the clipped stage, never of the
+ * scrolling information column. The caller provides an edge-safe position. */
+@Composable
+private fun StageDamageBubble(
+    event:StageDamageEvent?,isEnemy:Boolean,
+    modifier:Modifier=Modifier
+) {
+    if(event==null)return
+    Box(modifier
+        .background(if(isEnemy)Color(0xE34C2738) else Color(0xE334435A),
+            RoundedCornerShape(6.dp))
+        .border(1.dp,if(isEnemy)RunGold else RunRed,
+            RoundedCornerShape(6.dp))
+        .padding(horizontal=8.dp,vertical=4.dp)) {
+        Text("−${event.amount}"+(if(isEnemy)" DMG" else " HP"),
+            color=Color.White,fontWeight=FontWeight.Black,
+            fontSize=13.sp,maxLines=1,overflow=TextOverflow.Ellipsis)
+    }
+}
 
 @Composable
 private fun QuestEmblem(label:String,modifier:Modifier=Modifier) {
@@ -246,6 +270,55 @@ fun JourneyExploreScreen(
     var showSkills by remember { mutableStateOf(false) }
     val target=HuntRules.selected(state)
 
+    // Read damage from HP deltas, not localized battle-log strings. Reset
+    // the enemy baseline when an encounter changes.
+    var lastEnemyId by remember { mutableStateOf(enemy?.id) }
+    var lastEnemyHp by remember { mutableIntStateOf(run.enemyHp) }
+    var lastPlayerHp by remember { mutableIntStateOf(state.playerHp) }
+    var damageSequence by remember { mutableIntStateOf(0) }
+    var enemyDamage by remember { mutableStateOf<StageDamageEvent?>(null) }
+    var playerDamage by remember { mutableStateOf<StageDamageEvent?>(null) }
+    var stageMessage by remember { mutableStateOf("") }
+    LaunchedEffect(battling,run.message) {
+        if(battling && run.message.isNotBlank()) {
+            stageMessage=run.message
+            delay(2200)
+            stageMessage=""
+        } else stageMessage=""
+    }
+    LaunchedEffect(enemy?.id,run.enemyHp) {
+        if(lastEnemyId!=enemy?.id) {
+            enemyDamage=null
+            playerDamage=null
+        }
+        if(battling && enemy!=null && lastEnemyId==enemy.id &&
+            run.enemyHp<lastEnemyHp) {
+            damageSequence++
+            enemyDamage=StageDamageEvent(lastEnemyHp-run.enemyHp,damageSequence)
+        }
+        lastEnemyId=enemy?.id
+        lastEnemyHp=run.enemyHp
+    }
+    LaunchedEffect(state.playerHp) {
+        if(battling && state.playerHp<lastPlayerHp) {
+            damageSequence++
+            playerDamage=StageDamageEvent(lastPlayerHp-state.playerHp,damageSequence)
+        }
+        lastPlayerHp=state.playerHp
+    }
+    LaunchedEffect(enemyDamage?.sequence) {
+        if(enemyDamage!=null) {
+            delay(1100)
+            enemyDamage=null
+        }
+    }
+    LaunchedEffect(playerDamage?.sequence) {
+        if(playerDamage!=null) {
+            delay(1100)
+            playerDamage=null
+        }
+    }
+
     BoxWithConstraints(Modifier.fillMaxSize().background(RunInk)) {
     val small=maxHeight<660.dp
     val tiny=maxHeight<560.dp
@@ -408,9 +481,11 @@ fun JourneyExploreScreen(
                         horizontalArrangement=Arrangement.SpaceBetween) {
                         Text((if(boss)"☠ BOSS  " else if(rare)"✦ RARE  " else "⚔ ")+
                             enemy!!.species,color=RunGold,
-                            fontSize=11.sp,fontWeight=FontWeight.Black,maxLines=1)
+                            modifier=Modifier.weight(1f),
+                            fontSize=11.sp,fontWeight=FontWeight.Black,
+                            maxLines=1,overflow=TextOverflow.Ellipsis)
                         Text("${run.enemyHp}/${enemy!!.maxHp}",
-                            color=RunText,fontSize=10.sp)
+                            color=RunText,fontSize=10.sp,maxLines=1)
                     }
                     LinearProgressIndicator(
                         progress={run.enemyHp.toFloat()/enemy!!.maxHp.coerceAtLeast(1)},
@@ -421,10 +496,43 @@ fun JourneyExploreScreen(
                 }
             }
             if(battling) {
+                // All combat popups are children of this clipped stage.
+                // Leave a safe zone below the enemy HP bar on short screens.
+                val bubbleWidth=minOf(128.dp,maxWidth*.36f)
+                val bubbleY=58.dp
+                StageDamageBubble(playerDamage,isEnemy=false,
+                    modifier=Modifier.align(Alignment.TopStart)
+                        .offset(x=8.dp,y=bubbleY)
+                        .width(bubbleWidth))
+                StageDamageBubble(enemyDamage,isEnemy=true,
+                    modifier=Modifier.align(Alignment.TopEnd)
+                        .offset(x=(-8).dp,y=bubbleY)
+                        .width(bubbleWidth))
+                // Move combat messages from the scrolling lower panel into
+                // a wrapped, edge-safe bubble above the in-scene battle hint.
+                // On the shortest displays, alternate the combat log with
+                // numeric hit markers rather than stacking them over sprites.
+                if(stageMessage.isNotBlank() &&
+                    enemyDamage==null && playerDamage==null) {
+                    Box(Modifier.align(Alignment.BottomCenter)
+                        .padding(start=8.dp,end=8.dp,bottom=42.dp)
+                        .fillMaxWidth()
+                        .background(Color(0xE51A2940),QuestFrameShape)
+                        .border(1.dp,RunBrass,QuestFrameShape)
+                        .padding(horizontal=6.dp,vertical=4.dp),
+                        contentAlignment=Alignment.Center) {
+                        Text(stageMessage,color=RunText,fontSize=10.sp,
+                            maxLines=2,overflow=TextOverflow.Ellipsis,
+                            textAlign=TextAlign.Center)
+                    }
+                }
+            }
+            if(battling) {
                 Surface(color=Color(0xDB0B1932),
                     shape=RoundedCornerShape(5.dp),
                     modifier=Modifier.align(Alignment.BottomCenter)
-                        .padding(bottom=7.dp)) {
+                        .padding(bottom=7.dp)
+                        .widthIn(max=stageWidth-16.dp)) {
                     Text(if(boss) {
                         if(run.weakpointTaps>0)
                             "✦ 回避成功！ 前線で攻撃チャンス！"
@@ -437,7 +545,9 @@ fun JourneyExploreScreen(
                             state.companion.element,enemy!!.element),
                         Modifier.padding(horizontal=7.dp,vertical=4.dp),
                         color=RunGold,
-                        fontSize=10.sp)
+                        fontSize=10.sp,maxLines=2,
+                        overflow=TextOverflow.Ellipsis,
+                        textAlign=TextAlign.Center)
                 }
             }
         }
@@ -489,11 +599,13 @@ fun JourneyExploreScreen(
                 fontWeight=FontWeight.Bold,
                 style=MaterialTheme.typography.labelMedium)
         }
-        Surface(color=Color(0xFF182C46),
-            shape=RoundedCornerShape(7.dp)) {
-            Text(run.message,
-                Modifier.fillMaxWidth().padding(10.dp),
-                color=RunText,style=MaterialTheme.typography.bodySmall)
+        if(!battling) {
+            Surface(color=Color(0xFF182C46),
+                shape=RoundedCornerShape(7.dp)) {
+                Text(run.message,
+                    Modifier.fillMaxWidth().padding(10.dp),
+                    color=RunText,style=MaterialTheme.typography.bodySmall)
+            }
         }
         if(target!=null) {
             Text("◎ 追跡： "+target.species+"（通常遭遇の45%）",
