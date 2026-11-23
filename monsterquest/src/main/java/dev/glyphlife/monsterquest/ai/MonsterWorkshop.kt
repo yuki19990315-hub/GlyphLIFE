@@ -45,10 +45,33 @@ object MonsterWorkshop {
 }
 
 /** Ephemeral, cancel-safe proposal; no side effects on game state. */
+/**
+ * A Pixel-Lab-like selection session: retain up to four images in RAM,
+ * choose a previous alternative without another paid API call, then commit.
+ * A cancelled session makes NO changes to player progression.
+ */
 data class MonsterWorkshopDraft(
     val idea: MonsterIdea,
     val monster: WildMonster,
-    val art: MonsterWorkshop.Art?
+    val variants: List<MonsterWorkshop.Art> = emptyList(),
+    val selectedIndex: Int = 0
 ) {
+    init {
+        require(variants.size <= 4)
+        require(selectedIndex in 0..maxOf(0, variants.lastIndex))
+    }
+
+    val art: MonsterWorkshop.Art? get() = variants.getOrNull(selectedIndex)
     val readyForApproval: Boolean get() = art?.audit?.compliant ?: true
+    val canGenerateMore: Boolean get() = variants.size < 4
+
+    fun choose(index: Int): MonsterWorkshopDraft {
+        require(index in variants.indices)
+        return copy(selectedIndex = index)
+    }
+
+    fun addCandidate(candidate: MonsterWorkshop.Art): MonsterWorkshopDraft {
+        require(canGenerateMore) { "候補は最大4枚です" }
+        return copy(variants = variants + candidate, selectedIndex = variants.size)
+    }
 }

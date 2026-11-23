@@ -1,6 +1,7 @@
 package dev.glyphlife.monsterquest.ui
 
 import androidx.compose.foundation.Image
+import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
@@ -19,9 +20,13 @@ fun MonsterWorkshopReview(
     draft: MonsterWorkshopDraft,
     busy: Boolean,
     canAccept: Boolean,
+    canGenerateImage: Boolean,
+    onSelect: (Int) -> Unit,
+    onGenerateAlternative: (String) -> Unit,
     onAccept: () -> Unit,
     onCancel: () -> Unit
 ) {
+    var feedback by remember(draft.monster.id) { mutableStateOf("") }
     val image = remember(draft.art) {
         draft.art?.let { PixelAssetPipeline.toBitmap(it.sprite).asImageBitmap() }
     }
@@ -33,6 +38,32 @@ fun MonsterWorkshopReview(
                 verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 Text("${draft.idea.name} / ${draft.idea.element} / 進化1")
                 Text(draft.idea.description, style = MaterialTheme.typography.bodySmall)
+                if (draft.variants.size > 1) {
+                    Text("別案の比較（${draft.variants.size}/4枚）",
+                        style = MaterialTheme.typography.titleSmall)
+                    Row(
+                        modifier = Modifier.horizontalScroll(rememberScrollState()),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        draft.variants.forEachIndexed { index, variant ->
+                            val thumbnail = remember(variant) {
+                                PixelAssetPipeline.toBitmap(variant.sprite).asImageBitmap()
+                            }
+                            Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                                Image(bitmap = thumbnail,
+                                    contentDescription = "別案${index + 1}",
+                                    modifier = Modifier.size(72.dp),
+                                    filterQuality = FilterQuality.None)
+                                FilterChip(
+                                    selected = index == draft.selectedIndex,
+                                    enabled = !busy,
+                                    onClick = { onSelect(index) },
+                                    label = { Text("案${index + 1}") }
+                                )
+                            }
+                        }
+                    }
+                }
                 if (image != null) {
                     Image(bitmap = image, contentDescription = "64×64の候補画像",
                         modifier = Modifier.size(220.dp).align(Alignment.CenterHorizontally),
@@ -55,6 +86,27 @@ fun MonsterWorkshopReview(
                         " 画像生成をONにして再生成すると全身画像を作れます。",
                         style = MaterialTheme.typography.bodySmall)
                 }
+                HorizontalDivider()
+                OutlinedTextField(
+                    value = feedback,
+                    onValueChange = { feedback = it.take(100) },
+                    label = { Text("別案への指示（100文字以内・任意）") },
+                    placeholder = { Text("例：角を長く、装甲を減らして") },
+                    enabled = !busy && draft.canGenerateMore,
+                    modifier = Modifier.fillMaxWidth()
+                )
+                OutlinedButton(
+                    enabled = !busy && canGenerateImage && draft.canGenerateMore,
+                    onClick = { onGenerateAlternative(feedback) },
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Text(if (draft.variants.isEmpty()) "AI画像を生成して比較"
+                         else "別案をAI生成（最大4候補）")
+                }
+                Text("生成するたびに外部APIを使用します。別案は既存画像の" +
+                    "部分編集ではなく、新しく描いた候補です。" +
+                    " 気に入った案は前の候補に戻して選べます。",
+                    style = MaterialTheme.typography.bodySmall)
                 Text("採用時のみ召喚結晶を1個消費。API料金は不採用でも戻りません。",
                     style = MaterialTheme.typography.bodySmall)
             }

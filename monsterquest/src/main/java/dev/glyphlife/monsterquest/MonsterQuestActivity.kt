@@ -173,7 +173,9 @@ class MonsterQuestActivity : ComponentActivity() {
                 val monster = idea.asWildMonster(1)
                 val art = if (withArt) MonsterWorkshop.prepare(
                     MonsterConceptArt.generate(key, monster, ConceptStyle.GBA_PIXEL)) else null
-                pendingMonsterDraft = MonsterWorkshopDraft(idea, monster, art)
+                pendingMonsterDraft = MonsterWorkshopDraft(idea, monster).let { draft ->
+                    if (art != null) draft.addCandidate(art) else draft
+                }
                 notify(if (art != null) "AI画像候補を作成しました。プレビューを確認してください"
                     else "AI設定候補を作成しました。画像は仮素材です")
             }
@@ -367,6 +369,36 @@ class MonsterQuestActivity : ComponentActivity() {
                         notify("${wild.species}の高精細イラストを保存しました")
                     } catch (e: Exception) {
                         notify("立ち絵の生成に失敗：${e.message}")
+                    } finally {
+                        aiBusy = false
+                    }
+                }
+            }
+            // Regeneration is always an explicit paid action, never an automatic
+            // loop. Previous approved/unapproved candidates remain selectable.
+            fun generateWorkshopAlternative(feedback: String) {
+                val draft = pendingMonsterDraft ?: return
+                if (aiBusy || aiKey.isBlank() || !draft.canGenerateMore) return
+                val key = aiKey
+                val note = feedback.trim().take(100)
+                aiBusy = true
+                scope.launch {
+                    try {
+                        val variation = draft.monster.copy(description =
+                            (draft.monster.description.take(75) +
+                                if (note.isNotBlank()) "。今回の別案の要望：" + note
+                                else "。同じ種族で異なる全身シルエットの別案を作る")
+                                .take(180))
+                        val image = MonsterConceptArt.generate(
+                            key, variation, ConceptStyle.GBA_PIXEL)
+                        val candidate = MonsterWorkshop.prepare(image)
+                        // Do not apply a delayed response to another draft.
+                        if (pendingMonsterDraft === draft) {
+                            pendingMonsterDraft = draft.addCandidate(candidate)
+                            notify("候補${draft.variants.size + 1}を追加しました。比較して選んでください")
+                        }
+                    } catch (e: Exception) {
+                        notify("別案生成に失敗：${e.message}")
                     } finally {
                         aiBusy = false
                     }
@@ -837,6 +869,11 @@ class MonsterQuestActivity : ComponentActivity() {
                         draft = draft, busy = aiBusy,
                         canAccept = !state.inBattle && !ChallengeRules.active(state) &&
                             state.summonStones > 0 && state.captures.size < 100,
+                        canGenerateImage = aiKey.isNotBlank(),
+                        onSelect = { index ->
+                            if (!aiBusy) pendingMonsterDraft = draft.choose(index)
+                        },
+                        onGenerateAlternative = ::generateWorkshopAlternative,
                         onAccept = ::acceptMonsterDraft,
                         onCancel = { if (!aiBusy) pendingMonsterDraft = null }
                     )
