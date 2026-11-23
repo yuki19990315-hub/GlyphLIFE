@@ -56,6 +56,29 @@ object TapAdventure {
         Triple("星光の守護者","光",MonsterBodyType.SPIRIT)
     )
 
+    private fun knownAi(state: QuestState): List<WildMonster> =
+        state.catalog.filter {
+            it.lineage == "ai-summoned" && !it.isBoss && it.species.isNotBlank()
+        }
+
+    private fun chooseKnown(
+        state: QuestState, random: Random
+    ): Pair<WildMonster?, String> {
+        val focused = HuntRules.draw(state, random)
+        if (focused != null) return focused to "tracking"
+        val options = knownAi(state)
+        if (options.isNotEmpty() && random.nextInt(100) < 22)
+            return options[random.nextInt(options.size)] to "ai-known"
+        return null to "random"
+    }
+
+    private fun artSource(target: WildMonster?): String {
+        if (target == null) return ""
+        return target.artSourceId.ifBlank {
+            if (target.lineage == "ai-summoned") target.id else ""
+        }
+    }
+
     fun tap(state:QuestState,random:Random=Random.Default):QuestState = when(state.tapRun.phase) {
         TapPhase.WALK -> walk(state,random)
         TapPhase.FIGHT,TapPhase.BOSS -> attack(state,random)
@@ -69,20 +92,12 @@ object TapAdventure {
         if(run.floor%BOSS_INTERVAL==0 && step>=STEPS_PER_FLOOR)
             return encounter(progress,bosses[rng.nextInt(bosses.size)],true,rng)
         if(step>=2 && rng.nextInt(100)<27) {
-            val hunted=HuntRules.draw(progress,rng)
-            val aiKnown=if(hunted==null)
-                state.catalog.filter { it.lineage=="ai-summoned" } else emptyList()
-            val picked=if(hunted==null && aiKnown.isNotEmpty() && rng.nextInt(100)<22)
-                aiKnown[rng.nextInt(aiKnown.size)] else null
-            val target=hunted ?: picked
+            val (target, source)=chooseKnown(progress,rng)
             val candidate=if(target!=null)
                 Triple(target.species,target.element,MonsterDesign.bodyType(target))
                 else mobs[rng.nextInt(mobs.size)]
-            val artId=target?.let {
-                if(it.artSourceId.isNotBlank())it.artSourceId
-                else if(it.lineage=="ai-summoned")it.id else ""
-            }.orEmpty()
-            return encounter(progress,candidate,false,rng,artSourceId=artId)
+            return encounter(progress,candidate,false,rng,
+                artSourceId=artSource(target),source=source)
         }
         if(step>=STEPS_PER_FLOOR)return finishFloor(progress,rng)
         return progress.copy(tapRun=progress.tapRun.copy(
@@ -91,7 +106,7 @@ object TapAdventure {
 
     private fun encounter(
         state:QuestState,form:Triple<String,String,MonsterBodyType>,
-        boss:Boolean,rng:Random,artSourceId:String=""
+        boss:Boolean,rng:Random,artSourceId:String="",source:String="random"
     ):QuestState {
         val run=state.tapRun
         val stage=if(boss)(run.floor/BOSS_INTERVAL).coerceIn(2,3)
@@ -108,6 +123,9 @@ object TapAdventure {
                 (if(rare)3+run.floor/10 else 0),
             stage=stage,isBoss=boss,artSourceId=artSourceId,
             lineage=if(rare)"rare" else "",
+            originKind=MonsterOrigin.WILD,
+            originConditions=MonsterOrigin.encounter(
+                run.floor,state.journey.roadPosition,boss,rare,source),
             description=if(boss && state.journey.roadPosition>=0)
                 "強敵に接近して自動攻撃。危険なときは左へ下がろう。"
                 else if(boss)"予告攻撃を左右に避け、弱点が見えたら連打しよう！"
@@ -141,13 +159,12 @@ object TapAdventure {
      * no floor branches or discrete tap-to-walk transitions are involved. */
     fun roadEncounter(state:QuestState,boss:Boolean,
                       rng:Random=Random.Default):QuestState {
-        val drawn=if(boss)null else HuntRules.draw(state,rng)
+        val (target,source)=if (boss) null to "random" else chooseKnown(state,rng)
         val form=if(boss)bosses[rng.nextInt(bosses.size)]
-            else if(drawn!=null)Triple(drawn.species,drawn.element,
-                MonsterDesign.bodyType(drawn))
+            else if(target!=null)Triple(target.species,target.element,
+                MonsterDesign.bodyType(target))
             else mobs[rng.nextInt(mobs.size)]
-        val artId=drawn?.artSourceId.orEmpty()
-        return encounter(state,form,boss,rng,artId)
+        return encounter(state,form,boss,rng,artSource(target),source)
     }
 
     private fun attack(state:QuestState,rng:Random):QuestState {

@@ -11,6 +11,14 @@ class MonsterOriginTest {
         assertTrue(actual.contains("主モチーフ：黒い翼"))
         assertEquals("AI画像召喚", MonsterOrigin.label(MonsterOrigin.AI_IMAGE))
     }
+    @Test fun wildOriginsKeepActualLocationAndSource() {
+        val text=MonsterOrigin.encounter(3,20,false,true,"ai-known")
+        assertTrue(text.contains("20歩地点"))
+        assertTrue(text.contains("希少個体"))
+        assertTrue(text.contains("AI召喚済み種族"))
+        assertEquals("探索で発見",MonsterOrigin.label(MonsterOrigin.WILD))
+    }
+
     @Test fun fusionConditionsHaveBothParents() {
         val a=WildMonster("a","赤竜","火",25,4,stage=2)
         val b=WildMonster("b","氷狐","水",25,4)

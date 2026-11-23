@@ -138,6 +138,40 @@ class TapAdventureTest {
     }
 
 
+    @Test fun oneRoadAlsoSpawnsCreatedAiSpeciesWithOriginalArtwork() {
+        val id = "00000000-0000-4000-8000-000000000050"
+        val ai=enemy().copy(id=id, species="オリジナル氷竜",element="水",
+            lineage="ai-summoned", originKind=MonsterOrigin.AI_IMAGE)
+        val s=start().copy(catalog=listOf(ai),journey=JourneyState(roadPosition=2),
+            tapRun=TapRun(floor=1,steps=2))
+        val encountered=TapAdventure.roadEncounter(s,boss=false,rng=lucky)
+        val wild=encountered.tapRun.enemy!!
+        assertEquals("オリジナル氷竜",wild.species)
+        assertEquals(id,wild.artSourceId)
+        assertNotEquals(id,wild.id)
+        assertEquals(MonsterOrigin.WILD,wild.originKind)
+        assertTrue(wild.originConditions.contains("AI召喚済み種族"))
+        assertTrue(wild.originConditions.contains("2歩地点"))
+    }
+
+    @Test fun roadTracksSelectedSpeciesAndItsArtwork() {
+        val ai=enemy().copy(id="00000000-0000-4000-8000-000000000051",
+            species="紺碧の竜", element="水",lineage="ai-summoned")
+        val s=start().copy(catalog=listOf(ai),huntTargetId=ai.id,
+            journey=JourneyState(roadPosition=20),tapRun=TapRun(floor=2))
+        val wild=TapAdventure.roadEncounter(s,false,lucky).tapRun.enemy!!
+        assertEquals("紺碧の竜",wild.species)
+        assertEquals(ai.id,wild.artSourceId)
+        assertTrue(wild.originConditions.contains("図鑑の追跡対象"))
+    }
+
+    @Test fun classicEncounterRecordsFirstDiscoveryConditions() {
+        val s=TapAdventure.tap(start().copy(tapRun=TapRun(floor=3,steps=1)),lucky)
+        val wild=s.catalog.single()
+        assertEquals(MonsterOrigin.WILD,wild.originKind)
+        assertTrue(wild.originConditions.contains("階層探索 3F"))
+    }
+
     @Test fun rapidTapsDoNotCauseInstantEnemyRetaliation() {
         val hardEnemy=enemy().copy(maxHp=3000,attack=7)
         var state=start().copy(tapRun=TapRun(
