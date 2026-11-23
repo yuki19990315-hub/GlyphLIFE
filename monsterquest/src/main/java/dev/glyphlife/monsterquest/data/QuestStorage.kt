@@ -9,9 +9,22 @@ import org.json.JSONObject
 class QuestStorage(context: Context) {
     private val prefs = context.getSharedPreferences("monsterquest_v41_clean", Context.MODE_PRIVATE)
 
+    private fun grantStarterCrystal(state: QuestState): QuestState {
+        // This migration is persistent. Never refill the stone each time the
+        // player reopens the game or spends their last crystal.
+        if (prefs.getBoolean("starter_crystal_v1_granted", false) ||
+            !StarterSummonGift.eligible(state)) return state
+        val withGift = state.copy(summonStones = 1)
+        save(withGift, synchronous = true)
+        check(prefs.edit().putBoolean("starter_crystal_v1_granted", true).commit()) {
+            "初回召喚結晶の付与記録を保存できません"
+        }
+        return withGift
+    }
+
     fun load(): QuestState {
         val raw = prefs.getString("session", null)
-        if (raw == null) return QuestRules.start(Companion())
+        if (raw == null) return grantStarterCrystal(QuestRules.start(Companion()))
         return runCatching {
             val obj = JSONObject(raw)
             val p = obj.getJSONObject("companion")
@@ -108,7 +121,7 @@ class QuestStorage(context: Context) {
                 }?.filter { id -> captures.any { it.id == id } } ?: emptyList(),
                 message = obj.optString("message", "冒険しよう").take(200)
             )
-        }.getOrElse { QuestRules.start(Companion()) }
+        }.getOrElse { QuestRules.start(Companion()) }.let(::grantStarterCrystal)
     }
 
     fun save(s: QuestState, synchronous:Boolean=false) {

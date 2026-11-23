@@ -193,9 +193,10 @@ class MonsterQuestActivity : ComponentActivity() {
                 notify("一発召喚：${newMonster.species}を仲間・図鑑に登録しました")
             }
             fun createMonster(image: ByteArray?) {
-                if (aiBusy || aiKey.isBlank() || state.summonStones<=0 ||
-                    state.captures.size>=100 ||
-                    state.inBattle || ChallengeRules.active(state)) return
+                SummonAccess.aiBlock(state,aiBusy,aiKey)?.let {
+                    notify("召喚不可：$it")
+                    return
+                }
                 val key = aiKey
                 val withArt=aiArtEnabled
                 val instruction = aiDescription.ifBlank { "不思議な生き物" }
@@ -215,9 +216,7 @@ class MonsterQuestActivity : ComponentActivity() {
             val photoPicker = rememberLauncherForActivityResult(
                 ActivityResultContracts.GetContent()
             ) { uri ->
-                if (uri != null && !aiBusy && aiKey.isNotBlank() &&
-                    state.summonStones>0 && state.captures.size<100 &&
-                    !state.inBattle && !ChallengeRules.active(state)) {
+                if (uri != null && SummonAccess.aiBlock(state,aiBusy,aiKey)==null) {
                     val key = aiKey
                     val withArt=aiArtEnabled
                     val description = aiDescription.ifBlank { "この写真をもとに独自のモンスターを作って" }
@@ -789,22 +788,32 @@ class MonsterQuestActivity : ComponentActivity() {
                                 onAiText={ createMonster(null) },
                                 onAiPhoto={ photoPicker.launch("image/*") },
                                 onOffline={
-                                    if(!aiBusy && !state.inBattle && state.summonStones>0) {
-                                        update(TapAdventure.offlineSummon(state))
-                                        notify("オフライン召喚！ ホームに仲間が追加されました")
+                                    val block=SummonAccess.commonBlock(state,aiBusy)
+                                    if(block!=null)notify("召喚不可：$block")
+                                    else {
+                                        val next=TapAdventure.offlineSummon(state)
+                                        if(next==state)notify("召喚できません。戦闘状態を確認してください")
+                                        else {
+                                            update(next)
+                                            notify("オフライン召喚成功！ ホームに仲間が追加されました")
+                                        }
                                     }
                                 }
                             ) {
                                 MonsterDesignerPanel(
-                                    enabled=!state.inBattle && !aiBusy &&
-                                        state.summonStones>0 && state.captures.size<100,
+                                    enabled=SummonAccess.commonBlock(state,aiBusy)==null,
                                     store=artworkStore,revision=artworkRevision,
                                     onSummon={ prototype ->
                                         runCatching {
-                                            check(!state.inBattle && state.summonStones>0)
+                                            check(SummonAccess.commonBlock(state,aiBusy)==null) {
+                                                SummonAccess.commonBlock(state,aiBusy)
+                                                    ?: "召喚できません"
+                                            }
                                             val monster=MonsterPrototypeFactory.summon(
                                                 prototype,1)
-                                            update(TapAdventure.registerSummon(state,monster))
+                                            val next=TapAdventure.registerSummon(state,monster)
+                                            check(next!=state) { "召喚条件が変わりました" }
+                                            update(next)
                                             notify("ドット絵モンスターを召喚しました")
                                         }.onFailure { notify("召喚失敗："+it.message) }
                                     },

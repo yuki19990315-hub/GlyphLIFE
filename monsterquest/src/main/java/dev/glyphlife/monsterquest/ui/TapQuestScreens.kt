@@ -985,8 +985,20 @@ fun QuestSummon(
         Text("探索でまれに、ボス撃破で必ず召喚結晶を獲得。" +
             " 召喚成功時だけ結晶を1個消費します。",
             style=MaterialTheme.typography.bodySmall)
+        val summonBlock=SummonAccess.commonBlock(state,aiBusy)
+        val aiBlock=SummonAccess.aiBlock(state,aiBusy,aiKey)
+        if(summonBlock!=null) {
+            Text("召喚できない理由：$summonBlock",color=MaterialTheme.colorScheme.error,
+                style=MaterialTheme.typography.bodySmall)
+        } else if(aiBlock!=null) {
+            Text("AI召喚の条件：$aiBlock",color=Blue,
+                style=MaterialTheme.typography.bodySmall)
+        } else {
+            Text("召喚の準備ができています。",color=Blue,
+                style=MaterialTheme.typography.bodySmall)
+        }
         Button(onClick=onOffline,
-            enabled=state.summonStones>0 && state.captures.size<100,
+            enabled=summonBlock==null,
             modifier=Modifier.fillMaxWidth()) { Text("✦ オフライン召喚（結晶1個）") }
         Text("オフライン召喚は既存のローカル素材から作る方式で、AI生成ではありません。",
             style=MaterialTheme.typography.bodySmall)
@@ -1013,13 +1025,10 @@ fun QuestSummon(
         }
         Row(horizontalArrangement=Arrangement.spacedBy(8.dp)) {
             Button(onClick=onAiText,
-                enabled=!aiBusy && aiKey.isNotBlank() && aiDescription.isNotBlank() &&
-                    state.summonStones>0 && state.captures.size<100 &&
-                    state.tapRun.phase !in listOf(TapPhase.FIGHT,TapPhase.BOSS),
+                enabled=aiBlock==null,
                 modifier=Modifier.weight(1f)) { Text("AIで一発召喚") }
             OutlinedButton(onClick=onAiPhoto,
-                enabled=!aiBusy && aiKey.isNotBlank() &&
-                    state.summonStones>0 && state.captures.size<100,
+                enabled=aiBlock==null,
                 modifier=Modifier.weight(1f)) { Text("写真から一発召喚") }
         }
         if(aiBusy)LinearProgressIndicator(Modifier.fillMaxWidth())
