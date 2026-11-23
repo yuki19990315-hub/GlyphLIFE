@@ -967,11 +967,11 @@ fun QuestSummon(
         Text("オフライン召喚は既存のローカル素材から作る方式で、AI生成ではありません。",
             style=MaterialTheme.typography.bodySmall)
         HorizontalDivider()
-        SectionTitle("AIモンスター召喚（任意）")
+        SectionTitle("AIモンスター工房（確認して採用）")
         Text("Gemini APIキーが必要です。AIが名前・属性・モチーフを考え、" +
-            "本編64×64ドット素材はローカル生成を使用します。" +
-            " AI画像を作る場合は別の画像生成APIが必要です。" +
-            " 料金・無料枠はGoogleの提供条件によります。",
+            "画像生成ONの場合は別の画像AIで全身ドット絵候補を生成します。" +
+            " 64×64・透過込み最大16色へ変換し、確認後にのみ採用できます。" +
+            " 画像生成は不採用でもAPI料金が発生する場合があります。",
             style=MaterialTheme.typography.bodySmall)
         OutlinedTextField(value=aiKey,onValueChange=onAiKey,
             modifier=Modifier.fillMaxWidth(),singleLine=true,
@@ -984,7 +984,7 @@ fun QuestSummon(
         Row(verticalAlignment=Alignment.CenterVertically,
             modifier=Modifier.fillMaxWidth()) {
             Checkbox(checked=aiArtEnabled,onCheckedChange=onAiArtEnabled)
-            Text("AI画像も生成（別のAPI呼び出し・有料の場合あり）",
+            Text("AI全身画像も生成（別の有料API呼び出し）",
                 style=MaterialTheme.typography.bodySmall)
         }
         Row(horizontalArrangement=Arrangement.spacedBy(8.dp)) {
@@ -992,15 +992,15 @@ fun QuestSummon(
                 enabled=!aiBusy && aiKey.isNotBlank() && aiDescription.isNotBlank() &&
                     state.summonStones>0 && state.captures.size<100 &&
                     state.tapRun.phase !in listOf(TapPhase.FIGHT,TapPhase.BOSS),
-                modifier=Modifier.weight(1f)) { Text("AI設定で召喚") }
+                modifier=Modifier.weight(1f)) { Text("AI候補を生成") }
             OutlinedButton(onClick=onAiPhoto,
                 enabled=!aiBusy && aiKey.isNotBlank() &&
                     state.summonStones>0 && state.captures.size<100,
-                modifier=Modifier.weight(1f)) { Text("写真から召喚") }
+                modifier=Modifier.weight(1f)) { Text("写真から候補") }
         }
         if(aiBusy)LinearProgressIndicator(Modifier.fillMaxWidth())
-        Text("召喚した仲間はホームで編成可能。AI召喚した種族は" +
-            "図鑑に登録され、今後の探索にも低確率で登場します。",
+        Text("採用を押した候補だけ図鑑へ登録し、召喚結晶を1個消費します。" +
+            " 画像生成OFFの見た目は従来のオフライン仮素材です。",
             color=Blue,style=MaterialTheme.typography.bodySmall)
         HorizontalDivider()
         SectionTitle("ドット絵工房")
