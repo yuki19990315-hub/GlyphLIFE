@@ -432,6 +432,7 @@ class QuestStorage(context: Context) {
         .put("designSeed", w.designSeed)
         .put("artFamily", w.artFamily)
         .put("artSourceId", w.artSourceId)
+        .put("originKind", w.originKind).put("originConditions", w.originConditions)
         .put("armorParts", JSONObject(w.armorParts))
         .put("customArmorParts", JSONObject(w.customArmorParts))
         .put("customArmorOffsets", JSONObject().apply {
@@ -466,6 +467,8 @@ class QuestStorage(context: Context) {
         armorParts = readArmorParts(o.optJSONObject("armorParts")),
         customArmorParts = readCustomLayers(o.optJSONObject("customArmorParts")),
         customArmorOffsets = readCustomOffsets(o.optJSONObject("customArmorOffsets")),
+        originKind = o.optString("originKind", "").take(24),
+        originConditions = o.optString("originConditions", "").take(600),
         artSourceId = o.optString("artSourceId","").take(64)
             .takeIf { id -> id.isBlank() || runCatching {
                 java.util.UUID.fromString(id)

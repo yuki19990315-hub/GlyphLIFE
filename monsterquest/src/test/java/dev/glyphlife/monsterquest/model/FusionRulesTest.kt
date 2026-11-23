@@ -25,6 +25,10 @@ class FusionRulesTest {
         assertEquals("融合・フレア×アクア", fusion.species)
         assertTrue(fusion.bodyType.isNotBlank())
         assertEquals("フレア × アクア", fusion.lineage)
+        assertEquals(MonsterOrigin.FUSION, fusion.originKind)
+        assertTrue(fusion.originConditions.contains("素材A：フレア（火属性・進化1）"))
+        assertTrue(fusion.originConditions.contains("素材B：アクア（水属性・進化1）"))
+        assertEquals(fusion.species, result.catalog.single().species)
         assertEquals(3, original.captures.size)
     }
 

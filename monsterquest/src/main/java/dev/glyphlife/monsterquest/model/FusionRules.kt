@@ -49,6 +49,8 @@ object FusionRules {
             bodyType = MonsterDesign.bodyType(a).name,
             stage = maxOf(a.stage, b.stage).coerceIn(1, 3),
             lineage = listOf(a.species, b.species).joinToString(" × "),
+            originKind = MonsterOrigin.FUSION,
+            originConditions = MonsterOrigin.fusion(a, b),
             motifPrimary = a.motifPrimary.ifBlank { a.species },
             motifSecondary = b.motifPrimary.ifBlank { b.species },
             designSeed = "fusion-" + visualId,
@@ -73,8 +75,12 @@ object FusionRules {
         val fused = TalentRules.awaken(preview.copy(
             id=UUID.randomUUID().toString(),extraSkillId="",statSlots=emptyList()))
         val remaining = state.captures.filterNot { it.id == firstId || it.id == secondId }
+        val catalog = if (state.catalog.any {
+            it.species == fused.species && it.element == fused.element
+        }) state.catalog else (state.catalog + fused).takeLast(150)
         return state.copy(
             captures = remaining + fused,
+            catalog = catalog,
             // Relics stay in inventory, but consumed parents lose ownership.
             relicEquipment = state.relicEquipment.filterKeys {
                 it != firstId && it != secondId

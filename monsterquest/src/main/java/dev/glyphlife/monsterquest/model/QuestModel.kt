@@ -50,7 +50,10 @@ data class WildMonster(
     val customArmorOffsets:
         Map<String, dev.glyphlife.monsterquest.pixel.ArmorOffset> = emptyMap(),
     /** Shared artwork owner UUID for AI-generated enemies; never a network URL. */
-    val artSourceId: String = ""
+    val artSourceId: String = "",
+    /** Blank for legacy monsters; do not guess their original conditions. */
+    val originKind: String = "",
+    val originConditions: String = ""
 )
 
 /** Only explicit, opt-in featured art families use authored sprites. Blank keeps legacy procedural art. */
