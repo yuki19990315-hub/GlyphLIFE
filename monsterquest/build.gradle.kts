@@ -15,7 +15,18 @@ android {
         versionName = "5.8.1"
     }
     buildFeatures { compose = true }
-    buildTypes { release { isMinifyEnabled = false } }
+    defaultConfig { manifestPlaceholders["monsterQuestLabel"] = "Monster Quest" }
+    buildTypes {
+        getByName("debug") {
+            // A fresh install side by side with the user's original debug
+            // APK. Preserve the original applicationId on regular builds.
+            if (providers.gradleProperty("monsterquestQaInstall").orNull == "true") {
+                applicationIdSuffix = ".qa"
+                manifestPlaceholders["monsterQuestLabel"] = "Monster Quest QA"
+            }
+        }
+        release { isMinifyEnabled = false }
+    }
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_17
         targetCompatibility = JavaVersion.VERSION_17

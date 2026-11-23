@@ -48,6 +48,13 @@ jobs:
         with:
           name: MonsterQuest-debug
           path: monsterquest/build/outputs/apk/debug/*.apk
+      - name: Build parallel-installable Monster Quest QA APK
+        run: gradle --no-daemon -PmonsterquestQaInstall=true :monsterquest:assembleDebug
+      - uses: actions/upload-artifact@v4
+        if: success()
+        with:
+          name: MonsterQuest-summon-fix-QA
+          path: monsterquest/build/outputs/apk/debug/*.apk
       - uses: actions/upload-artifact@v4
         if: success()
         with:
