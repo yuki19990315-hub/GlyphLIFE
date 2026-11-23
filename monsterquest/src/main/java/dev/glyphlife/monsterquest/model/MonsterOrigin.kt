@@ -30,3 +30,4 @@ object MonsterOrigin {
         "素材B：${b.species.take(30)}（${b.element}属性・進化${b.stage}）\n" +
         "合成規則：2体融合"
     ).take(600)
+}
