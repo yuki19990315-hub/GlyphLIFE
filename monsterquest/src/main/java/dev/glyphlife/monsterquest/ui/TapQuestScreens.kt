@@ -327,6 +327,7 @@ fun QuestHome(
                     color=Blue,style=MaterialTheme.typography.bodySmall)
             }
             3 -> {
+                var originDetail by remember { mutableStateOf<WildMonster?>(null) }
                 SectionTitle("モンスター図鑑　発見"+state.catalog.size+"種")
                 Text("AI生成で登録した種族も、以後の探索に出現します。",
                     color=Blue,style=MaterialTheme.typography.bodySmall)
@@ -362,6 +363,9 @@ fun QuestHome(
                                     Text(monster.element+" / 進化"+monster.stage,
                                         style=MaterialTheme.typography.labelSmall,
                                         color=Blue)
+                                    TextButton(onClick = { originDetail = monster }) {
+                                        Text("誕生条件", style = MaterialTheme.typography.labelSmall)
+                                    }
                                     if(!monster.isBoss) {
                                         FilterChip(
                                             selected=hunted?.id==monster.id,
@@ -377,6 +381,26 @@ fun QuestHome(
                         }
                         repeat(3-group.size){Spacer(Modifier.weight(1f))}
                     }
+                }
+                originDetail?.let { monster ->
+                    AlertDialog(
+                        onDismissRequest = { originDetail = null },
+                        title = { Text("${monster.species} の誕生条件") },
+                        text = {
+                            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                                Text("入手・誕生方法：" + MonsterOrigin.label(monster.originKind))
+                                Text(monster.originConditions.ifBlank {
+                                    "このモンスターの詳しい生成条件は記録されていません。"
+                                }, style = MaterialTheme.typography.bodyMedium)
+                                if (monster.lineage.isNotBlank())
+                                    Text("系譜：" + monster.lineage,
+                                        style = MaterialTheme.typography.bodySmall)
+                            }
+                        },
+                        confirmButton = {
+                            TextButton(onClick = { originDetail = null }) { Text("閉じる") }
+                        }
+                    )
                 }
             }
             5 -> {
@@ -967,11 +991,11 @@ fun QuestSummon(
         Text("オフライン召喚は既存のローカル素材から作る方式で、AI生成ではありません。",
             style=MaterialTheme.typography.bodySmall)
         HorizontalDivider()
-        SectionTitle("AIモンスター工房（確認して採用）")
-        Text("Gemini APIキーが必要です。AIが名前・属性・モチーフを考え、" +
-            "画像生成ONの場合は別の画像AIで全身ドット絵候補を生成します。" +
-            " 64×64・透過込み最大16色へ変換し、確認後にのみ採用できます。" +
-            " 画像生成は不採用でもAPI料金が発生する場合があります。",
+        SectionTitle("AIモンスター工房（一発召喚）")
+        Text("文章や写真を条件に1回だけ生成し、成功時に即召喚・図鑑登録します。" +
+            " 再生成・候補の選択はありません。画像生成ONの場合は" +
+            " 64×64・透過込み最大16色に変換し、入力条件を図鑑に記録します。" +
+            " AI画像生成APIには料金が発生する場合があります。",
             style=MaterialTheme.typography.bodySmall)
         OutlinedTextField(value=aiKey,onValueChange=onAiKey,
             modifier=Modifier.fillMaxWidth(),singleLine=true,
@@ -992,15 +1016,15 @@ fun QuestSummon(
                 enabled=!aiBusy && aiKey.isNotBlank() && aiDescription.isNotBlank() &&
                     state.summonStones>0 && state.captures.size<100 &&
                     state.tapRun.phase !in listOf(TapPhase.FIGHT,TapPhase.BOSS),
-                modifier=Modifier.weight(1f)) { Text("AI候補を生成") }
+                modifier=Modifier.weight(1f)) { Text("AIで一発召喚") }
             OutlinedButton(onClick=onAiPhoto,
                 enabled=!aiBusy && aiKey.isNotBlank() &&
                     state.summonStones>0 && state.captures.size<100,
-                modifier=Modifier.weight(1f)) { Text("写真から候補") }
+                modifier=Modifier.weight(1f)) { Text("写真から一発召喚") }
         }
         if(aiBusy)LinearProgressIndicator(Modifier.fillMaxWidth())
-        Text("採用を押した候補だけ図鑑へ登録し、召喚結晶を1個消費します。" +
-            " 画像生成OFFの見た目は従来のオフライン仮素材です。",
+        Text("生成成功で結晶を1個消費。失敗時は消費しません。" +
+            " 画像生成OFFでは従来のオフライン仮素材を使用します。",
             color=Blue,style=MaterialTheme.typography.bodySmall)
         HorizontalDivider()
         SectionTitle("ドット絵工房")

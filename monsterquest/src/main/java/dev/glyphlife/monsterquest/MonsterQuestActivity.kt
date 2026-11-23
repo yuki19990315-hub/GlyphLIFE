@@ -29,8 +29,6 @@ import dev.glyphlife.monsterquest.ai.MonsterAi
 import dev.glyphlife.monsterquest.ai.MonsterIdea
 import dev.glyphlife.monsterquest.ai.MonsterConceptArt
 import dev.glyphlife.monsterquest.ai.MonsterWorkshop
-import dev.glyphlife.monsterquest.ai.MonsterWorkshopDraft
-import dev.glyphlife.monsterquest.ui.MonsterWorkshopReview
 import dev.glyphlife.monsterquest.ai.ConceptStyle
 import dev.glyphlife.monsterquest.ui.MonsterArt
 import dev.glyphlife.monsterquest.ui.MonsterPortrait
@@ -127,7 +125,7 @@ class MonsterQuestActivity : ComponentActivity() {
             var aiKey by remember { mutableStateOf("") }
             var aiDescription by remember { mutableStateOf("") }
             var aiBusy by remember { mutableStateOf(false) }
-            var pendingMonsterDraft by remember { mutableStateOf<MonsterWorkshopDraft?>(null) }
+            var recentlySummonedMonster by remember { mutableStateOf<WildMonster?>(null) }
             var artworkRevision by remember { mutableIntStateOf(0) }
             var artImportId by remember { mutableStateOf<String?>(null) }
             var artImportStage by remember { mutableIntStateOf(1) }
@@ -166,18 +164,33 @@ class MonsterQuestActivity : ComponentActivity() {
                 status = text
                 Toast.makeText(this@MonsterQuestActivity, text, Toast.LENGTH_SHORT).show()
             }
-            // Generate only a draft: no game state changes until acceptance.
-            suspend fun prepareIdea(idea: MonsterIdea, withArt: Boolean, key: String) {
+            // One-shot AI summon: exactly one generation and automatic registration.
+            suspend fun completeAiSummon(
+                idea: MonsterIdea, withArt: Boolean, key: String,
+                input: String, fromPhoto: Boolean
+            ) {
                 check(state.summonStones > 0 && state.captures.size < 100 &&
                     !state.inBattle && !ChallengeRules.active(state)) { "現在は召喚できません" }
-                val monster = idea.asWildMonster(1)
-                val art = if (withArt) MonsterWorkshop.prepare(
-                    MonsterConceptArt.generate(key, monster, ConceptStyle.GBA_PIXEL)) else null
-                pendingMonsterDraft = MonsterWorkshopDraft(idea, monster).let { draft ->
-                    if (art != null) draft.addCandidate(art) else draft
+                val source = idea.asWildMonster(1).copy(
+                    originKind = if (withArt) MonsterOrigin.AI_IMAGE else MonsterOrigin.AI_TEXT,
+                    originConditions = MonsterOrigin.ai(
+                        input, fromPhoto, idea.element, idea.bodyType,
+                        idea.motifPrimary, idea.motifSecondary)
+                )
+                val image = if (withArt) MonsterWorkshop.prepare(
+                    MonsterConceptArt.generate(key, source, ConceptStyle.GBA_PIXEL)) else null
+                check(image == null || image.audit.compliant) {
+                    "画像が64×64・16色・透過・余白の規格外です。結晶は消費していません"
                 }
-                notify(if (art != null) "AI画像候補を作成しました。プレビューを確認してください"
-                    else "AI設定候補を作成しました。画像は仮素材です")
+                val next = TapAdventure.registerSummon(state, source, generatedByAi = true)
+                check(next != state) { "召喚できません" }
+                // registerSummon allocates a fresh ID; attach art to that ID.
+                val newMonster = next.captures.last()
+                image?.let { artworkStore.store(newMonster.id, it.png, 1) }
+                update(next)
+                artworkRevision++
+                recentlySummonedMonster = newMonster
+                notify("一発召喚：${newMonster.species}を仲間・図鑑に登録しました")
             }
             fun createMonster(image: ByteArray?) {
                 if (aiBusy || aiKey.isBlank() || state.summonStones<=0 ||
@@ -189,7 +202,9 @@ class MonsterQuestActivity : ComponentActivity() {
                 aiBusy = true
                 scope.launch {
                     try {
-                        prepareIdea(MonsterAi.generate(key, instruction, image),withArt,key)
+                        completeAiSummon(
+                            MonsterAi.generate(key, instruction, image),
+                            withArt, key, instruction, image != null)
                     } catch (e: Exception) {
                         notify("AI生成に失敗：${e.message}")
                     } finally {
@@ -210,7 +225,9 @@ class MonsterQuestActivity : ComponentActivity() {
                     scope.launch {
                         try {
                             val jpeg = MonsterAi.preparePhoto(this@MonsterQuestActivity, uri)
-                            prepareIdea(MonsterAi.generate(key, description, jpeg),withArt,key)
+                            completeAiSummon(
+                                MonsterAi.generate(key, description, jpeg),
+                                withArt, key, description, true)
                         } catch (e: Exception) {
                             notify("写真AI生成に失敗：${e.message}")
                         } finally {
@@ -372,62 +389,6 @@ class MonsterQuestActivity : ComponentActivity() {
                     } finally {
                         aiBusy = false
                     }
-                }
-            }
-            // Regeneration is always an explicit paid action, never an automatic
-            // loop. Previous approved/unapproved candidates remain selectable.
-            fun generateWorkshopAlternative(feedback: String) {
-                val draft = pendingMonsterDraft ?: return
-                if (aiBusy || aiKey.isBlank() || !draft.canGenerateMore) return
-                val key = aiKey
-                val note = feedback.trim().take(100)
-                aiBusy = true
-                scope.launch {
-                    try {
-                        val variation = draft.monster.copy(description =
-                            (draft.monster.description.take(75) +
-                                if (note.isNotBlank()) "。今回の別案の要望：" + note
-                                else "。同じ種族で異なる全身シルエットの別案を作る")
-                                .take(180))
-                        val image = MonsterConceptArt.generate(
-                            key, variation, ConceptStyle.GBA_PIXEL)
-                        val candidate = MonsterWorkshop.prepare(image)
-                        // Do not apply a delayed response to another draft.
-                        if (pendingMonsterDraft === draft) {
-                            pendingMonsterDraft = draft.addCandidate(candidate)
-                            notify("候補${draft.variants.size + 1}を追加しました。比較して選んでください")
-                        }
-                    } catch (e: Exception) {
-                        notify("別案生成に失敗：${e.message}")
-                    } finally {
-                        aiBusy = false
-                    }
-                }
-            }
-            fun acceptMonsterDraft() {
-                if (aiBusy) return
-                val draft = pendingMonsterDraft ?: return
-                if (!draft.readyForApproval || state.summonStones < 1 ||
-                    state.captures.size >= 100 || state.inBattle ||
-                    ChallengeRules.active(state)) {
-                    notify("候補画像の規格か召喚条件を確認してください")
-                    return
-                }
-                aiBusy = true
-                scope.launch {
-                    try {
-                        val next = TapAdventure.registerSummon(
-                            state, draft.monster, generatedByAi = true)
-                        check(next != state) { "召喚できません" }
-                        // registerSummon assigns a fresh ID, not the preview ID.
-                        val newMonster = next.captures.last()
-                        draft.art?.let { artworkStore.store(newMonster.id, it.png, 1) }
-                        update(next)
-                        artworkRevision++
-                        pendingMonsterDraft = null
-                        notify("AI工房：${newMonster.species}を図鑑・仲間に登録しました")
-                    } catch (e: Exception) { notify("採用失敗：${e.message}") }
-                    finally { aiBusy = false }
                 }
             }
             fun equipCaptured(id: String, parts: Map<String,String>) {
@@ -864,18 +825,25 @@ class MonsterQuestActivity : ComponentActivity() {
                         }
                     }
                 }
-                pendingMonsterDraft?.let { draft ->
-                    MonsterWorkshopReview(
-                        draft = draft, busy = aiBusy,
-                        canAccept = !state.inBattle && !ChallengeRules.active(state) &&
-                            state.summonStones > 0 && state.captures.size < 100,
-                        canGenerateImage = aiKey.isNotBlank(),
-                        onSelect = { index ->
-                            if (!aiBusy) pendingMonsterDraft = draft.choose(index)
+                recentlySummonedMonster?.let { monster ->
+                    AlertDialog(
+                        onDismissRequest = { recentlySummonedMonster = null },
+                        title = { Text("召喚成功！") },
+                        text = {
+                            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                                MonsterArtworkView(
+                                    monster, artworkStore, artworkRevision,
+                                    Modifier.size(220.dp).align(Alignment.CenterHorizontally))
+                                Text("${monster.species} / ${monster.element}属性")
+                                Text("誕生条件は図鑑に保存しました。",
+                                    style = MaterialTheme.typography.bodySmall)
+                            }
                         },
-                        onGenerateAlternative = ::generateWorkshopAlternative,
-                        onAccept = ::acceptMonsterDraft,
-                        onCancel = { if (!aiBusy) pendingMonsterDraft = null }
+                        confirmButton = {
+                            TextButton(onClick = { recentlySummonedMonster = null }) {
+                                Text("図鑑に登録済み・閉じる")
+                            }
+                        }
                     )
                 }
                 val styles = pendingArmorStyles
