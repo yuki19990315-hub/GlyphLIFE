@@ -6,8 +6,9 @@ set -euo pipefail
 
 found_battle=0
 for step in $(seq 1 24); do
-  # 1080x2400 @420dpi: right-hand 'すすむ / たたかう' control.
-  adb shell input tap 890 1975
+  # 1080x2400 @420dpi: right-hand 'すすむ / たたかう' is centered in
+  # [719,2008]-[1056,2208] (verified from emulator accessibility.xml).
+  adb shell input tap 890 2100
   sleep 0.4
   adb shell uiautomator dump /sdcard/monsterquest-battle.xml >/dev/null 2>&1 || true
   if adb shell cat /sdcard/monsterquest-battle.xml 2>/dev/null | grep -q 'たたかう'; then
