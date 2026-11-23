@@ -32,8 +32,8 @@ object MonsterOrigin {
         floor: Int, roadPosition: Int, boss: Boolean, rare: Boolean, source: String
     ): String = listOf(
         if (roadPosition >= 0)
-            "出現場所：一本道の§{roadPosition}歩地点 / エリア§{floor}"
-        else "出現場所：階層探索 §{floor}F",
+            "出現場所：一本道の${roadPosition}歩地点 / エリア${floor}"
+        else "出現場所：階層探索 ${floor}F",
         "種類：" + if (boss) "ボス" else if (rare) "希少個体" else "通常個体",
         "出現経路：" + when(source) {
             "tracking" -> "図鑑の追跡対象"
