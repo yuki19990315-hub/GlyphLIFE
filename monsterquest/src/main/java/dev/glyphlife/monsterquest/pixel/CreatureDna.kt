@@ -68,7 +68,15 @@ object CreatureDna {
             }
             inherited.coerceIn(0,limits[i])
         }
-        return Genome(child,rng.nextInt())
+        val candidates=(0..3).map { n ->
+            val genes=if(n==0)child else child.mapIndexed { i,v ->
+                if(i<11 && rng.nextInt(4)==0)
+                    (v+rng.nextInt(-1,2)).coerceIn(0,limits[i]) else v
+            }
+            Genome(genes,rng.nextInt())
+        }
+        val template=a.copy(stage=maxOf(a.stage,b.stage),armorParts=emptyMap())
+        return candidates.maxByOrNull { CreatureQuality.inspect(sprite(template,it)).score }!!
     }
 
     fun bodyType(g: Genome): MonsterBodyType = when {
@@ -86,8 +94,8 @@ object CreatureDna {
         val growth=stage.coerceIn(1,3)-1
         val cx=31
         val cy=35-g[2]/3
-        val rx=8+g[0]/2+growth
-        val ry=5+g[1]/2+growth
+        val rx=(7+g[0]/2+growth-g[2]/4).coerceAtLeast(6)
+        val ry=5+g[1]/2+growth+g[2]/4
         val hx=(cx+rx-2-g[2]/2+g[5]/3).coerceAtMost(45)
         val hy=(cy-ry/2-g[2]-g[5]/2).coerceAtLeast(18)
         return Rig(cx,cy,rx,ry,hx,hy,5+g[1]/4,2+g[6]/2)
@@ -108,8 +116,57 @@ object CreatureDna {
     }
 
     /** Native integer pixel rasterization; body segments share attachment points. */
-    fun sprite(w:WildMonster,g:Genome):PixelSprite {
-        val r=rig(g,w.stage)
+    enum class Motion { REST, WALK, ATTACK }
+    data class CombatTraits(val hpBonus:Int,val attackBonus:Int,val skill:String,
+        val power:Int,val locomotion:String)
+    fun combat(g:Genome):CombatTraits {
+        val skill=when {
+            g[10]>=7 && g[1]>=6 -> "golem"
+            g[8]>=6 -> "gale"
+            g[3]==3 -> "venom"
+            g[6]>=7 && g[9]>=4 -> "flame"
+            g[3]==0 && g[0]>=6 -> "tide"
+            g[3]==0 -> "heal"
+            else -> "claw"
+        }
+        return CombatTraits((g[1]+g[10])/3,(g[6]+g[9]+g[3])/6,skill,
+            when(skill) {
+                "golem","heal" -> 0
+                "gale" -> g[8]/2
+                "venom" -> g[3]+g[9]/3
+                "flame" -> g[6]/2
+                "tide" -> g[7]/2
+                else -> g[9]/3+g[4]/3
+            }.coerceIn(0,6),
+            when {
+                g[8]>=6 -> "飛行"
+                g[3]==0 && g[0]>=6 -> "蛇行"
+                g[3]==0 -> "浮遊"
+                else -> "歩行"
+            })
+    }
+
+    /** Equal-length two-link inverse kinematics, with a reachable foot. */
+    internal fun knee(x:Int,y:Int,fx:Int,fy:Int,length:Double,bend:Int):Pair<Int,Int> {
+        val dx=(fx-x).toDouble();val dy=(fy-y).toDouble()
+        val d=hypot(dx,dy).coerceAtLeast(0.001)
+        val half=d/2
+        val across=sqrt((length*length-half*half).coerceAtLeast(0.0))*bend
+        return ((x+fx)/2.0-dy/d*across).roundToInt() to
+            ((y+fy)/2.0+dx/d*across).roundToInt()
+    }
+
+    fun sprite(w:WildMonster,g:Genome,phase:Int=0,motion:Motion=Motion.REST):PixelSprite {
+        val step=Math.floorMod(phase,4)
+        val beat=sin(step*PI/2)
+        val attack=motion==Motion.ATTACK
+        val flying=g[8]>=6
+        val shift=if(attack)listOf(0,-2,3,1)[step] else 0
+        val hover=if(!attack && (flying||g[3]==0))(beat*2).roundToInt() else 0
+        val base=rig(g,w.stage)
+        val r=base.copy(cx=base.cx+shift,cy=base.cy+hover,
+            hx=(base.hx+shift+(if(attack && step==2)2 else 0)).coerceAtMost(47),
+            hy=base.hy+hover+(if(attack && step==1)1 else 0))
         val a=MonsterDesign.palette(elements[g[11]])
         val b=MonsterDesign.palette(elements[g[12]])
         val p=intArrayOf(a[0],a[1],a[2],a[3],a[4],b[1],b[2],b[3],b[4])
@@ -154,7 +211,7 @@ object CreatureDna {
         // Tapered tail, attached to rear torso. Extreme values stay inside safe margins.
         if(g[7]>0) {
             val tx=(cx-rx-3-g[7]).coerceAtLeast(6)
-            val ty=(cy+3-g[7]/2+g[2]/3).coerceIn(10,52)
+            val ty=(cy+3-g[7]/2+g[2]/3+(beat*3).roundToInt()).coerceIn(10,52)
             val joint=(cx-rx-3).coerceAtLeast(tx+1)
             limb(cx-rx+3,cy,joint,cy+2,3,p[2])
             limb(joint,cy+2,tx,ty,2,p[6])
@@ -164,20 +221,28 @@ object CreatureDna {
         if(g[8]>1) {
             val rootX=cx-3; val rootY=cy-ry+3
             val wx=(rootX-8-g[8]).coerceAtLeast(5)
-            val wy=(rootY-5-g[8]).coerceAtLeast(5)
+            val wy=(rootY-5-g[8]+(beat*5).roundToInt()).coerceAtLeast(5)
             facet(listOf(rootX to (rootY+6),wx to wy,(wx+8) to (wy+4),
                 (rootX+5) to (wy+2),(rootX+3) to rootY),p[6],p[7])
             limb(rootX,rootY,wx,wy,1,p[7])
+            limb(rootX,rootY,wx+8,wy+4,1,p[5])
+            if(g[8]>=6)limb(rootX,rootY,rootX+5,wy+2,1,p[7])
         }
         val pairs=g[3]
         fun legs(far:Boolean) {
             for(i in 0 until pairs) {
                 val x=if(pairs==1)cx+g[2]/3 else cx-rx+4+i*(2*rx-8)/(pairs-1)
                 val y=cy+ry-3
-                val footY=(y+5+g[4]+if(far)-2 else 1).coerceAtMost(57)
-                val kneeX=x+(if(i%2==0)-3 else 3)+if(far)-2 else 1
-                val kneeY=(y+footY)/2
-                val footX=(kneeX+3).coerceIn(5,57)
+                val stride=if(!attack)sin(step*PI/2+(i+(if(far)1 else 0))*PI) else 0.0
+                val nominalY=(y+5+g[4]+(if(far)-2 else 1)).coerceAtMost(56)
+                val footY=(nominalY-(max(0.0,stride)*3).roundToInt()
+                    -(if(flying && step!=0)2 else 0)).coerceAtLeast(y+3)
+                val footX=(x+(if(i%2==0)0 else 5)+(if(far)-2 else 1)
+                    +(stride*3).roundToInt()).coerceIn(5,56)
+                val span=hypot((footX-x).toDouble(),(footY-y).toDouble())
+                val length=max(4.0,hypot(8.0,(nominalY-y).toDouble())/2+1.5)
+                val (kneeX,kneeY)=knee(x,y,footX,footY,max(length,span/2+0.5),
+                    if(i%2==0)1 else -1)
                 val width=if(g[1]>=7)4 else 2+g[1]/5
                 limb(x,y,kneeX,kneeY,width,if(far)p[1] else p[2])
                 limb(kneeX,kneeY,footX,footY,width-1,if(far)p[1] else p[2])
@@ -190,6 +255,15 @@ object CreatureDna {
             (cx+rx-5) to (cy+ry),(cx-rx+3) to (cy+ry),
             (cx-rx-2) to cy),p[2],p[3])
         legs(false)
+        if(g[2]>=6 && pairs>0) {
+            val sx=cx+rx/2;val sy=cy-ry/2
+            val fx=(sx+6+g[4]/3+(if(attack && step==2)3 else 0)).coerceAtMost(56)
+            val fy=(sy+6+(beat*2).roundToInt()).coerceIn(12,53)
+            val ex=(sx+fx)/2-2;val ey=(sy+fy)/2+3
+            limb(sx,sy,ex,ey,3,p[1]);limb(ex,ey,fx,fy,3,p[2])
+            facet(listOf((fx-3) to (fy-2),(fx+2) to (fy-3),(fx+4) to fy,
+                (fx+1) to (fy+3),(fx-3) to (fy+2)),p[6],p[7])
+        }
         // Neck and distinct faceted skull, with muzzle/eye positions derived from DNA.
         limb(cx+rx/2,cy-2,hx,hy,4+g[1]/4,p[2])
         val nose=(hx+hr+muzzle).coerceAtMost(58)
@@ -204,6 +278,16 @@ object CreatureDna {
             if(g[9]>=5)facet(listOf(hx to (hy-hr+2),(hx+4) to tipY,
                 (hx+5) to (hy-hr+2)),p[6],p[8])
         }
+        if(g[10]>=4)for(i in 0 until 1+g[10]/3) {
+            val x=cx-rx+4+i*(2*rx-7)/(1+g[10]/3)
+            val y=cy-ry+2
+            facet(listOf((x-3) to (y+3),x to (y-2-g[10]/4),
+                (x+4) to y,(x+3) to (y+4)),p[6],p[7])
+        }
+        if(g[6]>=5) {
+            limb(hx+hr/2,hy+3,nose-2,hy+3,1,p[1])
+            put(nose-4,hy+4,p[4])
+        }
         disk(hx+hr/2,hy-1,2,p[0])
         put(hx+hr/2,hy-1,p[8]);put(hx+hr/2+1,hy-2,p[4])
         // Contiguous small plate motifs, not random disconnected noise.
@@ -214,7 +298,22 @@ object CreatureDna {
             for(dy in 0..2)for(dx in -1..1)
                 if(out[y*64+x+dx+dy*64]!=0)put(x+dx,y+dy,if(dy==0)p[7] else p[5])
         }
-        return PixelSprite.fromArgb(64,64,out)
+        return CreatureQuality.connected(PixelSprite.fromArgb(64,64,out))
+    }
+
+    /** Joint animation for generated masters; preserve imported PNGs and overlays. */
+    fun motionFrame(master:PixelSprite,w:WildMonster,g:Genome,phase:Int,motion:Motion):PixelSprite {
+        if(phase==0)return master
+        val native=MonsterDesign.sprite(w)
+        val exact=master.pixels().contentEquals(native.pixels())
+        val fitted=master.pixels().contentEquals(
+            GbaMonsterArtStandard.fitWithMargin(native,9).pixels())
+        if((exact||fitted) && w.armorParts.isEmpty() && w.customArmorParts.isEmpty()) {
+            val frame=sprite(w,g,phase,motion)
+            if(CreatureQuality.inspect(frame).valid)
+                return if(fitted && !exact)GbaMonsterArtStandard.fitWithMargin(frame,9) else frame
+        }
+        return pose(master,g,phase,motion==Motion.ATTACK)
     }
 
     /** Safe per-row deformation of the resolved master, including custom overlays.
