@@ -187,8 +187,9 @@ class MonsterArtworkStore(private val context: Context) {
                     val body=CreatureDna.sprite(monster,g,phase,motion)
                     val socket:(String)->Pair<Int,Int>?={ CreatureDna.anchor(monster,it,phase,motion) }
                     val frame=if(phase==0)master else if(CreatureQuality.inspect(body).valid)
-                        GbaMonsterArtStandard.canonical(CustomArmorLayers.composeAt(
-                            MonsterArmor.composeAt(body,monster,socket),monster,socket) { layers[it] })
+                        GbaMonsterArtStandard.canonical(CustomArmorLayers.composeArticulated(
+                            MonsterArmor.composeAt(body,monster,socket),monster,socket,
+                            { slot -> CreatureDna.armorPose(monster,slot,phase,motion) }) { layers[it] })
                         else CreatureDna.pose(master,g,phase,motion==CreatureDna.Motion.ATTACK)
                     MonsterPixelFrame(frame,if(phase==0)400 else 150)
                 }
