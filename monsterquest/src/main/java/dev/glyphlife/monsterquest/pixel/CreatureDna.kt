@@ -177,9 +177,11 @@ object CreatureDna {
     data class CombatTraits(val hpBonus:Int,val attackBonus:Int,val skill:String,
         val power:Int,val locomotion:String)
     fun combat(g:Genome):CombatTraits {
+        val family=g.style.firstOrNull()
         val skill=when {
             g[10]>=7 && g[1]>=6 -> "golem"
-            g[8]>=6 -> "gale"
+            family==7 -> "tide"
+            family==5 || g[8]>=6 -> "gale"
             g[3]==3 -> "venom"
             g[6]>=7 && g[9]>=4 -> "flame"
             g[3]==0 && g[0]>=6 -> "tide"
@@ -196,7 +198,10 @@ object CreatureDna {
                 else -> g[9]/3+g[4]/3
             }.coerceIn(0,6),
             when {
-                g[8]>=6 -> "飛行"
+                family==7 -> "遊泳"
+                family==4 -> "蛇行"
+                family==9 -> "浮遊"
+                family==5 || g[8]>=6 -> "飛行"
                 g[3]==0 && g[0]>=6 -> "蛇行"
                 g[3]==0 -> "浮遊"
                 else -> "歩行"
