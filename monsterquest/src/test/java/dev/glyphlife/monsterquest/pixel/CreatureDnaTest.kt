@@ -91,6 +91,38 @@ class CreatureDnaTest {
         assertFalse(mounted.pixels().contentEquals(base.pixels()))
     }
 
+    @Test fun topologyAllelesKeepAllTenSilhouettesDistinct() {
+        val seen=mutableSetOf<Int>()
+        val silhouettes=mutableListOf<BooleanArray>()
+        for(type in MonsterBodyType.entries) {
+            val child=FusionRules.preview(parent(type),parent(type,1))
+            val g=CreatureDna.decode(child.designSeed)!!
+            assertEquals(type,CreatureDna.bodyType(g))
+            assertTrue(child.designSeed.startsWith("dna2:"))
+            assertEquals(g,CreatureDna.decode(g.encode()))
+            val art=MonsterDesign.sprite(child)
+            assertTrue("Invalid "+type,CreatureQuality.inspect(art).valid)
+            val pixels=art.pixels()
+            val mask=BooleanArray(4096){pixels[it]!=0}
+            assertTrue(seen.add(mask.contentHashCode()))
+            silhouettes.add(mask)
+            for(phase in 0..3) {
+                val frame=CreatureArtV2.render(g,child.stage,phase,CreatureDna.Motion.WALK)
+                assertTrue("Invalid frame "+type+" "+phase,CreatureQuality.inspect(frame).valid)
+            }
+        }
+        // Exact pixel identity alone is insufficient; compare outline masks.
+        for(i in silhouettes.indices)for(j in i+1 until silhouettes.size) {
+            val a=silhouettes[i];val b=silhouettes[j]
+            val union=a.indices.count{a[it]||b[it]}
+            val intersection=a.indices.count{a[it]&&b[it]}
+            assertTrue("Near-identical outline "+i+"/"+j,intersection*100<union*94)
+        }
+        val v1=CreatureDna.Genome(listOf(5,5,2,2,5,3,5,6,0,2,2,0,1),123)
+        assertEquals(v1,CreatureDna.decode(v1.encode()))
+        assertTrue(v1.encode().startsWith("dna1:"))
+    }
+
     @Test fun malformedSeedsAndLegacyArtDoNotOptIn() {
         for(s in listOf("","fusion-legacy","dna1:9999999999999:0","dna1:123:x","dna1:0000000000000:gg"))
             assertNull(CreatureDna.decode(s))
