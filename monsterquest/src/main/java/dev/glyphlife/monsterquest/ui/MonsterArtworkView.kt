@@ -12,7 +12,7 @@ import dev.glyphlife.monsterquest.data.MonsterArtworkStore
 import dev.glyphlife.monsterquest.model.WildMonster
 import dev.glyphlife.monsterquest.pixel.GbaMonsterArtStandard
 import dev.glyphlife.monsterquest.pixel.BossRelicPixels
-import dev.glyphlife.monsterquest.pixel.MonsterAnimation
+import dev.glyphlife.monsterquest.pixel.CreatureDna
 import dev.glyphlife.monsterquest.pixel.MonsterDesign
 import dev.glyphlife.monsterquest.pixel.PixelAssetPipeline
 import kotlinx.coroutines.delay
@@ -39,15 +39,14 @@ fun MonsterArtworkView(
         // touching the original edge. Fit the FULL opaque silhouette before
         // animation, then fit again after the boss-relic overlay. Never
         // overwrite user-owned source files.
-        val master=GbaMonsterArtStandard.fitWithMargin(
-            store.spriteFor(monster),9)
-        val poses=when {
-            attackSequence!=0 -> MonsterAnimation.attack(master,monster)
-            walking -> MonsterAnimation.walk(master,monster)
-            else -> MonsterAnimation.idle(master,monster)
+        val motion=when {
+            attackSequence!=0 -> CreatureDna.Motion.ATTACK
+            walking -> CreatureDna.Motion.WALK
+            else -> CreatureDna.Motion.REST
         }
-        poses.map { frame ->
-            val equipped=BossRelicPixels.compose(frame.sprite,bossRelicKind)
+        store.animationFrames(monster,motion).map { frame ->
+            val equipped=BossRelicPixels.compose(
+                GbaMonsterArtStandard.fitWithMargin(frame.sprite,9),bossRelicKind)
             frame.durationMs to PixelAssetPipeline.display256(
                 GbaMonsterArtStandard.fitWithMargin(equipped,8)
             ).asImageBitmap()
