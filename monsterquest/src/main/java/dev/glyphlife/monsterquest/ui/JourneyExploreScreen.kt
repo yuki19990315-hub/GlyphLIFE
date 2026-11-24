@@ -430,7 +430,9 @@ fun JourneyExploreScreen(
                         y=-heroGroundOffset-18.dp*walkingHop
                     ),
                 bossRelicKind=RelicRules.visualKind(
-                    state,state.companion.id))
+                    state,state.companion.id),
+                walking=!battling && heldDirection!=0,
+                attackSequence=enemyDamage?.sequence ?: 0)
             val foeDistance=journey.roadEnemyPosition-roadX
             if(enemy!=null && foeDistance<=3) {
                 // Both characters occupy positions on the same world road:
@@ -449,7 +451,8 @@ fun JourneyExploreScreen(
                     Modifier.size(foeSize)
                         .align(Alignment.BottomEnd)
                         .offset(x=retreatOffset-6.dp,y=-enemyGroundOffset),
-                    facingRight=false)
+                    facingRight=false,
+                    attackSequence=playerDamage?.sequence ?: 0)
             } else {
                 Text(if(enemy!=null)"▶ 敵まで${foeDistance}歩" else "▶ 一本道を冒険中",
                     color=RunText,
