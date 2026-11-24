@@ -77,7 +77,11 @@ object MonsterArmor {
      * This keeps even a 15-color authored sprite at <=16 colors after armor,
      * prevents palette flicker, and preserves transparent background.
      */
-    fun compose(base: PixelSprite, wild: WildMonster): PixelSprite {
+    fun compose(base: PixelSprite, wild: WildMonster): PixelSprite =
+        composeAt(base,wild) { slot -> CreatureDna.anchor(wild,slot) }
+
+    fun composeAt(base:PixelSprite,wild:WildMonster,
+        socket:(String)->Pair<Int,Int>?):PixelSprite {
         require(base.width == 64 && base.height == 64)
         if (wild.armorParts.isEmpty()) return base
         val plan = validated(wild.armorParts)
@@ -121,7 +125,7 @@ object MonsterArmor {
                         set(x, y, color)
         }
         fun anchor(slot: ArmorSlot): Pair<Int, Int> {
-            CreatureDna.anchor(wild,slot.name)?.let { return it }
+            socket(slot.name)?.let { return it }
             val body = MonsterDesign.bodyType(wild)
             return when (slot) {
                 ArmorSlot.HEAD -> when (body) {
@@ -155,8 +159,9 @@ object MonsterArmor {
             val style = available[slot.name]?.let(ArmorStyle::valueOf) ?: continue
             val (x, y) = anchor(slot)
             val outwardX = when (slot) {
-                ArmorSlot.TAIL, ArmorSlot.WING, ArmorSlot.BACK -> 1
-                ArmorSlot.SHOULDER -> -1
+                ArmorSlot.TAIL, ArmorSlot.WING, ArmorSlot.BACK ->
+                    if(CreatureDna.decode(wild.designSeed)!=null)-1 else 1
+                ArmorSlot.SHOULDER -> if(CreatureDna.decode(wild.designSeed)!=null)1 else -1
                 else -> 0
             }
             val outwardY = if (slot in setOf(ArmorSlot.TAIL, ArmorSlot.CORE)) -1 else -1
