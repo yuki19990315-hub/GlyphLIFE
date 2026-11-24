@@ -183,7 +183,12 @@ object CustomArmorLayers {
     ): PixelSprite = composeAt(base,wild,{ slot -> CreatureDna.anchor(wild,slot) },findAsset)
 
     fun composeAt(base:PixelSprite,wild:WildMonster,
-        socket:(String)->Pair<Int,Int>?,findAsset:(String)->PixelSprite?):PixelSprite {
+        socket:(String)->Pair<Int,Int>?,findAsset:(String)->PixelSprite?):PixelSprite =
+        composeArticulated(base,wild,socket,{ ArmorArticulation.Pose() },findAsset)
+
+    fun composeArticulated(base:PixelSprite,wild:WildMonster,
+        socket:(String)->Pair<Int,Int>?,pose:(String)->ArmorArticulation.Pose,
+        findAsset:(String)->PixelSprite?):PixelSprite {
         require(base.width == 64 && base.height == 64)
         val identifiers = validated(wild.customArmorParts)
         if (identifiers.isEmpty()) return base
@@ -202,8 +207,9 @@ object CustomArmorLayers {
             val id = identifiers[slot.name] ?: return@mapNotNull null
             val image = findAsset(id) ?: return@mapNotNull null
             if (image.width != 64 || image.height != 64) return@mapNotNull null
-            slot to place(image, slot, body,
+            val placedPart=place(image,slot,body,
                 offsets[slot.name] ?: ArmorOffset(),socket(slot.name))
+            slot to ArmorArticulation.deform(placedPart,pose(slot.name))
         }
         if (placed.isEmpty()) return base
         val result = base.pixels()
