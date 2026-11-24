@@ -28,8 +28,14 @@ object CreatureArtV2 {
         val heads=listOf(P(45,27),P(43,20),P(34,16),P(33,17),P(43,20),
             P(42,23),P(44,29),P(42,31),P(36,17),P(34,18))
         val c=centers[family].move(dx,dy)
-        val h=heads[family].move(dx+(if(motion==CreatureDna.Motion.ATTACK && step==2)2 else 0),
+        val rawHead=heads[family].move(dx+(if(motion==CreatureDna.Motion.ATTACK && step==2)2 else 0),
             dy-g[5]/4)
+        val radius=(if(family in listOf(2,3,8,9))8 else 6)+g[1]/5
+        val muzzle=(3+g[6]/2).coerceAtMost(7)
+        // Reserve actual space for the longest inherited skull/beak and horns,
+        // rather than silently truncating them at the raster boundary.
+        val h=P(rawHead.x.coerceIn(radius+10,60-radius-muzzle-1),
+            rawHead.y.coerceIn(radius+10,47-radius))
         val upright=family in listOf(2,3,8,9)
         return Rig(family,c,h,rx,ry,c.move(if(upright)rx/2 else rx-4,-ry/3),
             c.move(-rx+5,ry/2),c.move(-rx+3,2),c.move(-4,-ry/2))
@@ -54,8 +60,19 @@ object CreatureArtV2 {
         val accent=MonsterDesign.palette(elements[g[12]])
         // Keep the cohesive primary ramp, and use a small accent ramp for
         // anatomical details. A subdued shared outline ties materials together.
-        val palette=intArrayOf(main[0],main[1],main[2],main[7],main[3],main[4],
-            accent[1],accent[2],accent[7],accent[3],accent[4])
+        private fun tint(a:Int,b:Int,percent:Int):Int {
+            fun c(shift:Int)=(((a ushr shift) and 255)*(100-percent)+
+                ((b ushr shift) and 255)*percent)/100
+            return 0xff000000.toInt() or (c(16) shl 16) or (c(8) shl 8) or c(0)
+        }
+        // The light source must not turn purple skin into a yellow stripe.
+        // Preserve primary hue for body highlights; bright accent colors
+        // remain reserved for eyes, armor edges and small motifs.
+        val palette=intArrayOf(main[0],main[1],main[2],
+            tint(main[2],0xfff6f0df.toInt(),24),
+            tint(main[2],0xfff6f0df.toInt(),47),main[4],
+            accent[1],accent[2],tint(accent[2],accent[4],25),
+            tint(accent[2],accent[4],53),accent[4])
         fun put(x:Int,y:Int,color:Int) {
             if(x in 2..61 && y in 2..61)out[y*64+x]=palette[color]
         }
@@ -180,7 +197,7 @@ object CreatureArtV2 {
         if(wingPower>=3 && f!=7) {
             val root=r.wing
             val tip=P((root.x-11-wingPower).coerceAtLeast(5),
-                (root.y-9-wingPower+(beat*6).roundToInt()).coerceAtLeast(3))
+                (root.y-9-wingPower+(beat*6).roundToInt()).coerceAtLeast(8))
             val elbow=root.move(-5,-8+(beat*2).roundToInt())
             if(f==5||appendage==0) {
                 for(i in 0..3) {
@@ -349,6 +366,23 @@ object CreatureArtV2 {
         }
         // Restrained clustered texture, accents and specular highlights.
         // Only mark pixels within the actual body.
+        // Surface genes change large coherent regions, not just isolated dots.
+        if(shell==0 && f in listOf(0,5,6)) {
+            val mane=r.shoulder.move(-2,-3)
+            p.shape(listOf(mane.move(-8,3),mane.move(-6,-7),mane.move(-1,-9),
+                mane.move(5,-6),mane.move(7,1),mane.move(3,3),mane.move(5,8),
+                mane.move(-1,6),mane.move(-3,9)),true)
+        } else if(shell==1 && f in listOf(0,1,4,7)) {
+            for(i in 0..3) {
+                val q=c.move(-rx/2+i*max(3,rx/3),ry/3)
+                p.line(q.move(-2,-1),q.move(1,1),1)
+                p.inside(q.move(0,-1),3)
+            }
+        } else if(shell==2 && f in listOf(2,3,8,9)) {
+            p.shape(listOf(c.move(-5,-7),c.move(5,-7),c.move(6,0),
+                c.move(2,7),c.move(-3,5),c.move(-6,0)),true)
+            p.inside(c.move(0,-4),10)
+        }
         if(plated) {
             for(i in 0..2) {
                 val q=c.move(-rx/2+i*max(4,rx/2),-ry+4)
@@ -364,8 +398,11 @@ object CreatureArtV2 {
                 p.inside(P(x,c.y+ry/3),1)
             }
         } else {
+            // Stable seed-based marking placement adds individuality without
+            // changing the inherited body plan or the saved identity.
+            val offset=Math.floorMod(g.variation,3)-1
             for(i in 0..2) {
-                val q=c.move(-5+i*5,if(i%2==0)-2 else 3)
+                val q=c.move(-5+i*5+offset,if(i%2==0)-2 else 3)
                 p.inside(q,8);p.inside(q.move(1,0),9);p.inside(q.move(0,1),7)
             }
         }
