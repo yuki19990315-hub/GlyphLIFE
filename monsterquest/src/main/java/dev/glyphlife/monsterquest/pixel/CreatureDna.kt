@@ -15,22 +15,27 @@ object CreatureDna {
     private const val PREFIX = "dna1:"
     private val limits = listOf(9,9,9,3,9,9,9,9,9,9,9,6,6)
     private val elements = listOf("火","水","草","雷","光","闇","無")
-    data class Genome(val genes: List<Int>, val variation: Int) {
+    data class Genome(val genes: List<Int>, val variation: Int, val style:List<Int> = emptyList()) {
         init {
             require(genes.size == limits.size && genes.indices.all { genes[it] in 0..limits[it] })
+            require(style.isEmpty() || (style.size==4 && style[0] in 0..9 && style.drop(1).all{it in 0..4}))
         }
         operator fun get(index: Int): Int = genes[index]
-        fun encode(): String = PREFIX + genes.joinToString("") + ":" + variation.toUInt().toString(16)
+        fun encode(): String = if(style.isEmpty()) PREFIX + genes.joinToString("") + ":" + variation.toUInt().toString(16)
+            else "dna2:" + genes.joinToString("") + ":" + style.joinToString("") + ":" + variation.toUInt().toString(16)
     }
 
     fun decode(seed: String): Genome? {
-        if (!seed.startsWith(PREFIX)) return null
-        val fields = seed.removePrefix(PREFIX).split(':')
-        if (fields.size != 2 || fields[0].length != limits.size) return null
-        val g = fields[0].map { it.digitToIntOrNull() ?: return null }
-        if (g.indices.any { g[it] !in 0..limits[it] }) return null
-        val v = fields[1].toUIntOrNull(16)?.toInt() ?: return null
-        return Genome(g,v)
+        val v2=seed.startsWith("dna2:")
+        if(!v2 && !seed.startsWith(PREFIX))return null
+        val fields=seed.substring(5).split(':')
+        if(fields.size!=(if(v2)3 else 2) || fields[0].length!=limits.size)return null
+        val g=fields[0].map { it.digitToIntOrNull() ?: return null }
+        if(g.indices.any{g[it] !in 0..limits[it]})return null
+        val style=if(v2)fields[1].map { it.digitToIntOrNull() ?: return null } else emptyList()
+        if(v2 && (style.size!=4 || style[0] !in 0..9 || style.drop(1).any{it !in 0..4}))return null
+        val v=fields.last().toUIntOrNull(16)?.toInt() ?: return null
+        return Genome(g,v,style)
     }
 
     fun fromMonster(w: WildMonster): Genome {
@@ -48,8 +53,26 @@ object CreatureDna {
             MonsterBodyType.SPIRIT -> listOf(3,4,7,0,0,1,1,4,4,2,1)
         }
         val hue = elements.indexOf(w.element).let { if(it < 0) 6 else it }
-        return Genome(profile + listOf(hue,(hue+3)%7),
-            (w.species + "|" + w.designSeed.ifBlank { w.id }).hashCode())
+        val seed=(w.species+"|"+w.designSeed.ifBlank{w.id}).hashCode()
+        return Genome(profile+listOf(hue,(hue+3)%7),seed,founderStyle(MonsterDesign.bodyType(w),seed))
+    }
+
+    private fun founderStyle(type:MonsterBodyType,seed:Int):List<Int> {
+        val family=when(type) {
+            MonsterBodyType.BEAST -> 0
+            MonsterBodyType.DRAGON -> 1
+            MonsterBodyType.BIPED -> 2
+            MonsterBodyType.GOLEM -> 3
+            MonsterBodyType.SERPENT -> 4
+            MonsterBodyType.AVIAN -> 5
+            MonsterBodyType.INSECTOID -> 6
+            MonsterBodyType.AQUATIC -> 7
+            MonsterBodyType.MECHA -> 8
+            MonsterBodyType.SPIRIT -> 9
+        }
+        val head=listOf(0,1,2,3,1,4,3,4,3,2)[family]
+        val material=listOf(0,1,2,3,1,0,1,1,4,2)[family]
+        return listOf(family,head,material,Math.floorMod(seed,5))
     }
 
     /** Parent order is deliberately significant, matching the existing fusion UI. */
@@ -68,18 +91,30 @@ object CreatureDna {
             }
             inherited.coerceIn(0,limits[i])
         }
+        val sx=x.style.ifEmpty{founderStyle(bodyType(x),x.variation)}
+        val sy=y.style.ifEmpty{founderStyle(bodyType(y),y.variation)}
+        // The family is a categorical inherited topology, not an average.
+        // Choose independently from the face, surface and appendage alleles.
+        val family=if(rng.nextBoolean())sx[0] else sy[0]
+        val styles=listOf(family)+ (1..3).map { i ->
+            if(rng.nextInt(10)==0)rng.nextInt(5) else if(rng.nextBoolean())sx[i] else sy[i]
+        }
+        val legPairs=listOf(2,2,1,1,0,1,3,0,2,0)[family]
         val candidates=(0..3).map { n ->
             val genes=if(n==0)child else child.mapIndexed { i,v ->
                 if(i<11 && rng.nextInt(4)==0)
                     (v+rng.nextInt(-1,2)).coerceIn(0,limits[i]) else v
             }
-            Genome(genes,rng.nextInt())
+            Genome(genes.mapIndexed{i,v->if(i==3)legPairs else v},rng.nextInt(),styles)
         }
         val template=a.copy(stage=maxOf(a.stage,b.stage),armorParts=emptyMap())
         return candidates.maxByOrNull { CreatureQuality.inspect(sprite(template,it)).score }!!
     }
 
-    fun bodyType(g: Genome): MonsterBodyType = when {
+    fun bodyType(g: Genome): MonsterBodyType = if(g.style.isNotEmpty()) listOf(
+        MonsterBodyType.BEAST,MonsterBodyType.DRAGON,MonsterBodyType.BIPED,MonsterBodyType.GOLEM,
+        MonsterBodyType.SERPENT,MonsterBodyType.AVIAN,MonsterBodyType.INSECTOID,MonsterBodyType.AQUATIC,
+        MonsterBodyType.MECHA,MonsterBodyType.SPIRIT)[g.style[0]] else when {
         g[3] == 0 && g[0] >= 6 -> MonsterBodyType.SERPENT
         g[3] == 0 -> MonsterBodyType.SPIRIT
         g[3] == 3 -> MonsterBodyType.INSECTOID
@@ -104,6 +139,7 @@ object CreatureDna {
     /** Built-in armor sockets follow the generated anatomy, not old species coordinates. */
     fun anchor(w:WildMonster, slot:String,phase:Int=0,motion:Motion=Motion.REST):Pair<Int,Int>? {
         val g=decode(w.designSeed) ?: return null
+        if(g.style.isNotEmpty())return CreatureArtV2.socket(g,w.stage,phase,motion,slot)
         val r=motionRig(g,w.stage,phase,motion)
         val beat=sin(Math.floorMod(phase,4)*PI/2)
         return when(slot) {
@@ -190,6 +226,7 @@ object CreatureDna {
             hy=base.hy+hover+(if(attack && step==1)1 else 0))
     }
     fun sprite(w:WildMonster,g:Genome,phase:Int=0,motion:Motion=Motion.REST):PixelSprite {
+        if(g.style.isNotEmpty())return CreatureArtV2.render(g,w.stage,phase,motion)
         val step=Math.floorMod(phase,4)
         val beat=sin(step*PI/2)
         val attack=motion==Motion.ATTACK
