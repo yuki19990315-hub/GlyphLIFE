@@ -102,15 +102,17 @@ object CreatureDna {
     }
 
     /** Built-in armor sockets follow the generated anatomy, not old species coordinates. */
-    fun anchor(w:WildMonster, slot:String):Pair<Int,Int>? {
+    fun anchor(w:WildMonster, slot:String,phase:Int=0,motion:Motion=Motion.REST):Pair<Int,Int>? {
         val g=decode(w.designSeed) ?: return null
-        val r=rig(g,w.stage)
+        val r=motionRig(g,w.stage,phase,motion)
+        val beat=sin(Math.floorMod(phase,4)*PI/2)
         return when(slot) {
             "HEAD" -> r.hx to (r.hy-3)
             "CORE" -> r.cx to r.cy
-            "TAIL" -> (r.cx-r.rx-2) to r.cy
+            "TAIL" -> (r.cx-r.rx-2) to (r.cy+(beat*2).roundToInt())
             "SHOULDER" -> (r.cx+r.rx/2) to (r.cy-r.ry/3)
-            "BACK","WING" -> (r.cx-3) to (r.cy-r.ry+2)
+            "BACK" -> (r.cx-3) to (r.cy-r.ry+2)
+            "WING" -> (r.cx-3) to (r.cy-r.ry+2+(beat*2).roundToInt())
             else -> null
         }
     }
@@ -156,17 +158,24 @@ object CreatureDna {
             ((y+fy)/2.0+dx/d*across).roundToInt()
     }
 
-    fun sprite(w:WildMonster,g:Genome,phase:Int=0,motion:Motion=Motion.REST):PixelSprite {
+    private fun motionRig(g:Genome,stage:Int,phase:Int,motion:Motion):Rig {
         val step=Math.floorMod(phase,4)
         val beat=sin(step*PI/2)
         val attack=motion==Motion.ATTACK
         val flying=g[8]>=6
         val shift=if(attack)listOf(0,-2,3,1)[step] else 0
         val hover=if(!attack && (flying||g[3]==0))(beat*2).roundToInt() else 0
-        val base=rig(g,w.stage)
-        val r=base.copy(cx=base.cx+shift,cy=base.cy+hover,
+        val base=rig(g,stage)
+        return base.copy(cx=base.cx+shift,cy=base.cy+hover,
             hx=(base.hx+shift+(if(attack && step==2)2 else 0)).coerceAtMost(47),
             hy=base.hy+hover+(if(attack && step==1)1 else 0))
+    }
+    fun sprite(w:WildMonster,g:Genome,phase:Int=0,motion:Motion=Motion.REST):PixelSprite {
+        val step=Math.floorMod(phase,4)
+        val beat=sin(step*PI/2)
+        val attack=motion==Motion.ATTACK
+        val flying=g[8]>=6
+        val r=motionRig(g,w.stage,phase,motion)
         val a=MonsterDesign.palette(elements[g[11]])
         val b=MonsterDesign.palette(elements[g[12]])
         val p=intArrayOf(a[0],a[1],a[2],a[3],a[4],b[1],b[2],b[3],b[4])
@@ -308,10 +317,14 @@ object CreatureDna {
         val exact=master.pixels().contentEquals(native.pixels())
         val fitted=master.pixels().contentEquals(
             GbaMonsterArtStandard.fitWithMargin(native,9).pixels())
-        if((exact||fitted) && w.armorParts.isEmpty() && w.customArmorParts.isEmpty()) {
-            val frame=sprite(w,g,phase,motion)
-            if(CreatureQuality.inspect(frame).valid)
+        if((exact||fitted) && w.customArmorParts.isEmpty()) {
+            val body=sprite(w,g,phase,motion)
+            if(CreatureQuality.inspect(body).valid) {
+                val frame=GbaMonsterArtStandard.canonical(MonsterArmor.composeAt(body,w) { slot ->
+                    anchor(w,slot,phase,motion)
+                })
                 return if(fitted && !exact)GbaMonsterArtStandard.fitWithMargin(frame,9) else frame
+            }
         }
         return pose(master,g,phase,motion==Motion.ATTACK)
     }
