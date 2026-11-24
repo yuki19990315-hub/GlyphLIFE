@@ -56,8 +56,8 @@ object CreatureArtV2 {
 
     private class Painter(val g:CreatureDna.Genome) {
         val out=IntArray(4096)
-        val main=MonsterDesign.palette(elements[g[11]])
-        val accent=MonsterDesign.palette(elements[g[12]])
+        val main:IntArray=MonsterDesign.palette(elements[g[11]])
+        val accent:IntArray=MonsterDesign.palette(elements[g[12]])
         // Keep the cohesive primary ramp, and use a small accent ramp for
         // anatomical details. A subdued shared outline ties materials together.
         private fun tint(a:Int,b:Int,percent:Int):Int {
@@ -68,7 +68,7 @@ object CreatureArtV2 {
         // The light source must not turn purple skin into a yellow stripe.
         // Preserve primary hue for body highlights; bright accent colors
         // remain reserved for eyes, armor edges and small motifs.
-        val palette=intArrayOf(main[0],main[1],main[2],
+        val palette:IntArray=intArrayOf(main[0],main[1],main[2],
             tint(main[2],0xfff6f0df.toInt(),24),
             tint(main[2],0xfff6f0df.toInt(),47),main[4],
             accent[1],accent[2],tint(accent[2],accent[4],25),
