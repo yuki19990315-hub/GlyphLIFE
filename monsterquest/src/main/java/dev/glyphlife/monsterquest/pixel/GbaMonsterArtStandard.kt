@@ -127,6 +127,34 @@ object GbaMonsterArtStandard {
         return PixelSprite.fromArgb(SIZE,SIZE,out)
     }
 
+    /** Use one shared transform across all animation frames. A wing changing
+     * its angle must not make the entire creature jump or change scale. */
+    fun fitAnimationWithMargin(frames:List<PixelSprite>,margin:Int):List<PixelSprite> {
+        require(frames.isNotEmpty() && frames.all{it.width==SIZE && it.height==SIZE})
+        require(margin in 1..15)
+        val boxes=frames.mapNotNull{bounds(it)}
+        if(boxes.isEmpty())return frames
+        val left=boxes.minOf{it.left};val right=boxes.maxOf{it.right}
+        val top=boxes.minOf{it.top};val bottom=boxes.maxOf{it.bottom}
+        if(left>=margin && top>=margin && right<=SIZE-1-margin &&
+            bottom<=SIZE-1-margin)return frames
+        val width=right-left+1;val height=bottom-top+1
+        val maxSize=SIZE-2*margin
+        val scale=minOf(1.0,maxSize.toDouble()/width,maxSize.toDouble()/height)
+        val dw=(width*scale).toInt().coerceIn(1,maxSize)
+        val dh=(height*scale).toInt().coerceIn(1,maxSize)
+        val dx=(SIZE-dw)/2;val dy=(SIZE-dh)/2
+        return frames.map { sprite ->
+            val out=IntArray(SIZE*SIZE)
+            for(y in 0 until dh)for(x in 0 until dw) {
+                val sx=left+((x+0.5)*width/dw).toInt().coerceIn(0,width-1)
+                val sy=top+((y+0.5)*height/dh).toInt().coerceIn(0,height-1)
+                out[(dy+y)*SIZE+dx+x]=sprite.pixel(sx,sy)
+            }
+            PixelSprite.fromArgb(SIZE,SIZE,out)
+        }
+    }
+
     /**
      * Normalize imported/overlaid artwork on display/export without rewriting
      * its original saved PNG; preserve exact colors when already compliant.

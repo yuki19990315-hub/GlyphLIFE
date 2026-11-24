@@ -147,16 +147,20 @@ object CustomArmorLayers {
 
     private fun place(
         sprite: PixelSprite, slot: ArmorSlot, body: MonsterBodyType,
-        offset: ArmorOffset
+        offset: ArmorOffset, anchor:Pair<Int,Int>?=null
     ): PixelSprite {
         val bounds = opaqueBounds(sprite) ?: return PixelSprite.fromArgb(64, 64, IntArray(4096))
-        val target = mount(slot, body)
+        val target = mount(slot, body).let { m ->
+            if(anchor==null)m else m.copy(centerX=anchor.first,centerY=anchor.second)
+        }
         val fit = min(target.w.toFloat() / bounds.width, target.h.toFloat() / bounds.height)
         val ratio = fit * offset.scalePercent / 100f
         val w = max(1, (bounds.width * ratio).toInt())
         val h = max(1, (bounds.height * ratio).toInt())
-        val left = target.centerX + offset.dx - w / 2
-        val top = target.centerY + offset.dy - h / 2
+        val rawLeft=target.centerX+offset.dx-w/2
+        val rawTop=target.centerY+offset.dy-h/2
+        val left=if(anchor==null)rawLeft else rawLeft.coerceIn(1,(63-w).coerceAtLeast(1))
+        val top=if(anchor==null)rawTop else rawTop.coerceIn(1,(63-h).coerceAtLeast(1))
         val output = IntArray(4096)
         for (y in 0 until h) for (x in 0 until w) {
             val dx = left + x; val dy = top + y
@@ -176,7 +180,15 @@ object CustomArmorLayers {
     fun compose(
         base: PixelSprite, wild: WildMonster,
         findAsset: (String) -> PixelSprite?
-    ): PixelSprite {
+    ): PixelSprite = composeAt(base,wild,{ slot -> CreatureDna.anchor(wild,slot) },findAsset)
+
+    fun composeAt(base:PixelSprite,wild:WildMonster,
+        socket:(String)->Pair<Int,Int>?,findAsset:(String)->PixelSprite?):PixelSprite =
+        composeArticulated(base,wild,socket,{ ArmorArticulation.Pose() },findAsset)
+
+    fun composeArticulated(base:PixelSprite,wild:WildMonster,
+        socket:(String)->Pair<Int,Int>?,pose:(String)->ArmorArticulation.Pose,
+        findAsset:(String)->PixelSprite?):PixelSprite {
         require(base.width == 64 && base.height == 64)
         val identifiers = validated(wild.customArmorParts)
         if (identifiers.isEmpty()) return base
@@ -195,8 +207,9 @@ object CustomArmorLayers {
             val id = identifiers[slot.name] ?: return@mapNotNull null
             val image = findAsset(id) ?: return@mapNotNull null
             if (image.width != 64 || image.height != 64) return@mapNotNull null
-            slot to place(image, slot, body,
-                offsets[slot.name] ?: ArmorOffset())
+            val placedPart=place(image,slot,body,
+                offsets[slot.name] ?: ArmorOffset(),socket(slot.name))
+            slot to ArmorArticulation.deform(placedPart,pose(slot.name))
         }
         if (placed.isEmpty()) return base
         val result = base.pixels()

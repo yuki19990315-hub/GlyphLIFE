@@ -100,6 +100,10 @@ object MonsterDesign {
      * resolution with a deliberately limited (<=8) palette.
      */
     fun sprite(wild: WildMonster): PixelSprite {
+        CreatureDna.decode(wild.designSeed)?.let { genome ->
+            return GbaMonsterArtStandard.canonical(
+                MonsterArmor.compose(CreatureDna.sprite(wild,genome),wild))
+        }
         FeaturedCompanionArt.find(wild)?.let { return MonsterArmor.compose(it, wild) }
         FeaturedPixelArt.find(wild)?.let { return MonsterArmor.compose(it, wild) }
         // All playable/encountered generic species now use actual sprite art from

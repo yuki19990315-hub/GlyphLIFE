@@ -2,6 +2,7 @@ package dev.glyphlife.monsterquest.model
 
 import java.util.UUID
 import dev.glyphlife.monsterquest.pixel.MonsterDesign
+import dev.glyphlife.monsterquest.pixel.CreatureDna
 import dev.glyphlife.monsterquest.pixel.GlyphProjector
 
 /**
@@ -38,22 +39,24 @@ object FusionRules {
         val visualId = UUID.nameUUIDFromBytes(
             ("monsterquest-fusion-v2|" + a.id + "|" + b.id).toByteArray(Charsets.UTF_8)
         ).toString()
+        val genome = CreatureDna.cross(a, b, visualId)
+        val traits = CreatureDna.combat(genome)
         val fusion = WildMonster(
             id = visualId,
             species = resultName(a, b),
             element = resultElement(a, b),
-            maxHp = (maxOf(a.maxHp, b.maxHp) + 12).coerceIn(1, 180),
-            attack = (maxOf(a.attack, b.attack) + 3).coerceIn(1, 40),
-            description = "${a.species}と${b.species}が合体して生まれた新種。",
+            maxHp = (maxOf(a.maxHp, b.maxHp).coerceAtMost(180) + 12 + traits.hpBonus).coerceIn(1, 180),
+            attack = (maxOf(a.attack, b.attack).coerceAtMost(40) + 3 + traits.attackBonus).coerceIn(1, 40),
+            description = "${a.species}と${b.species}が合体して生まれた新種。移動：${traits.locomotion}",
             isBoss = false,
-            bodyType = MonsterDesign.bodyType(a).name,
+            bodyType = CreatureDna.bodyType(genome).name,
             stage = maxOf(a.stage, b.stage).coerceIn(1, 3),
             lineage = listOf(a.species, b.species).joinToString(" × "),
             originKind = MonsterOrigin.FUSION,
             originConditions = MonsterOrigin.fusion(a, b),
             motifPrimary = a.motifPrimary.ifBlank { a.species },
             motifSecondary = b.motifPrimary.ifBlank { b.species },
-            designSeed = "fusion-" + visualId,
+            designSeed = genome.encode(),
             armorParts = dev.glyphlife.monsterquest.pixel.MonsterArmor.inherit(
                 a.armorParts, b.armorParts),
             customArmorParts = dev.glyphlife.monsterquest.pixel.CustomArmorLayers.inherit(

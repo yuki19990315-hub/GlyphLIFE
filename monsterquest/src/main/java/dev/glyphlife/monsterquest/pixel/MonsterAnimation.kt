@@ -16,6 +16,10 @@ data class MonsterPixelFrame(
 object MonsterAnimation {
     fun idle(master: PixelSprite, wild: WildMonster): List<MonsterPixelFrame> {
         require(master.width == 64 && master.height == 64)
+        CreatureDna.decode(wild.designSeed)?.let { g ->
+            return (0..3).map { phase -> MonsterPixelFrame(
+                CreatureDna.motionFrame(master,wild,g,phase,CreatureDna.Motion.REST),if(phase==0)400 else 180) }
+        }
         return listOf(
             MonsterPixelFrame(master, 500),
             MonsterPixelFrame(translate(master, 0, -1), 250),
@@ -26,12 +30,22 @@ object MonsterAnimation {
 
     fun attack(master: PixelSprite, wild: WildMonster): List<MonsterPixelFrame> {
         require(master.width == 64 && master.height == 64)
+        CreatureDna.decode(wild.designSeed)?.let { g ->
+            return listOf(1,2,3,0).map { phase -> MonsterPixelFrame(
+                CreatureDna.motionFrame(master,wild,g,phase,CreatureDna.Motion.ATTACK),if(phase==0)280 else 150) }
+        }
         return listOf(
             MonsterPixelFrame(translate(master,-1,0),130),
             MonsterPixelFrame(attackPose(master,wild),170),
             MonsterPixelFrame(translate(master,1,0),150),
             MonsterPixelFrame(master,280)
         )
+    }
+
+    fun walk(master:PixelSprite,wild:WildMonster):List<MonsterPixelFrame> {
+        val g=CreatureDna.decode(wild.designSeed) ?: return idle(master,wild)
+        return (0..3).map { phase -> MonsterPixelFrame(
+            CreatureDna.motionFrame(master,wild,g,phase,CreatureDna.Motion.WALK),120) }
     }
 
     fun sheet(frames: List<MonsterPixelFrame>): PixelSprite {
