@@ -195,6 +195,22 @@ class MonsterPixelPreviewTest {
         save(width,256,data,"09-armor-position-left-center-right.png")
     }
 
+    @Test fun hereditaryCreatureAndMotionReview() {
+        val types=MonsterBodyType.entries
+        val w=5*256;val h=types.size*256;val data=IntArray(w*h)
+        types.forEachIndexed { i,type ->
+            val first=monster(type,"雷",2).copy(id="dna-a-$i")
+            val second=monster(types[(i+3)%types.size],"火",2).copy(id="dna-b-$i")
+            val child=FusionRules.preview(first,second)
+            val master=MonsterDesign.sprite(child)
+            drawCell(data,w,master,0,i)
+            MonsterAnimation.walk(master,child).forEachIndexed { j,frame ->
+                drawCell(data,w,frame.sprite,j+1,i)
+            }
+        }
+        save(w,h,data,"20-procedural-dna-motion.png")
+    }
+
     @Test fun allBodyTypesVisualReview() {
         val types=MonsterBodyType.entries
         val w=5*256;val h=2*256;val data=IntArray(w*h)
