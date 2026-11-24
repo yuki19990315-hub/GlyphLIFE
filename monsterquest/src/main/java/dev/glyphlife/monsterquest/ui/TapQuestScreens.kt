@@ -957,10 +957,9 @@ private fun SummonPortalScene(modifier:Modifier=Modifier) {
 @Composable
 fun QuestSummon(
     state:QuestState,
-    aiKey:String,aiDescription:String,aiBusy:Boolean,
-    aiArtEnabled:Boolean,onAiArtEnabled:(Boolean)->Unit,
-    onAiKey:(String)->Unit,onDescription:(String)->Unit,
-    onAiText:()->Unit,onAiPhoto:()->Unit,onOffline:()->Unit,
+    description:String,busy:Boolean,
+    onDescription:(String)->Unit,
+    onLocalSummon:()->Unit,onOffline:()->Unit,
     studio:@Composable ()->Unit
 ) {
     Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState())
@@ -985,13 +984,9 @@ fun QuestSummon(
         Text("探索でまれに、ボス撃破で必ず召喚結晶を獲得。" +
             " 召喚成功時だけ結晶を1個消費します。",
             style=MaterialTheme.typography.bodySmall)
-        val summonBlock=SummonAccess.commonBlock(state,aiBusy)
-        val aiBlock=SummonAccess.aiBlock(state,aiBusy,aiKey)
+        val summonBlock=SummonAccess.commonBlock(state,busy)
         if(summonBlock!=null) {
             Text("召喚できない理由：$summonBlock",color=MaterialTheme.colorScheme.error,
-                style=MaterialTheme.typography.bodySmall)
-        } else if(aiBlock!=null) {
-            Text("AI召喚の条件：$aiBlock",color=Blue,
                 style=MaterialTheme.typography.bodySmall)
         } else {
             Text("召喚の準備ができています。",color=Blue,
@@ -1003,38 +998,26 @@ fun QuestSummon(
         Text("オフライン召喚は既存のローカル素材から作る方式で、AI生成ではありません。",
             style=MaterialTheme.typography.bodySmall)
         HorizontalDivider()
-        SectionTitle("AIモンスター工房（一発召喚）")
-        Text("文章や写真を条件に1回だけ生成し、成功時に即召喚・図鑑登録します。" +
-            " 再生成・候補の選択はありません。画像生成ONの場合は" +
-            " 64×64・透過込み最大16色に変換し、入力条件を図鑑に記録します。" +
-            " AI画像生成APIには料金が発生する場合があります。",
+        SectionTitle("オフライン・モンスター工房（一発召喚）")
+        Text("外部API・Geminiキー・通信・生成ごとの課金は不要。" +
+            " 入力文から属性・体型・モチーフを選び、端末内の既存64×64ドット絵素材を" +
+            " 色・輪郭・装飾で変化させます。画像生成AIではありません。" +
+            " 気に入るまでの再生成はなく、召喚後に条件を図鑑へ記録します。",
             style=MaterialTheme.typography.bodySmall)
-        OutlinedTextField(value=aiKey,onValueChange=onAiKey,
-            modifier=Modifier.fillMaxWidth(),singleLine=true,
-            label={Text("Gemini APIキー（保存しません）")},
-            visualTransformation=androidx.compose.ui.text.input.PasswordVisualTransformation())
-        OutlinedTextField(value=aiDescription,onValueChange=onDescription,
+        OutlinedTextField(
+            value=description,onValueChange=onDescription,
             modifier=Modifier.fillMaxWidth(),
-            label={Text("召喚したいモンスターのイメージ")},
-            placeholder={Text("例：氷結晶をまとった小さな雷竜")})
-        Row(verticalAlignment=Alignment.CenterVertically,
-            modifier=Modifier.fillMaxWidth()) {
-            Checkbox(checked=aiArtEnabled,onCheckedChange=onAiArtEnabled)
-            Text("AI全身画像も生成（別の有料API呼び出し）",
-                style=MaterialTheme.typography.bodySmall)
-        }
-        Row(horizontalArrangement=Arrangement.spacedBy(8.dp)) {
-            Button(onClick=onAiText,
-                enabled=aiBlock==null,
-                modifier=Modifier.weight(1f)) { Text("AIで一発召喚") }
-            OutlinedButton(onClick=onAiPhoto,
-                enabled=aiBlock==null,
-                modifier=Modifier.weight(1f)) { Text("写真から一発召喚") }
-        }
-        if(aiBusy)LinearProgressIndicator(Modifier.fillMaxWidth())
-        Text("生成成功で結晶を1個消費。失敗時は消費しません。" +
-            " 画像生成OFFでは従来のオフライン仮素材を使用します。",
-            color=Blue,style=MaterialTheme.typography.bodySmall)
+            label={Text("モンスターの特徴を入力（空欄でもOK）")},
+            placeholder={Text("例：氷の狐、大きな角、結晶の尾")}
+        )
+        Button(
+            onClick=onLocalSummon,
+            enabled=summonBlock==null,
+            modifier=Modifier.fillMaxWidth()
+        ) { Text(if(busy)"生成中…" else "✦ 文章から一発召喚（API不要・結晶1個）") }
+        Text("写真を理解して新種を描く画像AIは、このオフライン方式では使いません。" +
+            " 写真に基づく自動生成には別途端末内画像モデルが必要です。",
+            style=MaterialTheme.typography.bodySmall)
         HorizontalDivider()
         SectionTitle("ドット絵工房")
         Text("外見を試作し、結晶を使って召喚。好きな64×64デザインを確認できます。",

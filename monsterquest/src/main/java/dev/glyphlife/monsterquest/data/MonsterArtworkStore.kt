@@ -227,6 +227,16 @@ class MonsterArtworkStore(private val context: Context) {
         store(id, bytes,stage)
     }
 
+    /** Persist the exact locally generated 64px master for future encounters. */
+    suspend fun storeSprite(id:String,sprite:PixelSprite,stage:Int=1) =
+        withContext(Dispatchers.IO) {
+            val canonical=GbaMonsterArtStandard.canonical(sprite)
+            check(GbaMonsterArtStandard.audit(canonical).compliant) {
+                "ローカル素材がドット絵規格を満たしません"
+            }
+            saveNative(id,canonical,stage)
+        }
+
     suspend fun store(id: String, encoded: ByteArray,stage:Int=1) = withContext(Dispatchers.IO) {
         UUID.fromString(id)
         require(encoded.size in 64..12_000_000) { "画像の容量が上限を超えています" }

@@ -162,11 +162,35 @@ object CuratedMonsterArt {
         return PixelSprite.fromArgb(64,64,out)
     }
 
+    /** Keep the source artist's silhouette and value structure; replace only
+     * its limited palette with a matching element hue. No smoothing or API. */
+    private fun localPalette(base:PixelSprite,element:String):PixelSprite {
+        val levels=base.colors().sortedBy { c ->
+            (((c ushr 16) and 255)*30)+(((c ushr 8) and 255)*59)+(c and 255)*11
+        }
+        val hues=MonsterDesign.palette(element).toSet().sortedBy { c ->
+            (((c ushr 16) and 255)*30)+(((c ushr 8) and 255)*59)+(c and 255)*11
+        }
+        if(levels.isEmpty() || hues.isEmpty())return base
+        val recolor=levels.mapIndexed { index,c ->
+            val shade=if(levels.size==1)hues[hues.size/2]
+                else hues[index*(hues.size-1)/(levels.size-1)]
+            c to shade
+        }.toMap()
+        return PixelSprite.fromArgb(64,64,base.pixels().map { c ->
+            if((c ushr 24)==0)0 else recolor[c] ?: c
+        }.toIntArray())
+    }
+
     /** An authored 64px silhouette instead of procedural circle/oval bodies. */
     fun find(monster: WildMonster):PixelSprite {
         val family=family(monster)
         val stage=monster.stage.coerceIn(1,3)
-        val authored=personalized(stages[family*3+stage-1],monster)
+        val original=personalized(stages[family*3+stage-1],monster)
+        // Only offline-forged monsters are recolored. Existing saves retain
+        // their original authored palettes, and transparent pixels stay empty.
+        val authored=if(monster.designSeed.startsWith("local-"))
+            localPalette(original,monster.element) else original
         // Slimes were drawn with only a few transparent edge pixels.
         // Reserve a seven-pixel rim all around the complete body at every stage.
         return if(family==9)GbaMonsterArtStandard.fitWithMargin(authored,7)

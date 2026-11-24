@@ -29,6 +29,8 @@ import dev.glyphlife.monsterquest.ai.MonsterAi
 import dev.glyphlife.monsterquest.ai.MonsterIdea
 import dev.glyphlife.monsterquest.ai.MonsterConceptArt
 import dev.glyphlife.monsterquest.ai.MonsterWorkshop
+import dev.glyphlife.monsterquest.model.OfflineMonsterForge
+import java.util.UUID
 import dev.glyphlife.monsterquest.ai.ConceptStyle
 import dev.glyphlife.monsterquest.ui.MonsterArt
 import dev.glyphlife.monsterquest.ui.MonsterPortrait
@@ -164,75 +166,32 @@ class MonsterQuestActivity : ComponentActivity() {
                 status = text
                 Toast.makeText(this@MonsterQuestActivity, text, Toast.LENGTH_SHORT).show()
             }
-            // One-shot AI summon: exactly one generation and automatic registration.
-            suspend fun completeAiSummon(
-                idea: MonsterIdea, withArt: Boolean, key: String,
-                input: String, fromPhoto: Boolean
-            ) {
-                check(state.summonStones > 0 && state.captures.size < 100 &&
-                    !state.inBattle && !ChallengeRules.active(state)) { "現在は召喚できません" }
-                val source = idea.asWildMonster(1).copy(
-                    originKind = if (withArt) MonsterOrigin.AI_IMAGE else MonsterOrigin.AI_TEXT,
-                    originConditions = MonsterOrigin.ai(
-                        input, fromPhoto, idea.element, idea.bodyType,
-                        idea.motifPrimary, idea.motifSecondary)
-                )
-                val image = if (withArt) MonsterWorkshop.prepare(
-                    MonsterConceptArt.generate(key, source, ConceptStyle.GBA_PIXEL)) else null
-                check(image == null || image.audit.compliant) {
-                    "画像が64×64・16色・透過・余白の規格外です。結晶は消費していません"
-                }
-                val next = TapAdventure.registerSummon(state, source, generatedByAi = true)
-                check(next != state) { "召喚できません" }
-                // registerSummon allocates a fresh ID; attach art to that ID.
-                val newMonster = next.captures.last()
-                image?.let { artworkStore.store(newMonster.id, it.png, 1) }
-                update(next)
-                artworkRevision++
-                recentlySummonedMonster = newMonster
-                notify("一発召喚：${newMonster.species}を仲間・図鑑に登録しました")
-            }
-            fun createMonster(image: ByteArray?) {
-                SummonAccess.aiBlock(state,aiBusy,aiKey)?.let {
-                    notify("召喚不可：$it")
+            // No API key, network connection, model download or usage fee.
+            // Exactly one locally selected original sprite per invocation.
+            fun createOfflineMonster() {
+                SummonAccess.commonBlock(state,aiBusy)?.let {
+                    notify("召喚不可：${it}")
                     return
                 }
-                val key = aiKey
-                val withArt=aiArtEnabled
-                val instruction = aiDescription.ifBlank { "不思議な生き物" }
-                aiBusy = true
+                val input=aiDescription.ifBlank { "不思議なオリジナルモンスター" }
+                aiBusy=true
                 scope.launch {
                     try {
-                        completeAiSummon(
-                            MonsterAi.generate(key, instruction, image),
-                            withArt, key, instruction, image != null)
-                    } catch (e: Exception) {
-                        notify("AI生成に失敗：${e.message}")
-                    } finally {
-                        aiBusy = false
-                    }
-                }
-            }
-            val photoPicker = rememberLauncherForActivityResult(
-                ActivityResultContracts.GetContent()
-            ) { uri ->
-                if (uri != null && SummonAccess.aiBlock(state,aiBusy,aiKey)==null) {
-                    val key = aiKey
-                    val withArt=aiArtEnabled
-                    val description = aiDescription.ifBlank { "この写真をもとに独自のモンスターを作って" }
-                    aiBusy = true
-                    scope.launch {
-                        try {
-                            val jpeg = MonsterAi.preparePhoto(this@MonsterQuestActivity, uri)
-                            completeAiSummon(
-                                MonsterAi.generate(key, description, jpeg),
-                                withArt, key, description, true)
-                        } catch (e: Exception) {
-                            notify("写真AI生成に失敗：${e.message}")
-                        } finally {
-                            aiBusy = false
-                        }
-                    }
+                        val design=OfflineMonsterForge.design(input,UUID.randomUUID().toString())
+                        val next=TapAdventure.registerSummon(
+                            state,design,generatedByLocal=true)
+                        check(next!=state) { "召喚条件が変わりました" }
+                        val owned=next.captures.last()
+                        // Persist artwork before spending the summon crystal:
+                        // an I/O failure leaves currency and roster untouched.
+                        artworkStore.storeSprite(owned.id,MonsterDesign.sprite(owned))
+                        update(next)
+                        artworkRevision++
+                        recentlySummonedMonster=owned
+                        notify("オフライン一発召喚：${owned.species}が仲間になりました")
+                    } catch(e:Exception) {
+                        notify("ローカル召喚に失敗：${e.message ?: "保存に失敗しました"}")
+                    } finally { aiBusy=false }
                 }
             }
             val artworkPicker = rememberLauncherForActivityResult(
@@ -779,14 +738,10 @@ class MonsterQuestActivity : ComponentActivity() {
                                 }
                             }
                             QuestTab.SUMMON -> QuestSummon(
-                                state=state,aiKey=aiKey,
-                                aiDescription=aiDescription,aiBusy=aiBusy,
-                                aiArtEnabled=aiArtEnabled,
-                                onAiArtEnabled={ aiArtEnabled=it },
-                                onAiKey={ aiKey=it.take(256) },
+                                state=state,
+                                description=aiDescription,busy=aiBusy,
                                 onDescription={ aiDescription=it.take(250) },
-                                onAiText={ createMonster(null) },
-                                onAiPhoto={ photoPicker.launch("image/*") },
+                                onLocalSummon=::createOfflineMonster,
                                 onOffline={
                                     val block=SummonAccess.commonBlock(state,aiBusy)
                                     if(block!=null)notify("召喚不可：$block")

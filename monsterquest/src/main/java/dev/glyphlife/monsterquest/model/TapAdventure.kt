@@ -58,7 +58,8 @@ object TapAdventure {
 
     private fun knownAi(state: QuestState): List<WildMonster> =
         state.catalog.filter {
-            it.lineage == "ai-summoned" && !it.isBoss && it.species.isNotBlank()
+            it.lineage in setOf("ai-summoned","local-summoned") &&
+                !it.isBoss && it.species.isNotBlank()
         }
 
     private fun chooseKnown(
@@ -68,14 +69,14 @@ object TapAdventure {
         if (focused != null) return focused to "tracking"
         val options = knownAi(state)
         if (options.isNotEmpty() && random.nextInt(100) < 22)
-            return options[random.nextInt(options.size)] to "ai-known"
+            return options[random.nextInt(options.size)] to "generated-known"
         return null to "random"
     }
 
     private fun artSource(target: WildMonster?): String {
         if (target == null) return ""
         return target.artSourceId.ifBlank {
-            if (target.lineage == "ai-summoned") target.id else ""
+            if (target.lineage in setOf("ai-summoned","local-summoned")) target.id else ""
         }
     }
 
@@ -443,14 +444,19 @@ object TapAdventure {
     }
 
     fun registerSummon(
-        state:QuestState,monster:WildMonster,generatedByAi:Boolean=false
+        state:QuestState,monster:WildMonster,generatedByAi:Boolean=false,
+        generatedByLocal:Boolean=false
     ):QuestState {
         if(RelicRules.isBattle(state) || state.summonStones<1 || state.captures.size>=100)return state
         require(monster.species.isNotBlank() && monster.maxHp in 1..100_000)
         val owned=TalentRules.awaken(monster.copy(
             id=UUID.randomUUID().toString(),stage=1,isBoss=false,
             extraSkillId="",statSlots=emptyList(),
-            lineage=if(generatedByAi)"ai-summoned" else monster.lineage))
+            lineage=when {
+                generatedByLocal -> "local-summoned"
+                generatedByAi -> "ai-summoned"
+                else -> monster.lineage
+            }))
         return state.copy(
             summonStones=state.summonStones-1,
             captures=state.captures+owned,

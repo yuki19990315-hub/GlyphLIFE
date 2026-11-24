@@ -6,12 +6,14 @@ object MonsterOrigin {
     const val AI_TEXT = "ai-text"
     const val FUSION = "fusion"
     const val WILD = "wild"
+    const val LOCAL_FORGE = "local-forge"
 
     fun label(kind: String): String = when (kind) {
         AI_IMAGE -> "AI画像召喚"
         AI_TEXT -> "AI設定召喚（外見は仮素材）"
         FUSION -> "モンスター合成"
         WILD -> "探索で発見"
+        LOCAL_FORGE -> "オフライン工房（一発召喚）"
         else -> "記録なし（旧データ・探索など）"
     }
 
@@ -38,6 +40,7 @@ object MonsterOrigin {
         "出現経路：" + when(source) {
             "tracking" -> "図鑑の追跡対象"
             "ai-known" -> "AI召喚済み種族の再出現"
+            "generated-known" -> "過去に召喚した種族の再出現"
             else -> if (boss) "ボス出現地点" else "通常抽選"
         }
     ).joinToString("\n").take(600)
