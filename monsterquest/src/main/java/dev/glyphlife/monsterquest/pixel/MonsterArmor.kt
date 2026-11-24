@@ -121,6 +121,7 @@ object MonsterArmor {
                         set(x, y, color)
         }
         fun anchor(slot: ArmorSlot): Pair<Int, Int> {
+            CreatureDna.anchor(wild,slot.name)?.let { return it }
             val body = MonsterDesign.bodyType(wild)
             return when (slot) {
                 ArmorSlot.HEAD -> when (body) {
