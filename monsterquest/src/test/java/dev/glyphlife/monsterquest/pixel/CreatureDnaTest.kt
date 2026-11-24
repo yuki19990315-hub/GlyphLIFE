@@ -123,6 +123,26 @@ class CreatureDnaTest {
         assertTrue(v1.encode().startsWith("dna1:"))
     }
 
+    @Test fun animationUsesOneCommonViewport() {
+        fun sample(wing:Boolean):PixelSprite {
+            val data=IntArray(4096)
+            for(y in 30..42)for(x in 24..35)data[y*64+x]=0xff99ffee.toInt()
+            if(wing)for(y in 12..35)for(x in 2..24)data[y*64+x]=0xff445588.toInt()
+            return PixelSprite.fromArgb(64,64,data)
+        }
+        val fitted=GbaMonsterArtStandard.fitAnimationWithMargin(listOf(sample(false),sample(true)),9)
+        val first=fitted[0].pixels()
+        val second=fitted[1].pixels()
+        assertTrue(first.indices.any{first[it]==0xff99ffee.toInt()})
+        // All body pixels that are not overpainted by the wing retain their location.
+        assertTrue(first.indices.filter{first[it]==0xff99ffee.toInt() && second[it]!=0xff445588.toInt()}
+            .all{second[it]==first[it]})
+        for(frame in fitted) {
+            val b=GbaMonsterArtStandard.bounds(frame)!!
+            assertTrue(b.left>=9 && b.right<=54 && b.top>=9 && b.bottom<=54)
+        }
+    }
+
     @Test fun malformedSeedsAndLegacyArtDoNotOptIn() {
         for(s in listOf("","fusion-legacy","dna1:9999999999999:0","dna1:123:x","dna1:0000000000000:gg"))
             assertNull(CreatureDna.decode(s))
