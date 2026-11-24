@@ -99,7 +99,7 @@ object SkillRules {
             TalentRules.ownStats(monster.statSlots).attack/2
         val dna=dev.glyphlife.monsterquest.pixel.CreatureDna.decode(monster.designSeed)
         val traits=dna?.let { dev.glyphlife.monsterquest.pixel.CreatureDna.combat(it) }
-        val anatomyBonus=if(traits?.skill==skill.id) traits.power else 0
+        val anatomyBonus=traits?.takeIf { it.skill==skill.id }?.power ?: 0
         fun dmg(v:Int)=v+lv*2+stage*3+bonus+anatomyBonus
         return when(skill.id) {
             "moonlight","heal" -> Effect(healing=20+lv/2)
