@@ -68,8 +68,11 @@ object TapAdventure {
         val focused = HuntRules.draw(state, random)
         if (focused != null) return focused to "tracking"
         val options = knownAi(state)
-        if (options.isNotEmpty() && random.nextInt(100) < 22)
-            return options[random.nextInt(options.size)] to "generated-known"
+        if (options.isNotEmpty() && random.nextInt(100) < 22) {
+            val known = options[random.nextInt(options.size)]
+            return known to if (known.lineage == "ai-summoned") "ai-known"
+                else "generated-known"
+        }
         return null to "random"
     }
 

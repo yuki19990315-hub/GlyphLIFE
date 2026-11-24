@@ -73,7 +73,13 @@ object OfflineMonsterForge {
 
     fun plan(raw: String): Plan {
         val prompt = raw.trim().take(250).ifBlank { "不思議なオリジナルモンスター" }
-        val normalized = prompt.lowercase()
+        // A custom name is an identifier, not an anatomy description.
+        // "name: TerraFox thunder dragon" should select DRAGON, not BEAST.
+        val namePattern = Regex(
+            """(?:名前|name)\s*[:：]\s*([\p{L}\p{N}ー・_-]{1,16})""",
+            RegexOption.IGNORE_CASE)
+        val named = namePattern.find(prompt)?.groupValues?.get(1)
+        val normalized = prompt.replaceFirst(namePattern, "").lowercase()
         val body = firstTerm(normalized, bodyTerms)
         val element = firstTerm(normalized, elementTerms)
         val type = body?.value ?: MonsterBodyType.entries[
@@ -96,8 +102,6 @@ object OfflineMonsterForge {
         if (normalized.contains("翼") || normalized.contains("wing"))
             armor["WING"] = "CRYSTAL"
 
-        val named = Regex("""(?:名前|name)\s*[:：]\s*([\p{L}\p{N}ー・_-]{1,16})""",
-            RegexOption.IGNORE_CASE).find(prompt)?.groupValues?.get(1)
         val name = named ?: (
             (elementNames[color] ?: "原") +
                 (bodyNames[type] ?: "幻獣") +
