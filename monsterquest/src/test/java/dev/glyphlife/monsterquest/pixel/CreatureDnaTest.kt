@@ -49,6 +49,24 @@ class CreatureDnaTest {
         }
     }
 
+    @Test fun qualityAndCombatAreDerivedFromGenes() {
+        for(a in MonsterBodyType.entries)for(b in MonsterBodyType.entries) {
+            val child=FusionRules.preview(parent(a),parent(b,1))
+            val g=CreatureDna.decode(child.designSeed)!!
+            val art=MonsterDesign.sprite(child)
+            assertTrue(CreatureQuality.inspect(art).valid)
+            val traits=CreatureDna.combat(g)
+            assertEquals(traits.skill,dev.glyphlife.monsterquest.model.SkillRules.forMonster(child).id)
+            assertTrue(traits.attackBonus in 0..4)
+            assertTrue(traits.hpBonus in 0..6)
+            assertTrue(traits.power in 0..6)
+            val walk=MonsterAnimation.walk(art,child)
+            assertEquals(4,walk.size)
+            assertTrue(walk.any{!it.sprite.pixels().contentEquals(art.pixels())})
+            assertTrue(walk.all{GbaMonsterArtStandard.audit(it.sprite).compliant})
+        }
+    }
+
     @Test fun malformedSeedsAndLegacyArtDoNotOptIn() {
         for(s in listOf("","fusion-legacy","dna1:9999999999999:0","dna1:123:x","dna1:0000000000000:gg"))
             assertNull(CreatureDna.decode(s))
