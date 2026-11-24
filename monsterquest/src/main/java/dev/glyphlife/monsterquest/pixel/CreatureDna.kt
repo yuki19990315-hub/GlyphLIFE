@@ -117,6 +117,25 @@ object CreatureDna {
         }
     }
 
+    /** Local skinning pose for custom equipment, driven by the same phase
+     * as the underlying articulated creature. */
+    fun armorPose(w:WildMonster,slot:String,phase:Int,motion:Motion):ArmorArticulation.Pose {
+        val g=decode(w.designSeed) ?: return ArmorArticulation.Pose()
+        val step=Math.floorMod(phase,4)
+        val beat=sin(step*PI/2)
+        val strike=if(motion==Motion.ATTACK)listOf(0.0,-1.0,1.0,0.4)[step] else 0.0
+        val wing=g[8]/9.0
+        val tail=g[7]/9.0
+        return when(slot) {
+            "WING" -> ArmorArticulation.Pose(beat*(8+22*wing),beat*6*wing)
+            "TAIL" -> ArmorArticulation.Pose(beat*(8+12*tail),beat*6*tail)
+            "HEAD" -> ArmorArticulation.Pose(strike*12+beat*2)
+            "SHOULDER" -> ArmorArticulation.Pose(strike*15+beat*6)
+            "BACK" -> ArmorArticulation.Pose(beat*5)
+            else -> ArmorArticulation.Pose(strike*4)
+        }
+    }
+
     /** Native integer pixel rasterization; body segments share attachment points. */
     enum class Motion { REST, WALK, ATTACK }
     data class CombatTraits(val hpBonus:Int,val attackBonus:Int,val skill:String,
