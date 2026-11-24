@@ -38,6 +38,9 @@ object SkillRules {
     fun cooldownKey(ownerId:String,bonus:Boolean):String =
         if(bonus) ownerId+":extra" else ownerId
     fun forMonster(monster:WildMonster):UniqueSkill {
+        dev.glyphlife.monsterquest.pixel.CreatureDna.decode(monster.designSeed)?.let {
+            return skill(dev.glyphlife.monsterquest.pixel.CreatureDna.combat(it).skill)
+        }
         val body=monster.bodyType.uppercase()
         return when {
             monster.species.contains("スライム") -> skill("ooze")
@@ -94,7 +97,10 @@ object SkillRules {
         val stage=monster.stage.coerceIn(1,3)
         val bonus=bossStats.attack/3+
             TalentRules.ownStats(monster.statSlots).attack/2
-        fun dmg(v:Int)=v+lv*2+stage*3+bonus
+        val dna=dev.glyphlife.monsterquest.pixel.CreatureDna.decode(monster.designSeed)
+        val traits=dna?.let { dev.glyphlife.monsterquest.pixel.CreatureDna.combat(it) }
+        val anatomyBonus=if(traits?.skill==skill.id) traits.power else 0
+        fun dmg(v:Int)=v+lv*2+stage*3+bonus+anatomyBonus
         return when(skill.id) {
             "moonlight","heal" -> Effect(healing=20+lv/2)
             "thunderfang" -> Effect(damage=dmg(19),delay=700)
