@@ -30,16 +30,23 @@ fun MonsterArtworkView(
     /** Authored assets face right; enemies are mirrored to face left. */
     facingRight: Boolean = true,
     /** Overlay is only visual; source and native PNG stay unmodified. */
-    bossRelicKind:String?=null
+    bossRelicKind:String?=null,
+    walking:Boolean=false,
+    attackSequence:Int=0
 ) {
-    val frames=remember(monster,store,revision,bossRelicKind) {
+    val frames=remember(monster,store,revision,bossRelicKind,walking,attackSequence!=0) {
         // Source art, including imported PNGs, might have wings or tails
         // touching the original edge. Fit the FULL opaque silhouette before
         // animation, then fit again after the boss-relic overlay. Never
         // overwrite user-owned source files.
         val master=GbaMonsterArtStandard.fitWithMargin(
             store.spriteFor(monster),9)
-        MonsterAnimation.idle(master,monster).map { frame ->
+        val poses=when {
+            attackSequence!=0 -> MonsterAnimation.attack(master,monster)
+            walking -> MonsterAnimation.walk(master,monster)
+            else -> MonsterAnimation.idle(master,monster)
+        }
+        poses.map { frame ->
             val equipped=BossRelicPixels.compose(frame.sprite,bossRelicKind)
             frame.durationMs to PixelAssetPipeline.display256(
                 GbaMonsterArtStandard.fitWithMargin(equipped,8)
@@ -47,10 +54,11 @@ fun MonsterArtworkView(
         }
     }
     var index by remember(monster.id,monster.stage,revision) { mutableIntStateOf(0) }
-    LaunchedEffect(frames) {
+    LaunchedEffect(frames,attackSequence) {
         index=0
         while(true) {
             delay(frames[index].first.toLong())
+            if(attackSequence!=0 && index==frames.lastIndex)break
             index=(index+1)%frames.size
         }
     }
