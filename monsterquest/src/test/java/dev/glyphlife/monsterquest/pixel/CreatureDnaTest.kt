@@ -67,6 +67,30 @@ class CreatureDnaTest {
         }
     }
 
+    @Test fun socketsMoveAndArmorFollowsGeneratedBody() {
+        val child=FusionRules.preview(parent(MonsterBodyType.DRAGON),
+            parent(MonsterBodyType.BEAST,1)).copy(stage=3,
+            armorParts=mapOf("HEAD" to "PLATE"))
+        val g=CreatureDna.decode(child.designSeed)!!
+        val rest=CreatureDna.anchor(child,"HEAD")!!
+        val hit=CreatureDna.anchor(child,"HEAD",2,CreatureDna.Motion.ATTACK)!!
+        assertNotEquals(rest,hit)
+        val native=MonsterDesign.sprite(child)
+        val frames=MonsterAnimation.attack(native,child)
+        assertTrue(frames.all{GbaMonsterArtStandard.audit(it.sprite).compliant})
+        assertTrue(frames.any{!it.sprite.pixels().contentEquals(native.pixels())})
+        val custom=child.copy(customArmorParts=mapOf("HEAD" to
+            "10000000-0000-4000-8000-000000000001"))
+        val raw=IntArray(4096)
+        for(y in 29..34)for(x in 24..39)raw[y*64+x]=0xff99ffee.toInt()
+        val layer=PixelSprite.fromArgb(64,64,raw)
+        val base=CreatureDna.sprite(child,g,2,CreatureDna.Motion.ATTACK)
+        val mounted=CustomArmorLayers.composeAt(base,custom,
+            { slot->CreatureDna.anchor(child,slot,2,CreatureDna.Motion.ATTACK) }) { layer }
+        assertTrue(GbaMonsterArtStandard.audit(mounted).compliant)
+        assertFalse(mounted.pixels().contentEquals(base.pixels()))
+    }
+
     @Test fun malformedSeedsAndLegacyArtDoNotOptIn() {
         for(s in listOf("","fusion-legacy","dna1:9999999999999:0","dna1:123:x","dna1:0000000000000:gg"))
             assertNull(CreatureDna.decode(s))
