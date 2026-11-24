@@ -44,12 +44,12 @@ fun MonsterArtworkView(
             walking -> CreatureDna.Motion.WALK
             else -> CreatureDna.Motion.REST
         }
-        store.animationFrames(monster,motion).map { frame ->
-            val equipped=BossRelicPixels.compose(
-                GbaMonsterArtStandard.fitWithMargin(frame.sprite,9),bossRelicKind)
-            frame.durationMs to PixelAssetPipeline.display256(
-                GbaMonsterArtStandard.fitWithMargin(equipped,8)
-            ).asImageBitmap()
+        val source=store.animationFrames(monster,motion)
+        val fitted=GbaMonsterArtStandard.fitAnimationWithMargin(source.map{it.sprite},9)
+        val equipped=fitted.map{BossRelicPixels.compose(it,bossRelicKind)}
+        val display=GbaMonsterArtStandard.fitAnimationWithMargin(equipped,8)
+        source.mapIndexed { i,frame ->
+            frame.durationMs to PixelAssetPipeline.display256(display[i]).asImageBitmap()
         }
     }
     var index by remember(monster.id,monster.stage,revision) { mutableIntStateOf(0) }
