@@ -13,6 +13,9 @@ import dev.glyphlife.monsterquest.pixel.GbaMonsterArtStandard
 import dev.glyphlife.monsterquest.pixel.FullBodyGlyphProjector
 import dev.glyphlife.monsterquest.pixel.MonsterDesign
 import dev.glyphlife.monsterquest.pixel.MonsterAnimation
+import dev.glyphlife.monsterquest.pixel.CreatureDna
+import dev.glyphlife.monsterquest.pixel.MonsterPixelFrame
+import dev.glyphlife.monsterquest.pixel.CreatureQuality
 import dev.glyphlife.monsterquest.pixel.PixelAssetPipeline
 import dev.glyphlife.monsterquest.pixel.PixelSprite
 import dev.glyphlife.monsterquest.pixel.MonsterArmor
@@ -170,6 +173,34 @@ class MonsterArtworkStore(private val context: Context) {
         )
     }
 
+    /** Resolve joint frames using the same custom armor layers as the static master. */
+    fun animationFrames(monster:WildMonster,motion:CreatureDna.Motion):List<MonsterPixelFrame> {
+        val master=spriteFor(monster)
+        val g=CreatureDna.decode(monster.designSeed)
+        if(g!=null && monster.customArmorParts.isNotEmpty()) {
+            val layers=monster.customArmorParts.values.distinct().associateWith { loadArmorLayer(it) }
+            val expected=GbaMonsterArtStandard.canonical(CustomArmorLayers.compose(
+                MonsterDesign.sprite(monster),monster) { layers[it] })
+            if(master.pixels().contentEquals(expected.pixels())) {
+                val phases=if(motion==CreatureDna.Motion.ATTACK)listOf(1,2,3,0) else listOf(0,1,2,3)
+                return phases.map { phase ->
+                    val body=CreatureDna.sprite(monster,g,phase,motion)
+                    val socket:(String)->Pair<Int,Int>?={ CreatureDna.anchor(monster,it,phase,motion) }
+                    val frame=if(phase==0)master else if(CreatureQuality.inspect(body).valid)
+                        GbaMonsterArtStandard.canonical(CustomArmorLayers.composeAt(
+                            MonsterArmor.composeAt(body,monster,socket),monster,socket) { layers[it] })
+                        else CreatureDna.pose(master,g,phase,motion==CreatureDna.Motion.ATTACK)
+                    MonsterPixelFrame(frame,if(phase==0)400 else 150)
+                }
+            }
+        }
+        return when(motion) {
+            CreatureDna.Motion.REST -> MonsterAnimation.idle(master,monster)
+            CreatureDna.Motion.WALK -> MonsterAnimation.walk(master,monster)
+            CreatureDna.Motion.ATTACK -> MonsterAnimation.attack(master,monster)
+        }
+    }
+
     /**
      * Explicit user request only: render the actual armored monster as a compact
      * reference image for the optional external image API. The AI sees this
@@ -258,8 +289,7 @@ class MonsterArtworkStore(private val context: Context) {
 
     /** Save four native 64x64 pose frames in a 256x64 PNG sprite sheet. */
     suspend fun exportSpriteSheet(monster: WildMonster): Uri = withContext(Dispatchers.IO) {
-        val sprite=spriteFor(monster)
-        val frames=MonsterAnimation.idle(sprite,monster)
+        val frames=animationFrames(monster,CreatureDna.Motion.REST)
         val sheet=MonsterAnimation.sheet(frames)
         val bitmap=PixelAssetPipeline.toBitmap(sheet)
         val resolver=context.contentResolver
