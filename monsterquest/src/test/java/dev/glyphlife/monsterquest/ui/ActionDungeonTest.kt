@@ -46,4 +46,24 @@ class ActionDungeonTest {
         repeat(8){r=ActionDungeon.tick(r,700)}
         assertFalse(ActionDungeon.wall(r.ex,r.ey,r.seed+r.floor*7919))
     }
+
+    @Test fun benchedCreaturesAttackUsingTheirRealStats() {
+        val lead=dev.glyphlife.monsterquest.model.WildMonster("lead","雷獣","雷",60,10)
+        val weak=dev.glyphlife.monsterquest.model.WildMonster("weak","鳥","雷",50,5)
+        val strong=dev.glyphlife.monsterquest.model.WildMonster("strong","融合竜","雷",80,32,stage=3)
+        val r=ActionDungeon.start(2,13827).copy(px=4,py=3,enemyHp=100,
+            active=0,supportCooldownMs=0)
+        val basic=ActionDungeon.support(r,listOf(lead,weak),"水")
+        val boosted=ActionDungeon.support(r,listOf(lead,strong),"水")
+        assertTrue(basic.enemyHp<r.enemyHp)
+        assertTrue(boosted.enemyHp<basic.enemyHp)
+        assertEquals(boosted,ActionDungeon.support(boosted,listOf(lead,strong),"水"))
+    }
+    @Test fun generatedOrFusedCreatureStatsAffectManualAttack() {
+        val r=ActionDungeon.start(1,13827).copy(px=4,py=3,enemyHp=200)
+        val basic=dev.glyphlife.monsterquest.model.WildMonster("a","獣","火",50,5)
+        val fused=basic.copy(id="b",attack=28,stage=3,level=20)
+        assertTrue(ActionDungeon.attack(r,monster=fused).enemyHp <
+            ActionDungeon.attack(r,monster=basic).enemyHp)
+    }
 }

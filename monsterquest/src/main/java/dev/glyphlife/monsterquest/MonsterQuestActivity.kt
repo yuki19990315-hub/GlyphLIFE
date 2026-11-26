@@ -655,7 +655,32 @@ class MonsterQuestActivity : ComponentActivity() {
                                         Text("旧版探索へ切り替える（比較用）")
                                     }
                                     Box(Modifier.weight(1f)) {
-                                        ActionRogueliteScreen(state,artworkStore,artworkRevision)
+                                        ActionRogueliteScreen(
+                                            state=state,store=artworkStore,
+                                            revision=artworkRevision,visible=gameVisible,
+                                            onCapture={ wild ->
+                                                if(state.captures.size>=150) {
+                                                    notify("所持枠がいっぱいです（150体）。整理してから捕獲してください")
+                                                } else {
+                                                    val fresh=TalentRules.awaken(wild.copy(
+                                                        id=UUID.randomUUID().toString(),
+                                                        level=1,xp=0,victories=0))
+                                                    val captured=fresh.copy(
+                                                        pixels=artworkStore.glyphFor(fresh))
+                                                    val catalog=if(state.catalog.any {
+                                                        it.species==captured.species &&
+                                                            it.element==captured.element
+                                                    }) state.catalog else
+                                                        (state.catalog+captured).takeLast(150)
+                                                    update(state.copy(
+                                                        captures=state.captures+captured,
+                                                        catalog=catalog,
+                                                        message="${captured.species}を捕獲！"))
+                                                    artworkRevision++
+                                                    notify("${captured.species}を所持・図鑑に登録しました")
+                                                }
+                                            }
+                                        )
                                     }
                                 }
                             } else if(!state.journey.classic) {

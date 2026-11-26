@@ -23,10 +23,12 @@ import androidx.compose.ui.unit.sp
 import dev.glyphlife.monsterquest.model.QuestState
 import dev.glyphlife.monsterquest.model.WildMonster
 import dev.glyphlife.monsterquest.model.gameArtFamily
+import dev.glyphlife.monsterquest.model.OfflineMonsterForge
+import dev.glyphlife.monsterquest.pixel.MonsterDesign
 import dev.glyphlife.monsterquest.data.MonsterArtworkStore
 import kotlinx.coroutines.delay
 import kotlin.math.abs
-import kotlin.random.Random
+
 
 /**
  * V6 playable, isolated action-roguelite vertical slice.
@@ -38,6 +40,7 @@ internal data class ActionRun(
     val ex:Int=7, val ey:Int=2, val enemyHp:Int=32, val hp:Int=100,
     val stamina:Int=100, val potions:Int=2, val shards:Int=3,
     val captures:Int=0, val kills:Int=0, val active:Int=0,
+    val supportCooldownMs:Int=950,
     val invulnerableMs:Int=0, val enemyCooldownMs:Int=650,
     val skillCooldownMs:Int=0, val message:String="遺跡の入口に到着"
 ) {
@@ -79,23 +82,49 @@ internal object ActionDungeon {
         repeat(2){n=move(n,dx,dy)}
         return n
     }
-    fun attack(r:ActionRun,skill:Boolean=false):ActionRun {
+    fun attack(r:ActionRun,skill:Boolean=false,monster:WildMonster?=null):ActionRun {
         if(r.dead || r.won || skill && (r.skillCooldownMs>0 || r.stamina<30))return r
-        val range=if(skill)3 else 1
+        val body=monster?.let(MonsterDesign::bodyType)
+        val range=if(skill || body==dev.glyphlife.monsterquest.pixel.MonsterBodyType.AVIAN ||
+            body==dev.glyphlife.monsterquest.pixel.MonsterBodyType.AQUATIC)3 else 1
         val dist=abs(r.px-r.ex)+abs(r.py-r.ey)
         val n=if(skill)r.copy(stamina=r.stamina-30,skillCooldownMs=1700) else r
         if(dist>range)return n.copy(message="攻撃が届かない")
-        val damage=(if(skill)18 else 9)+r.floor*2
+        val base=(monster?.attack ?: 9).coerceIn(1,80)
+        val damage=base+(if(skill)9 else 0)+r.floor*2+((monster?.level ?: 1)/5)+
+            ((monster?.stage ?: 1)-1)*3
         val left=(r.enemyHp-damage).coerceAtLeast(0)
         return n.copy(enemyHp=left,shards=n.shards+(if(left==0)5+r.floor else 0),
             kills=n.kills+(if(left==0)1 else 0),
             message=if(left==0)"守護者を撃破！ 次の階へ" else "敵に$damage ダメージ")
     }
+    /** Auto support uses persisted creature statistics, including forge/fusion results. */
+    fun support(r:ActionRun,party:List<WildMonster>,enemyElement:String):ActionRun {
+        if(r.dead || r.won || party.size<2 || r.supportCooldownMs>0)return r
+        val supporters=party.indices.filter {it!=r.active%party.size}.take(2)
+        if(supporters.isEmpty())return r
+        val near=abs(r.px-r.ex)+abs(r.py-r.ey)<=4
+        if(!near)return r.copy(supportCooldownMs=600)
+        val damage=supporters.sumOf{index ->
+            val m=party[index]
+            val advantage=when(m.element to enemyElement) {
+                "水" to "火","火" to "草","草" to "水",
+                "雷" to "水","光" to "闇" -> 4
+                else -> 0
+            }
+            (m.attack.coerceIn(1,80)/3+1+m.stage.coerceIn(1,3)*2+advantage).coerceIn(1,35)
+        }
+        val left=(r.enemyHp-damage).coerceAtLeast(0)
+        return r.copy(enemyHp=left,supportCooldownMs=1150,
+            shards=r.shards+(if(left==0)5+r.floor else 0),
+            kills=r.kills+(if(left==0)1 else 0),
+            message=if(left==0)"仲間の連携で敵を撃破！" else "控え仲間が$damage ダメージ")
+    }
     fun capture(r:ActionRun):ActionRun {
         if(r.dead || r.won || r.enemyHp>12 || r.shards<3)
             return r.copy(message="捕獲には敵HP12以下・結晶3個が必要")
         return r.copy(enemyHp=0,captures=r.captures+1,shards=r.shards-3,
-            message="この探索で捕獲成功（正式図鑑への登録は未接続）")
+            message="捕獲成功！ 図鑑と所持一覧に登録")
     }
     fun heal(r:ActionRun):ActionRun =
         if(r.potions<=0 || r.hp>=100)r else r.copy(potions=r.potions-1,
@@ -105,6 +134,7 @@ internal object ActionDungeon {
         var n=r.copy(invulnerableMs=(r.invulnerableMs-ms).coerceAtLeast(0),
             enemyCooldownMs=r.enemyCooldownMs-ms,
             skillCooldownMs=(r.skillCooldownMs-ms).coerceAtLeast(0),
+            supportCooldownMs=(r.supportCooldownMs-ms).coerceAtLeast(0),
             stamina=(r.stamina+1).coerceAtMost(100))
         if(n.enemyCooldownMs>0)return n
         n=n.copy(enemyCooldownMs=650)
@@ -126,13 +156,19 @@ internal object ActionDungeon {
 
 /** The main app keeps ownership of the permanent roster and original QuestState. */
 @Composable
-fun ActionRogueliteScreen(state:QuestState,store:MonsterArtworkStore,revision:Int) {
+fun ActionRogueliteScreen(state:QuestState,store:MonsterArtworkStore,revision:Int,
+    onCapture:(WildMonster)->Unit, visible:Boolean=true) {
     val context=LocalContext.current
     val prefs=remember {context.getSharedPreferences("monster_quest_action_v6",0)}
     var floor by remember {mutableIntStateOf(prefs.getInt("best_floor",1).coerceIn(1,1000))}
     var run by remember {mutableStateOf(ActionDungeon.start(floor,13827))}
     var direction by remember {mutableStateOf(0 to 0)}
-    var active by remember {mutableStateOf(true)}
+    val generatedEnemy=remember(run.floor,run.seed) {
+        val prompts=listOf("火の狼 角 尾", "雷の鳥 翼", "闇の竜 装甲",
+            "水の海獣 鱗", "光の騎士 装甲", "草の精霊 花")
+        OfflineMonsterForge.design(prompts[(run.floor-1)%prompts.size],
+            "action-v6-${run.seed}-${run.floor}")
+    }
     val roster=remember(state.captures,state.companion) {
         state.captures.filter{it.id in state.partyIds}.take(3).ifEmpty{
             state.captures.take(3).ifEmpty {
@@ -144,21 +180,22 @@ fun ActionRogueliteScreen(state:QuestState,store:MonsterArtworkStore,revision:In
             }
         }
     }
-    LaunchedEffect(direction,active,run.dead) {
-        if(!active)return@LaunchedEffect
+    LaunchedEffect(direction,visible,run.dead) {
+        if(!visible)return@LaunchedEffect
         while(direction!=(0 to 0) && !run.dead){
             run=ActionDungeon.move(run,direction.first,direction.second)
             delay(125)
         }
     }
-    LaunchedEffect(active,run.dead,run.won) {
+    LaunchedEffect(visible,run.dead,run.won,roster,generatedEnemy.element) {
         if(!active)return@LaunchedEffect
         while(!run.dead && !run.won) {
             delay(100)
-            run=ActionDungeon.tick(run)
+            run=ActionDungeon.support(ActionDungeon.tick(run),roster,generatedEnemy.element)
         }
     }
-    DisposableEffect(Unit) { onDispose {direction=0 to 0;active=false} }
+    LaunchedEffect(visible) { if(!visible) direction=0 to 0 }
+    DisposableEffect(Unit) { onDispose {direction=0 to 0} }
     Column(Modifier.fillMaxSize().background(Color(0xFF17212A)).padding(7.dp),
         verticalArrangement=Arrangement.spacedBy(5.dp)) {
         Row(Modifier.fillMaxWidth(),horizontalArrangement=Arrangement.SpaceBetween) {
@@ -192,8 +229,7 @@ fun ActionRogueliteScreen(state:QuestState,store:MonsterArtworkStore,revision:In
                 }
                 if(!run.won) {
                     MonsterArtworkView(
-                        monster=remember(run.floor){WildMonster(id="action-guardian-${run.floor}",
-                            species="遺跡の守護者",element="闇",maxHp=40,attack=8)},
+                        monster=generatedEnemy,
                         store=store,revision=revision,
                         modifier=Modifier.offset(x=tile*run.ex,y=tile*run.ey).size(tile),
                         facingRight=false)
@@ -224,15 +260,19 @@ fun ActionRogueliteScreen(state:QuestState,store:MonsterArtworkStore,revision:In
             }
             Column(verticalArrangement=Arrangement.spacedBy(3.dp)) {
                 Row(horizontalArrangement=Arrangement.spacedBy(4.dp)) {
-                    ActionButton("攻撃"){run=ActionDungeon.attack(run)}
-                    ActionButton("技"){run=ActionDungeon.attack(run,true)}
+                    ActionButton("攻撃"){run=ActionDungeon.attack(run,monster=roster[run.active%roster.size])}
+                    ActionButton("技"){run=ActionDungeon.attack(run,true,roster[run.active%roster.size])}
                 }
                 Row(horizontalArrangement=Arrangement.spacedBy(4.dp)) {
                     ActionButton("回避"){run=ActionDungeon.dodge(run,0,-1)}
                     ActionButton("回復"){run=ActionDungeon.heal(run)}
                 }
                 Row(horizontalArrangement=Arrangement.spacedBy(4.dp)) {
-                    ActionButton("捕獲"){run=ActionDungeon.capture(run)}
+                    ActionButton("捕獲"){
+                        val next=ActionDungeon.capture(run)
+                        if(next.captures>run.captures) onCapture(generatedEnemy)
+                        run=next
+                    }
                     ActionButton("交代"){if(roster.isNotEmpty())run=run.copy(active=(run.active+1)%roster.size)}
                 }
             }
@@ -246,7 +286,7 @@ fun ActionRogueliteScreen(state:QuestState,store:MonsterArtworkStore,revision:In
                 Text(if(run.won)"次の階へ" else "同じ階から再挑戦")
             }
         }
-        Text("試作：捕獲は探索内のみ。旧セーブ・図鑑は変更しません。",
+        Text("捕獲は所持・図鑑に保存。生成・合成個体の能力を戦闘に反映。",
             color=Color(0xFFB0BCC5),fontSize=9.sp,maxLines=1)
     }
 }
