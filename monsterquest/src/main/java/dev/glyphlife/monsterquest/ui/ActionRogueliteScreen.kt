@@ -188,7 +188,7 @@ fun ActionRogueliteScreen(state:QuestState,store:MonsterArtworkStore,revision:In
         }
     }
     LaunchedEffect(visible,run.dead,run.won,roster,generatedEnemy.element) {
-        if(!active)return@LaunchedEffect
+        if(!visible)return@LaunchedEffect
         while(!run.dead && !run.won) {
             delay(100)
             run=ActionDungeon.support(ActionDungeon.tick(run),roster,generatedEnemy.element)
