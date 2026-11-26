@@ -91,10 +91,21 @@ internal object ActionDungeon {
         val n=if(skill)r.copy(stamina=r.stamina-30,skillCooldownMs=1700) else r
         if(dist>range)return n.copy(message="攻撃が届かない")
         val base=(monster?.attack ?: 9).coerceIn(1,80)
-        val damage=base+(if(skill)9 else 0)+r.floor*2+((monster?.level ?: 1)/5)+
+        val special=if(!skill)0 else when(body) {
+            dev.glyphlife.monsterquest.pixel.MonsterBodyType.DRAGON -> 12
+            dev.glyphlife.monsterquest.pixel.MonsterBodyType.BEAST -> if(dist<=1) 12 else 0
+            dev.glyphlife.monsterquest.pixel.MonsterBodyType.BIPED -> 7
+            dev.glyphlife.monsterquest.pixel.MonsterBodyType.MECHA -> 8
+            else -> 3
+        }
+        val damage=base+(if(skill)9+special else 0)+r.floor*2+((monster?.level ?: 1)/5)+
             ((monster?.stage ?: 1)-1)*3
         val left=(r.enemyHp-damage).coerceAtLeast(0)
-        return n.copy(enemyHp=left,shards=n.shards+(if(left==0)5+r.floor else 0),
+        val restore=if(skill && body==dev.glyphlife.monsterquest.pixel.MonsterBodyType.AQUATIC)8 else 0
+        val barrier=if(skill && body==dev.glyphlife.monsterquest.pixel.MonsterBodyType.GOLEM)700 else 0
+        return n.copy(enemyHp=left,hp=(n.hp+restore).coerceAtMost(100),
+            invulnerableMs=maxOf(n.invulnerableMs,barrier),
+            shards=n.shards+(if(left==0)5+r.floor else 0),
             kills=n.kills+(if(left==0)1 else 0),
             message=if(left==0)"守護者を撃破！ 次の階へ" else "敵に$damage ダメージ")
     }
@@ -157,7 +168,7 @@ internal object ActionDungeon {
 /** The main app keeps ownership of the permanent roster and original QuestState. */
 @Composable
 fun ActionRogueliteScreen(state:QuestState,store:MonsterArtworkStore,revision:Int,
-    onCapture:(WildMonster)->Unit, visible:Boolean=true) {
+    onCapture:(WildMonster)->Boolean, onVictory:(Int)->Unit, visible:Boolean=true) {
     val context=LocalContext.current
     val prefs=remember {context.getSharedPreferences("monster_quest_action_v6",0)}
     var floor by remember {mutableIntStateOf(prefs.getInt("best_floor",1).coerceIn(1,1000))}
@@ -193,6 +204,10 @@ fun ActionRogueliteScreen(state:QuestState,store:MonsterArtworkStore,revision:In
             delay(100)
             run=ActionDungeon.support(ActionDungeon.tick(run),roster,generatedEnemy.element)
         }
+    }
+    // Award permanent progression exactly once when this floor is defeated.
+    LaunchedEffect(run.won,run.kills,run.floor) {
+        if(run.won && run.kills>0) onVictory(run.floor)
     }
     LaunchedEffect(visible) { if(!visible) direction=0 to 0 }
     DisposableEffect(Unit) { onDispose {direction=0 to 0} }
@@ -264,14 +279,19 @@ fun ActionRogueliteScreen(state:QuestState,store:MonsterArtworkStore,revision:In
                     ActionButton("技"){run=ActionDungeon.attack(run,true,roster[run.active%roster.size])}
                 }
                 Row(horizontalArrangement=Arrangement.spacedBy(4.dp)) {
-                    ActionButton("回避"){run=ActionDungeon.dodge(run,0,-1)}
+                    ActionButton("回避"){
+                        val dodgeDirection=if(direction!=(0 to 0))direction else (0 to -1)
+                        run=ActionDungeon.dodge(run,dodgeDirection.first,dodgeDirection.second)
+                    }
                     ActionButton("回復"){run=ActionDungeon.heal(run)}
                 }
                 Row(horizontalArrangement=Arrangement.spacedBy(4.dp)) {
                     ActionButton("捕獲"){
                         val next=ActionDungeon.capture(run)
-                        if(next.captures>run.captures) onCapture(generatedEnemy)
-                        run=next
+                        if(next.captures>run.captures) {
+                            run=if(onCapture(generatedEnemy)) next
+                                else run.copy(message="所持枠がいっぱいです")
+                        } else run=next
                     }
                     ActionButton("交代"){if(roster.isNotEmpty())run=run.copy(active=(run.active+1)%roster.size)}
                 }

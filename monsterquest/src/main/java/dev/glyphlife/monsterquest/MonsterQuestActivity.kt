@@ -658,9 +658,13 @@ class MonsterQuestActivity : ComponentActivity() {
                                         ActionRogueliteScreen(
                                             state=state,store=artworkStore,
                                             revision=artworkRevision,visible=gameVisible,
+                                            onVictory={ floor ->
+                                                update(GrowthRules.rewardBattle(state,false,floor))
+                                            },
                                             onCapture={ wild ->
                                                 if(state.captures.size>=150) {
                                                     notify("所持枠がいっぱいです（150体）。整理してから捕獲してください")
+                                                    false
                                                 } else {
                                                     val fresh=TalentRules.awaken(wild.copy(
                                                         id=UUID.randomUUID().toString(),
@@ -678,6 +682,7 @@ class MonsterQuestActivity : ComponentActivity() {
                                                         message="${captured.species}を捕獲！"))
                                                     artworkRevision++
                                                     notify("${captured.species}を所持・図鑑に登録しました")
+                                                    true
                                                 }
                                             }
                                         )

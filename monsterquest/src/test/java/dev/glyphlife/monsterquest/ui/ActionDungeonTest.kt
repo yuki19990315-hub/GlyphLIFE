@@ -66,4 +66,16 @@ class ActionDungeonTest {
         assertTrue(ActionDungeon.attack(r,monster=fused).enemyHp <
             ActionDungeon.attack(r,monster=basic).enemyHp)
     }
+
+    @Test fun bodySpecificSkillsAlterTheirEffects() {
+        val state=ActionDungeon.start(1,13827).copy(px=4,py=3,enemyHp=200,hp=50)
+        val dragon=dev.glyphlife.monsterquest.model.WildMonster("d","竜","火",50,10,bodyType="DRAGON")
+        val bird=dragon.copy(id="b",bodyType="AVIAN")
+        val aqua=dragon.copy(id="a",bodyType="AQUATIC")
+        val golem=dragon.copy(id="g",bodyType="GOLEM")
+        assertTrue(ActionDungeon.attack(state,true,dragon).enemyHp <
+            ActionDungeon.attack(state,true,bird).enemyHp)
+        assertEquals(58,ActionDungeon.attack(state,true,aqua).hp)
+        assertTrue(ActionDungeon.attack(state,true,golem).invulnerableMs>0)
+    }
 }
