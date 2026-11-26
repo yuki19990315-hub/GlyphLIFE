@@ -22,6 +22,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import dev.glyphlife.monsterquest.model.QuestState
 import dev.glyphlife.monsterquest.model.WildMonster
+import dev.glyphlife.monsterquest.model.gameArtFamily
 import dev.glyphlife.monsterquest.data.MonsterArtworkStore
 import kotlinx.coroutines.delay
 import kotlin.math.abs
@@ -134,7 +135,13 @@ fun ActionRogueliteScreen(state:QuestState,store:MonsterArtworkStore,revision:In
     var active by remember {mutableStateOf(true)}
     val roster=remember(state.captures,state.companion) {
         state.captures.filter{it.id in state.partyIds}.take(3).ifEmpty{
-            state.captures.take(3)
+            state.captures.take(3).ifEmpty {
+                listOf(WildMonster(
+                    id=state.companion.id,species=state.companion.species,
+                    element=state.companion.element,maxHp=100,
+                    attack=12,level=state.companion.level,
+                    artFamily=state.companion.gameArtFamily()))
+            }
         }
     }
     LaunchedEffect(direction,active,run.dead) {
