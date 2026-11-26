@@ -40,6 +40,7 @@ import dev.glyphlife.monsterquest.ui.CaptureLab
 import dev.glyphlife.monsterquest.ui.QuestTab
 import dev.glyphlife.monsterquest.ui.QuestBottomNavigation
 import dev.glyphlife.monsterquest.ui.QuestHome
+import dev.glyphlife.monsterquest.ui.ActionRogueliteScreen
 import dev.glyphlife.monsterquest.ui.JourneyExploreScreen
 import dev.glyphlife.monsterquest.ui.TapExplorationScreen
 import dev.glyphlife.monsterquest.ui.QuestSummon
@@ -92,6 +93,7 @@ class MonsterQuestActivity : ComponentActivity() {
                 })
             }
             var selectedTab by remember { mutableStateOf(QuestTab.HOME) }
+            var actionMode by remember { mutableStateOf(true) }
             var journeyHeld by remember { mutableIntStateOf(0) }
             LaunchedEffect(selectedTab) { journeyHeld=0 }
             // A composition may remain alive while the Activity is stopped.
@@ -646,7 +648,17 @@ class MonsterQuestActivity : ComponentActivity() {
                                     }
                                 )
                             }
-                            QuestTab.EXPLORE -> if(!state.journey.classic) {
+                            QuestTab.EXPLORE -> if(actionMode) {
+                                Column(Modifier.fillMaxSize()) {
+                                    TextButton(onClick={actionMode=false},
+                                        modifier=Modifier.fillMaxWidth()) {
+                                        Text("旧版探索へ切り替える（比較用）")
+                                    }
+                                    Box(Modifier.weight(1f)) {
+                                        ActionRogueliteScreen(state,artworkStore,artworkRevision)
+                                    }
+                                }
+                            } else if(!state.journey.classic) {
                                 JourneyExploreScreen(
                                     state=state,store=artworkStore,
                                     revision=artworkRevision,
