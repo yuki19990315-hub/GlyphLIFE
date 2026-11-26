@@ -35,7 +35,7 @@ import kotlin.random.Random
 internal data class ActionRun(
     val floor:Int=1, val seed:Int=13827, val px:Int=1, val py:Int=10,
     val ex:Int=7, val ey:Int=2, val enemyHp:Int=32, val hp:Int=100,
-    val stamina:Int=100, val potions:Int=2, val shards:Int=0,
+    val stamina:Int=100, val potions:Int=2, val shards:Int=3,
     val captures:Int=0, val kills:Int=0, val active:Int=0,
     val invulnerableMs:Int=0, val enemyCooldownMs:Int=650,
     val skillCooldownMs:Int=0, val message:String="遺跡の入口に到着"
@@ -63,7 +63,7 @@ internal object ActionDungeon {
         val s=seed+floor*7919
         return ActionRun(floor=floor,seed=seed,px=4,py=10,
             ex=4,ey=2,enemyHp=24+floor*8,
-            hp=100,enemyCooldownMs=700)
+            hp=100,shards=3,enemyCooldownMs=700)
     }
     fun move(r:ActionRun,dx:Int,dy:Int):ActionRun {
         if(r.dead)return r
