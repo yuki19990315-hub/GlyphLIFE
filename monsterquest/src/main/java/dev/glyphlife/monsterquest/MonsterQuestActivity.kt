@@ -659,7 +659,11 @@ class MonsterQuestActivity : ComponentActivity() {
                                             state=state,store=artworkStore,
                                             revision=artworkRevision,visible=gameVisible,
                                             onVictory={ floor ->
-                                                update(GrowthRules.rewardBattle(state,false,floor))
+                                                val participants=state.partyIds.filter { id ->
+                                                    state.captures.any { it.id==id }
+                                                }.ifEmpty {state.captures.take(3).map {it.id}}
+                                                update(GrowthRules.rewardBattle(
+                                                    state.copy(partyIds=participants),false,floor))
                                             },
                                             onCapture={ wild ->
                                                 if(state.captures.size>=150) {
