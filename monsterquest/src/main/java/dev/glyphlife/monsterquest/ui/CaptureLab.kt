@@ -126,13 +126,14 @@ fun CaptureLab(
             first?.let { monster ->
                 Text("素体＋装備パーツ",style=MaterialTheme.typography.titleMedium)
                 Text("個体画像：64×64を基準にした全身ドット絵。" +
-                    " ここで取り込んだ画像は、同じ仲間が図鑑から敵として出現するときも利用できます。",
+                    " PC版RD Flow 64から出力した透過PNGも取り込めます。" +
+                    " 画像はこの個体・進化段階へ保存され、図鑑や戦闘表示にも反映されます。",
                     style=MaterialTheme.typography.bodySmall)
                 Row(horizontalArrangement=Arrangement.spacedBy(8.dp)) {
                     OutlinedButton(
                         enabled=!inBattle,
                         onClick={ onImportArt?.invoke(monster) },
-                    ) { Text("全身画像を取り込む") }
+                    ) { Text("透過PNGを取り込む（RD Flow対応）") }
                     OutlinedButton(
                         enabled=!inBattle && allowAiEquip && onGenerateArt!=null,
                         onClick={ onGenerateArt?.invoke(monster) }

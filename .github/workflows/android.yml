@@ -36,6 +36,10 @@ jobs:
           else
             echo "pwsh unavailable; optional PowerShell syntax test skipped"
           fi
+      - name: Validate RD Flow 64 import bridge (no model downloads)
+        run: |
+          python3 -m pip install Pillow==12.0.0
+          python3 -m unittest tools/test_rdflow_monster_bridge.py
       - name: Build debug APK (stub Glyph)
         run: gradle --no-daemon :app:testDebugUnitTest :app:assembleDebug :monsterquest:testDebugUnitTest :monsterquest:assembleDebug
       - uses: actions/upload-artifact@v4

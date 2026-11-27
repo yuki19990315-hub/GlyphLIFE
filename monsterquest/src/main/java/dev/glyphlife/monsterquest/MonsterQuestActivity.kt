@@ -40,6 +40,7 @@ import dev.glyphlife.monsterquest.ui.CaptureLab
 import dev.glyphlife.monsterquest.ui.QuestTab
 import dev.glyphlife.monsterquest.ui.QuestBottomNavigation
 import dev.glyphlife.monsterquest.ui.QuestHome
+import dev.glyphlife.monsterquest.ui.ActionRogueliteScreen
 import dev.glyphlife.monsterquest.ui.JourneyExploreScreen
 import dev.glyphlife.monsterquest.ui.TapExplorationScreen
 import dev.glyphlife.monsterquest.ui.QuestSummon
@@ -92,6 +93,7 @@ class MonsterQuestActivity : ComponentActivity() {
                 })
             }
             var selectedTab by remember { mutableStateOf(QuestTab.HOME) }
+            var actionMode by remember { mutableStateOf(true) }
             var journeyHeld by remember { mutableIntStateOf(0) }
             LaunchedEffect(selectedTab) { journeyHeld=0 }
             // A composition may remain alive while the Activity is stopped.
@@ -646,7 +648,51 @@ class MonsterQuestActivity : ComponentActivity() {
                                     }
                                 )
                             }
-                            QuestTab.EXPLORE -> if(!state.journey.classic) {
+                            QuestTab.EXPLORE -> if(actionMode) {
+                                Column(Modifier.fillMaxSize()) {
+                                    TextButton(onClick={actionMode=false},
+                                        modifier=Modifier.fillMaxWidth()) {
+                                        Text("旧版探索へ切り替える（比較用）")
+                                    }
+                                    Box(Modifier.weight(1f)) {
+                                        ActionRogueliteScreen(
+                                            state=state,store=artworkStore,
+                                            revision=artworkRevision,visible=gameVisible,
+                                            onVictory={ floor ->
+                                                val participants=state.partyIds.filter { id ->
+                                                    state.captures.any { it.id==id }
+                                                }.ifEmpty {state.captures.take(3).map {it.id}}
+                                                update(GrowthRules.rewardBattle(
+                                                    state.copy(partyIds=participants),false,floor))
+                                            },
+                                            onCapture={ wild ->
+                                                if(state.captures.size>=150) {
+                                                    notify("所持枠がいっぱいです（150体）。整理してから捕獲してください")
+                                                    false
+                                                } else {
+                                                    val fresh=TalentRules.awaken(wild.copy(
+                                                        id=UUID.randomUUID().toString(),
+                                                        level=1,xp=0,victories=0))
+                                                    val captured=fresh.copy(
+                                                        pixels=artworkStore.glyphFor(fresh))
+                                                    val catalog=if(state.catalog.any {
+                                                        it.species==captured.species &&
+                                                            it.element==captured.element
+                                                    }) state.catalog else
+                                                        (state.catalog+captured).takeLast(150)
+                                                    update(state.copy(
+                                                        captures=state.captures+captured,
+                                                        catalog=catalog,
+                                                        message="${captured.species}を捕獲！"))
+                                                    artworkRevision++
+                                                    notify("${captured.species}を所持・図鑑に登録しました")
+                                                    true
+                                                }
+                                            }
+                                        )
+                                    }
+                                }
+                            } else if(!state.journey.classic) {
                                 JourneyExploreScreen(
                                     state=state,store=artworkStore,
                                     revision=artworkRevision,

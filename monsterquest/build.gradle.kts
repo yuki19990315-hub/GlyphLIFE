@@ -11,8 +11,8 @@ android {
         applicationId = "dev.glyphlife.monsterquest"
         minSdk = 29
         targetSdk = 35
-        versionCode = 46
-        versionName = "5.8.1"
+        versionCode = 50
+        versionName = "6.0.0-preview.2"
     }
     buildFeatures { compose = true }
     defaultConfig { manifestPlaceholders["monsterQuestLabel"] = "Monster Quest" }
